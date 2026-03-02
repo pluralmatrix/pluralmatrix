@@ -82,7 +82,7 @@ const DashboardPage: React.FC = () => {
         };
 
         return () => eventSource.close();
-    }, [token, isOwner]);
+    }, [token, isOwner, urlSlug]);
 
     const handleDelete = async (id: string) => {
         if (!isOwner) return;
@@ -112,8 +112,8 @@ const DashboardPage: React.FC = () => {
         if (!isOwner) return;
         try {
             const newId = system?.autoproxyId === memberId ? null : memberId;
-            const res = await systemService.update({ autoproxyId: newId });
-            setSystem({ ...system, autoproxyId: res.data.autoproxyId });
+            await systemService.update({ autoproxyId: newId });
+            fetchData();
         } catch (e) {
             alert('Failed to update autoproxy setting.');
         }

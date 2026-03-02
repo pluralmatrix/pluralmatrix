@@ -130,6 +130,11 @@ export const syncGhostProfile = async (member: any, system: any) => {
         const bridge = getBridge();
         if (!bridge) return;
 
+        if (!system?.slug || !member?.slug) {
+            console.warn(`[Ghost] Skipping sync: missing system or member slug.`);
+            return;
+        }
+
         const domain = process.env.SYNAPSE_DOMAIN || 'localhost';
         const ghostUserId = `@_plural_${system.slug}_${member.slug}:${domain}`;
         const intent = bridge.getIntent(ghostUserId);

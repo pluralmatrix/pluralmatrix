@@ -86,10 +86,18 @@ describe('PluralMatrix Backup Roundtrip', () => {
         ]);
 
         // 2. Setup mocks for Import
-        // Initially null link, then after importFromPluralKit it should find it
+        // importFromPluralKit calls findUnique for accountLink once.
+        // importAvatarsZip calls findUnique for accountLink once.
         (prisma.accountLink.findUnique as jest.Mock)
-            .mockResolvedValueOnce(null) // 1. Initial check in importFromPluralKit
-            .mockResolvedValue({ system: { ...mockSystem, id: 'new-sys-id', members: mockSystem.members } }); // 2. Call in importAvatarsZip
+            .mockResolvedValueOnce(null) // 1. importFromPluralKit check
+            .mockResolvedValue({
+                system: {
+                    ...mockSystem,
+                    id: 'new-sys-id',
+                    slug: 'seraphim-main',
+                    members: mockSystem.members.map(m => ({ ...m, id: 'new-mem-id' }))
+                }
+            }); // 2. importAvatarsZip call
 
         let savedSystem: any;
         let savedMember: any;
@@ -102,6 +110,10 @@ describe('PluralMatrix Backup Roundtrip', () => {
         (prisma.member.upsert as jest.Mock).mockImplementation((args) => {
             savedMember = { ...args.create, id: 'new-mem-id' };
             return Promise.resolve(savedMember);
+        });
+
+        (prisma.member.update as jest.Mock).mockImplementation((args) => {
+            return Promise.resolve({ ...mockSystem.members[0], ...args.data, id: 'new-mem-id' });
         });
 
         (prisma.accountLink.upsert as jest.Mock).mockResolvedValue({});

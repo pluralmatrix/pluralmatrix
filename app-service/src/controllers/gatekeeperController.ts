@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma, asToken, cryptoManager, getBridge } from '../bot';
+import { prisma, asToken, cryptoManager, getBridge, executeTargetingCommand } from '../bot';
 import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
@@ -59,7 +59,32 @@ export const checkMessage = async (req: Request, res: Response) => {
             return res.json({ action: "ALLOW" });
         }
 
-        if (body.startsWith("\\") || body.toLowerCase().startsWith("pk;")) {
+        if (body.startsWith("\\")) {
+            return res.json({ action: "ALLOW" });
+        }
+
+        // --- ZERO-FLASH FOR COMMANDS ---
+        if (body.toLowerCase().startsWith("pk;")) {
+            const parts = body.split(" ");
+            const cmd = parts[0].substring(3).toLowerCase();
+            if (["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) {
+                if (!isEncryptedSource) {
+                    console.log(`[Gatekeeper] Executing Zero-Flash command ${cmd} for ${event_id}`);
+                    // Construct an event object similar to what bot.ts expects
+                    const mockEvent = {
+                        event_id: event_id,
+                        room_id: room_id,
+                        sender: sender,
+                        content: content
+                    };
+                    executeTargetingCommand(mockEvent, body, system, asToken).catch(e => {
+                        console.error("[Gatekeeper] Failed to execute targeting command:", e.message);
+                    });
+                } else {
+                    console.log(`[Gatekeeper] E2EE Match for command ${cmd} - Letting bot.ts handle execution.`);
+                }
+                return res.json({ action: "BLOCK" });
+            }
             return res.json({ action: "ALLOW" });
         }
 

@@ -306,7 +306,88 @@ const syncPowerLevels = async (bridgeInstance: Bridge, roomId: string, ghostUser
     }
 };
 
+export const executeTargetingCommand = async (event: any, body: string, system: any, currentAsToken: string) => {
+    const bridgeInstance = getBridge();
+    const roomId = event.room_id;
+    const sender = event.sender;
+    const parts = body.split(" ");
+    const cmd = parts[0].substring(3).toLowerCase();
+
+    if (!["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) return false;
+
+    let targetId: string | undefined;
+    let targetSender: string | undefined;
+    let targetContent: any;
+    let originalId: string | undefined;
+
+    const relatesTo = (event.content as any)?.["m.relates_to"];
+    const replyTo = relatesTo?.["m.in_reply_to"]?.event_id;
+
+    const resolution = await resolveGhostMessage(bridgeInstance, bridgeInstance.getBot().getClient(), roomId, system.slug, replyTo);
+    
+    if (resolution) {
+        targetSender = resolution.event.sender;
+        targetContent = resolution.latestContent;
+        targetId = resolution.event.event_id || resolution.event.id;
+        originalId = resolution.originalId;
+    }
+
+    if (!targetId || !targetSender || !targetContent || !originalId) {
+        if (cmd !== "message" && cmd !== "msg" && cmd !== "m") {
+            await sendEncryptedText(bridgeInstance.getIntent(), roomId, "Could not find a proxied message to modify.");
+        }
+        return true; // We handled it (by sending an error or ignoring), should still be redacted
+    }
+
+    // Extract text correctly (plaintext body)
+    const latestText = targetContent["m.new_content"]?.body || targetContent.body;
+
+    if (cmd === "edit" || cmd === "e") {
+        const newText = parts.slice(1).join(" ");
+        if (!newText) return true;
+        const editPayload = {
+            msgtype: "m.text", body: ` * ${newText}`,
+            "m.new_content": { msgtype: "m.text", body: newText },
+            "m.relates_to": { rel_type: "m.replace", event_id: originalId }
+        };
+        await sendEncryptedEvent(bridgeInstance.getIntent(targetSender), roomId, "m.room.message", editPayload, cryptoManager, currentAsToken);
+    } else if (cmd === "reproxy" || cmd === "rp") {
+        const memberSlug = parts[1]?.toLowerCase();
+        const member = system.members.find((m: any) => m.slug === memberSlug);
+        if (member) {
+            if (!latestText) {
+                await sendEncryptedText(bridgeInstance.getIntent(), roomId, "Could not extract the message text to reproxy. This usually happens if the bot can't decrypt the original message.");
+                return true;
+            }
+
+            // Reproxy: Redact old root and send new from new ghost
+            await safeRedact(bridgeInstance, roomId, originalId, "PluralReproxy", bridgeInstance.getIntent(targetSender));
+            
+            const ghostUserId = `@_plural_${system.slug}_${member.slug}:${DOMAIN}`;
+            const intent = bridgeInstance.getIntent(ghostUserId);
+            const finalDisplayName = system.systemTag ? `${member.displayName || member.name} ${system.systemTag}` : (member.displayName || member.name);
+            
+            await intent.ensureRegistered();
+            await intent.join(roomId);
+            await intent.setDisplayName(finalDisplayName);
+            if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl);
+            
+            await sendEncryptedEvent(intent, roomId, "m.room.message", { msgtype: "m.text", body: latestText }, cryptoManager, currentAsToken);
+        } else {
+            await sendEncryptedText(bridgeInstance.getIntent(), roomId, `No member found with ID: ${memberSlug}`);
+        }
+    } else {
+        const subCmd = parts[1]?.toLowerCase();
+        if (subCmd === "-delete" || subCmd === "-d") {
+            await safeRedact(bridgeInstance, roomId, originalId, "UserRequest", bridgeInstance.getIntent(targetSender));
+        }
+    }
+
+    return true;
+};
+
 export const handleEvent = async (request: Request<WeakEvent>, context: BridgeContext | undefined, bridgeInstance: Bridge, prismaClient: PrismaClient, isDecrypted: boolean = false, asTokenArg?: string) => {
+
     const currentAsToken = asTokenArg || asToken;
     const event = request.getData();
     const eventId = event.event_id!;
@@ -779,77 +860,10 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             const system = await proxyCache.getSystemRules(sender, prismaClient);
             if (!system) return;
 
-            let targetId: string | undefined;
-            let targetSender: string | undefined;
-            let targetContent: any;
-            let originalId: string | undefined;
-
-            const relatesTo = (event.content as any)?.["m.relates_to"];
-            const replyTo = relatesTo?.["m.in_reply_to"]?.event_id;
-
-            const resolution = await resolveGhostMessage(bridgeInstance, bridgeInstance.getBot().getClient(), roomId, system.slug, replyTo);
-            
-            if (resolution) {
-                targetSender = resolution.event.sender;
-                targetContent = resolution.latestContent;
-                targetId = resolution.event.event_id || resolution.event.id;
-                originalId = resolution.originalId;
+            const handled = await executeTargetingCommand(event, body, system, currentAsToken);
+            if (handled) {
+                await safeRedact(bridgeInstance, roomId, eventId, "PluralCommand");
             }
-
-            if (!targetId || !targetSender || !targetContent || !originalId) {
-                if (cmd !== "message" && cmd !== "msg" && cmd !== "m") {
-                    await sendEncryptedText(bridgeInstance.getIntent(), roomId, "Could not find a proxied message to modify.");
-                }
-                return;
-            }
-
-            // Extract text correctly (plaintext body)
-            const latestText = targetContent["m.new_content"]?.body || targetContent.body;
-
-            if (cmd === "edit" || cmd === "e") {
-                const newText = parts.slice(1).join(" ");
-                if (!newText) return;
-                const editPayload = {
-                    msgtype: "m.text", body: ` * ${newText}`,
-                    "m.new_content": { msgtype: "m.text", body: newText },
-                    "m.relates_to": { rel_type: "m.replace", event_id: originalId }
-                };
-                await sendEncryptedEvent(bridgeInstance.getIntent(targetSender), roomId, "m.room.message", editPayload, cryptoManager, currentAsToken);
-            } else if (cmd === "reproxy" || cmd === "rp") {
-                const memberSlug = parts[1]?.toLowerCase();
-                const member = system.members.find(m => m.slug === memberSlug);
-                if (member) {
-                    const latestText = targetContent["m.new_content"]?.body || targetContent.body;
-
-                    if (!latestText) {
-                        await sendEncryptedText(bridgeInstance.getIntent(), roomId, "Could not extract the message text to reproxy. This usually happens if the bot can't decrypt the original message.");
-                        return;
-                    }
-
-                    // Reproxy: Redact old root and send new from new ghost
-                    await safeRedact(bridgeInstance, roomId, originalId, "PluralReproxy", bridgeInstance.getIntent(targetSender));
-                    
-                    const ghostUserId = `@_plural_${system.slug}_${member.slug}:${DOMAIN}`;
-                    const intent = bridgeInstance.getIntent(ghostUserId);
-                    const finalDisplayName = system.systemTag ? `${member.displayName || member.name} ${system.systemTag}` : (member.displayName || member.name);
-                    
-                    await intent.ensureRegistered();
-                    await intent.join(roomId);
-                    await intent.setDisplayName(finalDisplayName);
-                    if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl);
-                    
-                    await sendEncryptedEvent(intent, roomId, "m.room.message", { msgtype: "m.text", body: latestText }, cryptoManager, currentAsToken);
-                } else {
-                    await sendEncryptedText(bridgeInstance.getIntent(), roomId, `No member found with ID: ${memberSlug}`);
-                }
-            } else {
-                const subCmd = parts[1]?.toLowerCase();
-                if (subCmd === "-delete" || subCmd === "-d") {
-                    await safeRedact(bridgeInstance, roomId, originalId, "UserRequest", bridgeInstance.getIntent(targetSender));
-                }
-            }
-
-            await safeRedact(bridgeInstance, roomId, eventId, "PluralCommand");
             return;
         }
     }

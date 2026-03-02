@@ -101,13 +101,18 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        // If the slug is changing, we must decommission the old ghost first
+        if (updateData.slug && updateData.slug !== memberToUpdate.slug) {
+            await decommissionGhost(memberToUpdate, link.system);
+        }
+
         const updated = await prisma.member.update({
             where: { id },
             data: updateData,
             include: { system: true }
         }) as any;
 
-        // Sync updated profile to Matrix
+        // Sync updated profile to Matrix (under the new slug if it changed)
         await syncGhostProfile(updated, updated.system);
 
         proxyCache.invalidate(mxid);
@@ -137,8 +142,8 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
         });
         if (!member) return res.status(404).json({ error: 'Member not found' });
 
-        // Cleanup Matrix state (Async)
-        decommissionGhost(member, member.system);
+        // Cleanup Matrix state before DB deletion to ensure ghost leaves rooms
+        await decommissionGhost(member, member.system);
 
         await prisma.member.delete({ where: { id } });
         proxyCache.invalidate(mxid);
@@ -165,7 +170,7 @@ export const deleteAllMembers = async (req: AuthRequest, res: Response) => {
         });
 
         for (const member of members) {
-            decommissionGhost(member, member.system);
+            await decommissionGhost(member, member.system);
         }
 
         await prisma.member.deleteMany({

@@ -194,6 +194,11 @@ describe('System Controller - Multi-Account Linking', () => {
 
             (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([]); // No remaining
 
+            (prisma.system.findUnique as jest.Mock).mockResolvedValue({
+                id: 'sys1',
+                members: [{ id: 'm1', slug: 'm1' }]
+            });
+
             // Overriding the auth middleware for this specific test to simulate deleting the last OTHER account?
             // Actually, if the user deletes the *only other* account, and 0 remain? Wait, the user themselves must remain.
             // But if we mock findMany to return [], it will trigger system deletion.

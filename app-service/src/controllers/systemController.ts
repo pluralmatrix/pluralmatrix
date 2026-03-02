@@ -5,6 +5,8 @@ import { SystemSchema } from '../schemas/member';
 import { proxyCache } from '../services/cache';
 import { emitSystemUpdate, systemEvents } from '../services/events';
 import { messageQueue } from '../services/queue/MessageQueue';
+import { syncGhostProfile, decommissionGhost } from '../import';
+import { z } from 'zod';
 
 import { ensureUniqueSlug } from '../utils/slug';
 import { maskMxid } from '../utils/privacy';
@@ -125,6 +127,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
 
         const currentSystemId = link.systemId;
         let finalSlug = undefined;
+        let slugChanged = false;
 
         if (requestedSlug) {
             // Check if slug is taken by SOME OTHER system
@@ -135,7 +138,29 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
             if (existing && existing.id !== currentSystemId) {
                 return res.status(409).json({ error: `The slug '${requestedSlug}' is already taken.` });
             }
+            
+            // Check if it's actually a change
+            const currentSystem = await prisma.system.findUnique({ where: { id: currentSystemId } });
+            if (currentSystem && currentSystem.slug !== requestedSlug) {
+                slugChanged = true;
+            }
+            
             finalSlug = requestedSlug;
+        }
+
+        // If the system slug is changing, we must decommission all old ghosts
+        let membersToMigrate: any[] = [];
+        if (slugChanged) {
+            const systemWithMembers = await prisma.system.findUnique({
+                where: { id: currentSystemId },
+                include: { members: true }
+            });
+            if (systemWithMembers) {
+                for (const member of systemWithMembers.members) {
+                    await decommissionGhost(member, systemWithMembers);
+                }
+                membersToMigrate = systemWithMembers.members;
+            }
         }
 
         const updated = await prisma.system.update({
@@ -148,10 +173,20 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
             }
         });
 
+        // Re-sync ghosts under the new slug
+        if (slugChanged) {
+            for (const member of membersToMigrate) {
+                await syncGhostProfile(member, updated);
+            }
+        }
+
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
         res.json(updated);
     } catch (e) {
+        if (e instanceof z.ZodError) {
+            return res.status(400).json({ error: 'Invalid input format', details: e.issues });
+        }
         console.error('[SystemController] Update failed:', e);
         res.status(500).json({ error: 'Failed to update system' });
     }
@@ -271,7 +306,17 @@ export const deleteLink = async (req: AuthRequest, res: Response) => {
         });
 
         if (remainingLinks.length === 0) {
-            await prisma.system.delete({ where: { id: link.systemId } });
+            // Unlink last account -> delete entire system and decommission ghosts
+            const fullSystem = await prisma.system.findUnique({
+                where: { id: link.systemId },
+                include: { members: true }
+            });
+            if (fullSystem) {
+                for (const member of fullSystem.members) {
+                    await decommissionGhost(member, fullSystem);
+                }
+                await prisma.system.delete({ where: { id: link.systemId } });
+            }
         } else if (isTargetPrimary) {
             // Promote another account to primary (prefer the current user)
             const nextPrimary = remainingLinks.find(l => l.matrixId.toLowerCase() === mxid.toLowerCase()) || remainingLinks[0];

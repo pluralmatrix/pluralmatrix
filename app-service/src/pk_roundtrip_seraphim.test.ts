@@ -78,7 +78,7 @@ describe('Seraphim PK Roundtrip', () => {
 
     beforeAll(() => {
         // Spy on internal functions to make them fast and avoid external hits
-        migrateSpy = jest.spyOn(importModule, 'migrateAvatar').mockImplementation((url) => Promise.resolve(url));
+        migrateSpy = jest.spyOn(importModule, 'migrateAvatar').mockImplementation((url) => Promise.resolve({ mxcUrl: url }));
         syncSpy = jest.spyOn(importModule, 'syncGhostProfile').mockImplementation(() => Promise.resolve());
     });
 

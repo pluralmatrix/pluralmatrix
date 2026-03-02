@@ -51,6 +51,7 @@ jest.mock('./bot', () => {
     const original = jest.requireActual('./bot');
     return {
         ...original,
+        getBridge: () => mockBridge,
         sendRichText: jest.fn(),
         sendEncryptedText: jest.fn(),
         cryptoManager: {

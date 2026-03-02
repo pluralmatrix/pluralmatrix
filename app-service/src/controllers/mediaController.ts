@@ -10,6 +10,25 @@ export const uploadMedia = async (req: Request, res: Response) => {
         const { filename } = MediaUploadSchema.parse(req.query);
         const contentType = req.headers['content-type'] || 'image/png';
 
+        // --- Server-side Validation ---
+        
+        // 1. Format Check
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(contentType)) {
+            return res.status(400).json({ 
+                error: `The image must be in .jpg, .png, or .webp format. Your file type is ${contentType.split('/')[1] || 'unknown'}.` 
+            });
+        }
+
+        // 2. Size Check (1024 KB)
+        const maxSizeInBytes = 1024 * 1024;
+        const bodyLength = req.body instanceof Buffer ? req.body.length : 0;
+        if (bodyLength > maxSizeInBytes) {
+            return res.status(400).json({ 
+                error: `The image must be under 1024 KB (1 MB). Your image is ${Math.round(bodyLength / 1024)} KB.` 
+            });
+        }
+
         if (!AS_TOKEN) {
             console.error('[MediaController] AS_TOKEN is not configured!');
             return res.status(500).json({ error: 'AS_TOKEN is not configured' });

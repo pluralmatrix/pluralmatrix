@@ -28,10 +28,10 @@ export const importPluralKit = async (req: AuthRequest, res: Response) => {
         const mxid = req.user!.mxid;
         const jsonData = PluralKitImportSchema.parse(req.body);
         const result = await importFromPluralKit(mxid, jsonData);
-        const { count, systemSlug } = result as any;
+        const { count, systemSlug, failedAvatars } = result as any;
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
-        res.json({ success: true, count, systemSlug });
+        res.json({ success: true, count, systemSlug, failedAvatars });
     } catch (e) {
         console.error('[ImportController] JSON Import failed:', e);
         res.status(400).json({ error: 'Invalid JSON format' });
@@ -70,7 +70,12 @@ export const importZip = async (req: AuthRequest, res: Response) => {
         const result = await importSystemZip(mxid, req.body);
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
-        res.json({ success: true, count: result.count, systemSlug: result.systemSlug });
+        res.json({ 
+            success: true, 
+            count: result.count, 
+            systemSlug: result.systemSlug,
+            failedAvatars: result.failedAvatars 
+        });
     } catch (e) {
         console.error('[ImportController] ZIP Import failed:', e);
         res.status(400).json({ error: 'Failed to process ZIP backup' });

@@ -2,6 +2,7 @@ import { importFromPluralKit, generatePkJson, generateBackupJson, stringifyWithE
 import { prisma } from './bot';
 import { PassThrough } from 'stream';
 import AdmZip from 'adm-zip';
+import * as importModule from './import';
 
 // Stable mocks for deep nesting
 const mockBotClient = {
@@ -59,8 +60,11 @@ async function streamToBuffer(stream: PassThrough): Promise<Buffer> {
 }
 
 describe('PluralKit Roundtrip', () => {
+    let imageValidationSpy: jest.SpyInstance;
+
     beforeEach(() => {
         jest.clearAllMocks();
+        imageValidationSpy = jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
         // Mock fetch for avatar migration globally
         global.fetch = jest.fn().mockImplementation((url) => {
             return Promise.resolve({
@@ -316,6 +320,7 @@ describe('PluralKit Roundtrip', () => {
             const result = await importAvatarsZip('@user:localhost', zipBuffer);
 
             expect(result.count).toBe(1);
+            expect(result.failedAvatars).toHaveLength(0);
             
             expect(mockBotClient.uploadContent).toHaveBeenCalledWith(
                 originalData,

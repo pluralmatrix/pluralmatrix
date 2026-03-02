@@ -128,7 +128,7 @@ describe('Importer Logic', () => {
             const { migrateAvatar } = require('./import');
             const url = 'mxc://localhost/12345';
             const result = await migrateAvatar(url);
-            expect(result).toBe(url);
+            expect(result).toEqual({ mxcUrl: url });
         });
     });
 

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Save, Plus, Trash2, Camera } from 'lucide-react';
 import { memberService } from '../services/api';
 import { getAvatarUrl } from '../utils/matrix';
+import { validateAvatarImage } from '../utils/imageValidation';
 
 interface MemberEditorProps {
     member?: any;
@@ -49,9 +50,19 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            // 1. Client-side validation
             setLoading(true);
+            const validation = await validateAvatarImage(file);
+            if (!validation.valid) {
+                alert(validation.error);
+                setLoading(false);
+                return;
+            }
+
             try {
-                const res = await memberService.uploadMedia(e.target.files[0]);
+                const res = await memberService.uploadMedia(file);
                 setFormData({ ...formData, avatarUrl: res.data.content_uri });
             } catch (err) {
                 alert('Avatar upload failed.');
@@ -118,7 +129,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                     <div className="p-8 space-y-8 text-slate-200">
                         {/* Avatar & Basic Info */}
                         <div className="flex flex-col md:flex-row gap-8 items-start">
-                            <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0">
+                            <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32">
                                 <div className="relative group w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
                                     {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
                                         <img src={getAvatarUrl(formData.avatarUrl)!} className="w-full h-full object-cover" alt="Avatar" />
@@ -130,12 +141,12 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                     {!isReadOnly && (
                                         <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-3xl">
                                             <Camera className="text-white" size={24} />
-                                            <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                                            <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
                                         </label>
                                     )}
                                 </div>
 
-                                {/* Restore original color picker placement */}
+                                {/* Theme Color */}
                                 <div className="space-y-1">
                                     <label className="block text-[10px] font-bold text-matrix-muted uppercase tracking-widest">Theme Color</label>
                                     <div className="flex items-center space-x-2">

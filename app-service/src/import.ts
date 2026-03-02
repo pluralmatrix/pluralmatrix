@@ -6,6 +6,14 @@ import { maskMxid } from './utils/privacy';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import imageSize from 'image-size';
+import os from 'os';
+
+export interface AvatarMigrationError {
+    slug: string;
+    name: string;
+    error: string;
+}
 
 /**
  * Generates a random alphabetic ID like PluralKit (e.g. "abcde")
@@ -95,35 +103,81 @@ export const extractNameFromDescription = (description: string | null): string |
 };
 
 /**
+ * Validates an image buffer against avatar limits.
+ */
+export const validateImageBuffer = (buffer: Buffer, filename: string): { valid: boolean, error?: string } => {
+    // 1. Size Check (1024 KB)
+    const maxSize = 1024 * 1024;
+    if (buffer.length > maxSize) {
+        return { valid: false, error: `Image too large (${Math.round(buffer.length / 1024)} KB). Must be under 1024 KB.` };
+    }
+
+    // 2. Format & Resolution Check
+    try {
+        const dimensions = imageSize(buffer);
+        const format = dimensions.type;
+        
+        const validFormats = ['jpg', 'png', 'webp'];
+        if (!format || !validFormats.includes(format)) {
+            return { valid: false, error: `Invalid format (${format || 'unknown'}). Must be .jpg, .png, or .webp.` };
+        }
+
+        const smallestAxis = Math.min(dimensions.width || 0, dimensions.height || 0);
+        if (smallestAxis >= 1000) {
+            return { valid: false, error: `Resolution too high (${dimensions.width}x${dimensions.height}). Smallest axis must be below 1000px.` };
+        }
+
+        const largestAxis = Math.max(dimensions.width || 0, dimensions.height || 0);
+        if (largestAxis > 4000) {
+            return { valid: false, error: `Resolution too high (${dimensions.width}x${dimensions.height}). Largest axis must be 4000px or fewer.` };
+        }
+    } catch (e) {
+        return { valid: false, error: "Failed to parse image dimensions or format." };
+    }
+
+    return { valid: true };
+};
+
+/**
  * Downloads an image from a URL and uploads it to the Matrix media repository.
  */
-export const migrateAvatar = async (url: string): Promise<string | null> => {
+export const migrateAvatar = async (url: string): Promise<{ mxcUrl?: string, error?: string } | null> => {
     if (!url) return null;
     
-    // If it's already an mxc:// URL, don't try to migrate it
-    if (url.startsWith('mxc://')) return url;
+    // If it's already an mxc:// URL, return it as-is
+    if (url.startsWith('mxc://')) return { mxcUrl: url };
+
+    // 1. URL Length Check
+    if (url.length > 256) {
+        return { error: `Avatar URL too long (${url.length} chars). Max 256 characters.` };
+    }
 
     try {
         const bridge = getBridge();
         if (!bridge) return null;
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s for download
 
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(timeoutId);
         
-        if (!response.ok) return null;
+        if (!response.ok) return { error: `Server returned ${response.status} ${response.statusText}` };
 
         const buffer = Buffer.from(await response.arrayBuffer());
         const contentType = response.headers.get('content-type') || 'image/png';
 
-        const mxcUrl = await bridge.getBot().getClient().uploadContent(buffer, contentType, 'avatar.png');
+        // 2. Validate Image Content
+        const validation = validateImageBuffer(buffer, 'avatar');
+        if (!validation.valid) {
+            return { error: validation.error };
+        }
 
-        return mxcUrl;
-    } catch (e) {
-        console.error(`[Importer] Failed to migrate an avatar:`, e);
-        return null;
+        const mxcUrl = await bridge.getBot().getClient().uploadContent(buffer, contentType, 'avatar.png');
+        return { mxcUrl };
+    } catch (e: any) {
+        const message = e.name === 'AbortError' ? "Download timed out" : e.message;
+        return { error: message };
     }
 };
 
@@ -191,12 +245,11 @@ export const decommissionGhost = async (member: any, system: any) => {
 };
 
 import { ensureUniqueSlug } from './utils/slug';
-import os from 'os';
 
 /**
  * Main importer logic for PluralKit JSON.
  */
-export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<{ count: number, systemSlug: string }> => {
+export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<{ count: number, systemSlug: string, failedAvatars: AvatarMigrationError[] }> => {
     console.log(`[Importer] Starting import for ${maskMxid(mxid)}`);
 
     const isPluralMatrix = jsonData.pluralmatrix_metadata !== undefined || jsonData.config?.pluralmatrix_version !== undefined;
@@ -305,6 +358,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
     }
 
     let importedCount = 0;
+    const failedAvatars: AvatarMigrationError[] = [];
 
     for (const pkMember of processedMembers) {
         try {
@@ -313,7 +367,12 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
                 .filter((t: any) => t.prefix)
                 .map((t: any) => ({ prefix: t.prefix, suffix: t.suffix || "" }));
 
-            const avatarUrl = await migrateAvatar(pkMember.avatar_url);
+            const migrationResult = await migrateAvatar(pkMember.avatar_url);
+            let avatarUrl = migrationResult?.mxcUrl;
+            
+            if (migrationResult?.error) {
+                failedAvatars.push({ slug, name: pkMember.name, error: migrationResult.error });
+            }
 
             const memberData = {
                 name: pkMember.name,
@@ -353,7 +412,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
     }
 
     console.log(`[Importer] Successfully imported ${importedCount} members for ${maskMxid(mxid)}`);
-    return { count: importedCount, systemSlug: system.slug };
+    return { count: importedCount, systemSlug: system.slug, failedAvatars };
 };
 
 /**
@@ -632,7 +691,7 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
 /**
  * Unified ZIP importer.
  */
-export const importSystemZip = async (mxid: string, zipBuffer: Buffer): Promise<{ count: number, systemSlug: string }> => {
+export const importSystemZip = async (mxid: string, zipBuffer: Buffer): Promise<{ count: number, systemSlug: string, failedAvatars: AvatarMigrationError[] }> => {
     const zip = new AdmZip(zipBuffer);
     const entries = zip.getEntries();
     
@@ -643,7 +702,10 @@ export const importSystemZip = async (mxid: string, zipBuffer: Buffer): Promise<
     
     const result = await importFromPluralKit(mxid, jsonData);
 
-    await importAvatarsZip(mxid, zipBuffer);
+    const zipResult = await importAvatarsZip(mxid, zipBuffer);
+    
+    // Merge failed avatars from ZIP phase
+    result.failedAvatars.push(...zipResult.failedAvatars);
 
     return result;
 };
@@ -652,7 +714,7 @@ export const importSystemZip = async (mxid: string, zipBuffer: Buffer): Promise<
 /**
  * Imports a ZIP of avatars and updates member mappings.
  */
-export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer) => {
+export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise<{ count: number, failedAvatars: AvatarMigrationError[] }> => {
     const link = await prisma.accountLink.findUnique({
         where: { matrixId: mxid },
         include: { 
@@ -671,11 +733,14 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer) => {
     if (!bridge) throw new Error("Bridge not initialized");
 
     let count = 0;
+    const failedAvatars: AvatarMigrationError[] = [];
 
     for (const entry of entries) {
         if (entry.isDirectory) continue;
 
         const filename = entry.entryName;
+        if (!filename.startsWith('avatars/')) continue;
+
         const namePart = filename.split('/').pop()?.split('.')[0];
         if (!namePart) continue;
 
@@ -690,7 +755,18 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer) => {
         if (affectedMembers.length === 0) continue;
 
         try {
-            const mxcUrl = await bridge.getBot().getClient().uploadContent(entry.getData(), contentType, filename);
+            const data = entry.getData();
+            
+            // Validate Image Content
+            const validation = validateImageBuffer(data, filename);
+            if (!validation.valid) {
+                for (const member of affectedMembers) {
+                    failedAvatars.push({ slug: member.slug, name: member.name, error: validation.error! });
+                }
+                continue;
+            }
+
+            const mxcUrl = await bridge.getBot().getClient().uploadContent(data, contentType, filename);
 
             for (const member of affectedMembers) {
                 const updated = await prisma.member.update({
@@ -700,10 +776,13 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer) => {
                 await syncGhostProfile(updated, system);
             }
             count++;
-        } catch (e) {
+        } catch (e: any) {
             console.error(`[Import] Failed to re-upload avatar ${filename}:`, e);
+            for (const member of affectedMembers) {
+                failedAvatars.push({ slug: member.slug, name: member.name, error: e.message });
+            }
         }
     }
 
-    return { count, systemSlug: system.slug };
+    return { count, failedAvatars };
 };

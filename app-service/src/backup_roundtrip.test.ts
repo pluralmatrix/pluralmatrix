@@ -2,6 +2,7 @@ import { exportSystemZip, importSystemZip } from './import';
 import { prisma } from './bot';
 import { PassThrough } from 'stream';
 import AdmZip from 'adm-zip';
+import * as importModule from './import';
 
 const mockBotClient = {
     uploadContent: jest.fn().mockResolvedValue('mxc://new/avatar')
@@ -39,8 +40,11 @@ jest.mock('./bot', () => ({
 }));
 
 describe('PluralMatrix Backup Roundtrip', () => {
+    let imageValidationSpy: jest.SpyInstance;
+
     beforeEach(() => {
         jest.clearAllMocks();
+        imageValidationSpy = jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
         global.fetch = jest.fn().mockImplementation(() => Promise.resolve({
             ok: true,
             headers: { get: () => 'image/png' },
@@ -123,6 +127,7 @@ describe('PluralMatrix Backup Roundtrip', () => {
 
         // 4. Verify Results
         expect(importResult.count).toBe(1);
+        expect(importResult.failedAvatars).toHaveLength(0);
         expect(importResult.systemSlug).toBe('seraphim-main');
 
         expect(prisma.system.create).toHaveBeenCalledWith(expect.objectContaining({

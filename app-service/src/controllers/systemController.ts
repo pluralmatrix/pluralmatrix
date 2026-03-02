@@ -18,7 +18,6 @@ export const streamSystemEvents = async (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
 
     // Send initial heartbeat
     res.write(': heartbeat\n\n');
@@ -47,7 +46,16 @@ export const getPublicSystem = async (req: Request, res: Response) => {
         const slug = req.params.slug as string;
         const system = await prisma.system.findUnique({
             where: { slug },
-            include: {
+            select: {
+                slug: true,
+                name: true,
+                systemTag: true,
+                description: true,
+                pronouns: true,
+                avatarUrl: true,
+                banner: true,
+                color: true,
+                createdAt: true,
                 members: {
                     select: {
                         id: true,

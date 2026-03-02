@@ -68,6 +68,7 @@ app.post('/links/primary', mockAuth('@alice:localhost'), systemController.setPri
 app.get('/dlq', mockAuth('@alice:localhost'), systemController.getDeadLetters);
 app.delete('/dlq/:id', mockAuth('@alice:localhost'), systemController.deleteDeadLetter);
 app.patch('/system', mockAuth('@alice:localhost'), systemController.updateSystem);
+app.get('/public/:slug', systemController.getPublicSystem);
 
 import { decommissionGhost, syncGhostProfile } from '../import';
 
@@ -332,6 +333,37 @@ describe('System Controller', () => {
             expect(res.status).toBe(400);
             expect(res.body.error).toBe('Invalid input format');
             expect(prisma.system.update).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('GET /public/:slug', () => {
+        it('should return only safe fields for unauthenticated users', async () => {
+            const mockPublicData = {
+                slug: 'sys1',
+                name: 'Public System',
+                systemTag: '🚀',
+                members: [
+                    { id: 'm1', slug: 'alice', name: 'Alice' }
+                ]
+            };
+
+            (prisma.system.findUnique as jest.Mock).mockResolvedValue(mockPublicData);
+
+            const res = await request(app).get('/public/sys1');
+
+            expect(res.status).toBe(200);
+            expect(res.body.slug).toBe('sys1');
+            expect(res.body.name).toBe('Public System');
+            // Ensure internal fields are missing
+            expect(res.body.id).toBeUndefined();
+            expect(res.body.autoproxyId).toBeUndefined();
+            expect(res.body.pkId).toBeUndefined();
+        });
+
+        it('should return 404 if system not found', async () => {
+            (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
+            const res = await request(app).get('/public/missing');
+            expect(res.status).toBe(404);
         });
     });
 });

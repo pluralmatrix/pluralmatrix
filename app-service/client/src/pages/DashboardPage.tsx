@@ -42,7 +42,7 @@ const DashboardPage: React.FC = () => {
             if (token) {
                 try {
                     const ownRes = await systemService.get();
-                    if (ownRes.data.id === pubSystem.id) {
+                    if (ownRes.data.slug === pubSystem.slug) {
                         setIsOwner(true);
                     } else {
                         setIsOwner(false);

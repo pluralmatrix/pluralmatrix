@@ -67,8 +67,16 @@ app.delete('/links/:mxid', mockAuth('@alice:localhost'), systemController.delete
 app.post('/links/primary', mockAuth('@alice:localhost'), systemController.setPrimaryAccount);
 app.get('/dlq', mockAuth('@alice:localhost'), systemController.getDeadLetters);
 app.delete('/dlq/:id', mockAuth('@alice:localhost'), systemController.deleteDeadLetter);
+app.patch('/system', mockAuth('@alice:localhost'), systemController.updateSystem);
 
-describe('System Controller - Multi-Account Linking', () => {
+import { decommissionGhost, syncGhostProfile } from '../import';
+
+jest.mock('../import', () => ({
+    syncGhostProfile: jest.fn().mockResolvedValue(null),
+    decommissionGhost: jest.fn().mockResolvedValue(null)
+}));
+
+describe('System Controller', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
@@ -252,6 +260,78 @@ describe('System Controller - Multi-Account Linking', () => {
             const res = await request(app).delete('/dlq/dl123');
             expect(res.status).toBe(200);
             expect(messageQueue.deleteDeadLetter).toHaveBeenCalledWith('dl123');
+        });
+    });
+
+    describe('PATCH /system', () => {
+        it('should decommission all ghosts and resync them if the system slug changes', async () => {
+            const mockSystemWithMembers = {
+                id: 'sys1',
+                slug: 'old-sys-slug',
+                members: [
+                    { id: 'm1', slug: 'alice' },
+                    { id: 'm2', slug: 'bob' }
+                ]
+            };
+
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+            
+            // First call checks if the new slug is taken (returns null meaning it's free)
+            // Second call gets the current system to check if it changed
+            // Third call gets the system with members to decommission
+            (prisma.system.findUnique as jest.Mock)
+                .mockResolvedValueOnce(null)
+                .mockResolvedValueOnce({ id: 'sys1', slug: 'old-sys-slug' })
+                .mockResolvedValueOnce(mockSystemWithMembers);
+
+            const updatedSystem = { id: 'sys1', slug: 'new-sys-slug' };
+            (prisma.system.update as jest.Mock).mockResolvedValue(updatedSystem);
+
+            const res = await request(app)
+                .patch('/system')
+                .send({ slug: 'new-sys-slug' });
+
+            expect(res.status).toBe(200);
+            
+            // Should decommission the old ghosts
+            expect(decommissionGhost).toHaveBeenCalledTimes(2);
+            expect(decommissionGhost).toHaveBeenCalledWith(mockSystemWithMembers.members[0], mockSystemWithMembers);
+            expect(decommissionGhost).toHaveBeenCalledWith(mockSystemWithMembers.members[1], mockSystemWithMembers);
+            
+            // Should sync the new ghosts under the updated system
+            expect(syncGhostProfile).toHaveBeenCalledTimes(2);
+            expect(syncGhostProfile).toHaveBeenCalledWith(mockSystemWithMembers.members[0], updatedSystem);
+            expect(syncGhostProfile).toHaveBeenCalledWith(mockSystemWithMembers.members[1], updatedSystem);
+        });
+
+        it('should NOT decommission ghosts if the system slug is unchanged', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+            
+            (prisma.system.findUnique as jest.Mock)
+                .mockResolvedValueOnce(null)
+                .mockResolvedValueOnce({ id: 'sys1', slug: 'same-slug' });
+
+            (prisma.system.update as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug', name: 'New Name' });
+
+            const res = await request(app)
+                .patch('/system')
+                .send({ slug: 'same-slug', name: 'New Name' });
+
+            expect(res.status).toBe(200);
+            
+            // Should NOT decommission or resync
+            expect(decommissionGhost).not.toHaveBeenCalled();
+            expect(syncGhostProfile).not.toHaveBeenCalled();
+        });
+
+        it('should return 400 Bad Request on Zod validation failure', async () => {
+            const res = await request(app)
+                .patch('/system')
+                .send({ slug: 'INVALID SLUG WITH SPACES' });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('Invalid input format');
+            expect(prisma.system.update).not.toHaveBeenCalled();
         });
     });
 });

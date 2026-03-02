@@ -41,7 +41,20 @@ trusted_key_servers:
 app_service_config_files:
   - /data/app-service-registration.yaml
 
-# Modules (The Gatekeeper)
+# Relaxed rate limits for E2E testing (Uncomment if tests fail with M_LIMIT_EXCEEDED)
+# rc_registration:
+#   address:
+#     per_second: 50
+#     burst_count: 100
+# rc_login:
+#   address:
+#     per_second: 50
+#     burst_count: 100
+# rc_message:
+#   per_second: 100
+#   burst_count: 1000
+
+# Modules
 modules:
   - module: plural_gatekeeper.PluralGatekeeper
     config:

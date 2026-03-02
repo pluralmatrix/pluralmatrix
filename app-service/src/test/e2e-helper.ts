@@ -1,21 +1,43 @@
 import { execSync } from 'child_process';
-import { MatrixClient } from '@vector-im/matrix-bot-sdk';
+import { MatrixClient, RustSdkCryptoStorageProvider, MemoryStorageProvider } from '@vector-im/matrix-bot-sdk';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const SYNAPSE_URL = "http://localhost:8008";
 const APP_SERVICE_URL = "http://localhost:9000";
 
-export const registerUser = (username: string, password: string): string => {
-    console.log(`[E2E] Registering user ${username}...`);
+const printRateLimitHelp = () => {
+    console.error(`
+================================================================================
+⚠️  E2E FAILURE: M_LIMIT_EXCEEDED detected!
+================================================================================
+Your Synapse server is rate-limiting the E2E tests. To fix this:
+
+1. Open 'synapse/config/homeserver.yaml'
+2. Uncomment the 'rc_registration', 'rc_login', and 'rc_message' blocks 
+   (see 'synapse/config/homeserver.yaml.example' for reference).
+3. Restart Synapse: ./restart-stack.sh
+4. Run tests again.
+================================================================================
+`);
+};
+
+export const registerUser = async (username: string, password: string): Promise<string> => {
+    console.log(`[E2E] Registering user ${username} with password ${password}...`);
     const projectName = process.env.PROJECT_NAME || 'pluralmatrix';
+    const domain = 'localhost';
     try {
         const cmd = `sudo docker exec ${projectName}-synapse register_new_matrix_user -c /data/homeserver.yaml -u ${username} -p ${password} --admin http://localhost:8008`;
         execSync(cmd, { stdio: 'pipe' });
         console.log(`[E2E] User ${username} registered successfully.`);
-        return `@${username}:localhost`;
+        return `@${username}:${domain}`;
     } catch (e: any) {
         if (e.message.includes('User ID already taken')) {
             console.log(`[E2E] User ${username} already exists.`);
-            return `@${username}:localhost`;
+            return `@${username}:${domain}`;
+        }
+        if (e.message.includes('M_LIMIT_EXCEEDED')) {
+            printRateLimitHelp();
         }
         console.error(`[E2E] Registration failed for ${username}:`, e.message);
         throw e;
@@ -36,12 +58,26 @@ export const getMatrixClient = async (username: string, password: string): Promi
     
     const data = await response.json() as any;
     if (!response.ok) {
+        if (data.errcode === 'M_LIMIT_EXCEEDED') {
+            printRateLimitHelp();
+        }
         console.error(`[E2E] Matrix login failed for ${username}:`, JSON.stringify(data));
         throw new Error(`Login failed: ${JSON.stringify(data)}`);
     }
     
     console.log(`[E2E] User ${username} logged in to Matrix.`);
-    return new MatrixClient(SYNAPSE_URL, data.access_token);
+
+    // Enable E2EE for E2E tests
+    const storagePath = path.join(process.cwd(), 'data', 'e2e_crypto', username);
+    if (!fs.existsSync(storagePath)) {
+        fs.mkdirSync(storagePath, { recursive: true });
+    }
+
+    // In modern matrix-bot-sdk, the 3rd arg is the base storage, 4th is crypto
+    const baseStorage = new MemoryStorageProvider();
+    const crypto = new RustSdkCryptoStorageProvider(storagePath, 0); // 0 = Sqlite (usually)
+    
+    return new MatrixClient(SYNAPSE_URL, data.access_token, baseStorage, crypto);
 };
 
 export const getPluralMatrixToken = async (mxid: string, password: string): Promise<string> => {

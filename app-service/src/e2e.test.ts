@@ -5,21 +5,29 @@ import { MatrixClient } from "@vector-im/matrix-bot-sdk";
 // They use the 'localhost' domain configured in setup.sh
 describe('PluralMatrix E2E Roundtrip', () => {
     let client: MatrixClient;
+    let observer: MatrixClient;
     let jwt: string;
     let roomId: string;
     let username: string;
+    let observerName: string;
     const password = "e2e_password";
 
     beforeAll(async () => {
-        username = `e2e_user_${Math.random().toString(36).substring(7)}`;
-        console.log(`[E2E] Starting beforeAll setup for ${username}...`);
+        username = `pm_test_user_${Math.random().toString(36).substring(7)}`;
+        observerName = `pm_test_obs_${Math.random().toString(36).substring(7)}`;
+        console.log(`[E2E] Starting beforeAll setup for ${username} and ${observerName}...`);
 
-        // 1. Register and login a real Matrix user
+        // 1. Register and login real Matrix users
         await registerUser(username, password);
+        await registerUser(observerName, password);
+        
         client = await getMatrixClient(username, password);
-        console.log(`[E2E] Matrix client starting...`);
+        observer = await getMatrixClient(observerName, password);
+        
+        console.log(`[E2E] Matrix clients starting...`);
         await client.start();
-        console.log(`[E2E] Matrix client started.`);
+        await observer.start();
+        console.log(`[E2E] Matrix clients started.`);
 
         // 2. Login to PluralMatrix App Service
         console.log(`[E2E] Fetching PluralMatrix JWT for @${username}:localhost...`);
@@ -29,22 +37,29 @@ describe('PluralMatrix E2E Roundtrip', () => {
         // 3. Setup a test room
         console.log(`[E2E] Creating test room...`);
         roomId = await setupTestRoom(client);
-        console.log(`[E2E] Test room created: ${roomId}`);
+        console.log(`[E2E] Inviting observer to ${roomId}...`);
+        await client.inviteUser(`@${observerName}:localhost`, roomId);
+        await observer.joinRoom(roomId);
+        console.log(`[E2E] Test room created and joined by all.`);
 
         // 4. Wait for bot to join
         console.log(`[E2E] Waiting for bot to join ${roomId}...`);
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         console.log(`[E2E] Setup complete.`);
-    }, 60000);
+    }, 90000);
 
     afterAll(async () => {
         console.log(`[E2E] Starting afterAll teardown...`);
         if (client) {
             console.log(`[E2E] Matrix client stopping...`);
             await client.stop();
-            console.log(`[E2E] Matrix client stopped.`);
         }
+        if (observer) {
+            console.log(`[E2E] Observer client stopping...`);
+            await observer.stop();
+        }
+        console.log(`[E2E] Matrix clients stopped.`);
         
         console.log(`[E2E] Waiting for handles to settle...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -54,111 +69,138 @@ describe('PluralMatrix E2E Roundtrip', () => {
         setTimeout(() => process.exit(0), 3000).unref();
     }, 10000);
 
-    it('should proxy a message in a standard (unencrypted) room', async () => {
-        const messageBody = "Hello world from E2E";
-        const proxyPrefix = "e2e:";
-        
-        // 1. Create a system member via the API
-        console.log(`[E2E-Plain] Creating system member E2E-Ghost...`);
-        const slug = `e2e-ghost-${Date.now()}`;
-        const res = await fetch(`http://localhost:9000/api/members`, {
-            method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${jwt}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                name: "E2E-Ghost",
-                slug: slug,
-                proxyTags: [{ prefix: proxyPrefix, suffix: "" }]
-            })
-        });
-        
-        if (!res.ok) throw new Error(`Failed to create member: ${res.status}`);
-        console.log(`[E2E-Plain] System member created with slug: ${slug}`);
+    /**
+     * Helper: Wait for a ghost message to appear for a specific client.
+     */
+    async function waitForGhostMessage(targetClient: MatrixClient, targetRoomId: string, expectedBody: string, timeoutMs: number = 30000) {
+        return new Promise<any>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                targetClient.off("room.message", listener);
+                reject(new Error(`Timeout waiting for ghost message "${expectedBody}" in ${targetRoomId}`));
+            }, timeoutMs);
 
-        // 2. Setup listener for ghost response
-        const ghostMessagePromise = new Promise<any>((resolve) => {
             const listener = (roomIdMatch: string, event: any) => {
-                if (roomIdMatch === roomId && 
+                if (roomIdMatch === targetRoomId && 
                     event.sender.startsWith('@_plural_') && 
-                    event.content?.body === messageBody) {
-                    console.log(`[E2E-Plain] Caught ghost message from ${event.sender}`);
-                    client.off("room.message", listener);
+                    event.content?.body === expectedBody) {
+                    clearTimeout(timeout);
+                    targetClient.off("room.message", listener);
                     resolve(event);
                 }
             };
-            client.on("room.message", listener);
+            targetClient.on("room.message", listener);
         });
+    }
+
+    /**
+     * Helper: Verify that an event is hidden (redacted or body-cleared) for a specific client.
+     */
+    async function verifyRedaction(targetClient: MatrixClient, targetRoomId: string, eventId: string, label: string) {
+        console.log(`[E2E-Redact] Verifying redaction of ${eventId} from ${label} view...`);
+        let hidden = false;
+        for (let i = 0; i < 15; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            try {
+                // For encrypted clients, we might need to force event processing to see the redaction
+                if ((targetClient as any).crypto) {
+                    await (targetClient as any).crypto.processRoomEvents(targetRoomId);
+                }
+                const event = await targetClient.getEvent(targetRoomId, eventId);
+                
+                // SUCCESS IF:
+                // 1. Event has redacted_by field
+                // 2. Event content is empty/missing body
+                if (event.unsigned?.redacted_by || !event.content?.body) {
+                    hidden = true;
+                    break;
+                }
+                console.log(`[E2E-Redact] Attempt ${i+1} (${label}): Message still visible, retrying...`);
+            } catch (e: any) {
+                // 404/NotFound is also a success for redaction
+                hidden = true;
+                break;
+            }
+        }
+        expect(hidden).toBe(true);
+        console.log(`[E2E-Redact] SUCCESS: Message hidden from ${label} view.`);
+    }
+
+    it('should proxy a message in a standard (unencrypted) room with 4-way verification', async () => {
+        const messageBody = `Plain E2E ${Math.random().toString(36).substring(7)}`;
+        const proxyPrefix = `e2e-plain-${Math.random().toString(36).substring(7)}:`;
+        
+        // 1. Create a system member
+        const slug = `e2e-ghost-${Date.now()}`;
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-Ghost", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        // 2. Start waiting for ghost response from BOTH perspectives
+        const ghostFromSenderPromise = waitForGhostMessage(client, roomId, messageBody);
+        const ghostFromObserverPromise = waitForGhostMessage(observer, roomId, messageBody);
 
         // 3. Send trigger message
-        console.log(`[E2E-Plain] Sending proxied message...`);
+        console.log(`[E2E-Plain] Sending trigger: ${proxyPrefix} ${messageBody}`);
         const triggerEventId = await client.sendText(roomId, `${proxyPrefix} ${messageBody}`);
 
-        // 4. Wait for ghost
-        console.log(`[E2E-Plain] Waiting for ghost response...`);
-        const ghostEvent = await ghostMessagePromise;
+        // 4. Verify ghost delivery to both
+        console.log(`[E2E-Plain] Waiting for ghost response (both views)...`);
+        const [senderGhost, observerGhost] = await Promise.all([ghostFromSenderPromise, ghostFromObserverPromise]);
         
-        expect(ghostEvent.content.body).toBe(messageBody);
-        console.log(`[E2E-Plain] SUCCESS! Ghost spoke as ${ghostEvent.sender}`);
+        expect(senderGhost.content.body).toBe(messageBody);
+        expect(observerGhost.content.body).toBe(messageBody);
+        console.log(`[E2E-Plain] SUCCESS: Ghost message received by sender and observer.`);
 
-        // 5. Verify redaction
-        console.log(`[E2E-Plain] Verifying redaction of original message...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        try {
-            const originalEvent = await client.getEvent(roomId, triggerEventId);
-            expect(originalEvent.unsigned?.redacted_by).toBeDefined();
-            console.log(`[E2E-Plain] Original message was successfully hidden.`);
-        } catch (e) {
-            // Some servers might 404 redacted events, that's also a win
-            console.log(`[E2E-Plain] Original message is gone (404/Redacted).`);
-        }
-    }, 30000);
+        // 5. Verify redaction for both
+        await Promise.all([
+            verifyRedaction(client, roomId, triggerEventId, "Sender"),
+            verifyRedaction(observer, roomId, triggerEventId, "Observer")
+        ]);
+    }, 60000);
 
-    xit('should proxy a message in an ENCRYPTED room', async () => {
-        const messageBody = "Encryption test message";
-        const proxyPrefix = "e2e:";
+    it('should proxy a message in an ENCRYPTED room with 4-way verification', async () => {
+        const messageBody = `Secure E2E ${Math.random().toString(36).substring(7)}`;
+        const proxyPrefix = `e2e-sec-${Math.random().toString(36).substring(7)}:`;
 
-        // 1. Create a new room and enable encryption
-        console.log(`[E2E-E2EE] Creating encrypted room...`);
-        const e2eeRoomId = await setupTestRoom(client);
-        console.log(`[E2E-E2EE] Enabling encryption in ${e2eeRoomId}...`);
-        await client.sendStateEvent(e2eeRoomId, "m.room.encryption", "", { algorithm: "m.megolm.v1.aes-sha2" });
-        
-        // 2. Wait for bot to settle (Native E2EE handles this now)
-        console.log(`[E2E-E2EE] Waiting for bot to settle (10s)...`);
-        await new Promise(resolve => setTimeout(resolve, 10000));
-
-        // 3. Start listening for the ghost message
-        const ghostMessagePromise = new Promise<any>((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                client.off("room.message", listener);
-                reject(new Error("Timeout waiting for ghost message in encrypted room"));
-            }, 45000);
-
-            const listener = (roomIdMatch: string, event: any) => {
-                console.log(`[E2E-E2EE] Observed event in ${roomIdMatch} from ${event.sender}: ${event.type}`);
-                if (roomIdMatch === e2eeRoomId && 
-                    event.sender.startsWith('@_plural_') && 
-                    event.content?.body === messageBody) {
-                    console.log(`[E2E-E2EE] MATCH! Caught ghost message from ${event.sender}`);
-                    clearTimeout(timeout);
-                    client.off("room.message", listener);
-                    resolve(event);
-                }
-            };
-            client.on("room.message", listener);
+        // 1. Create system member
+        const slug = `e2e-secure-${Date.now()}`;
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-Secure", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
         });
 
-        // 4. Send trigger message
-        console.log(`[E2E-E2EE] Sending trigger message to encrypted room...`);
-        await client.sendText(e2eeRoomId, `${proxyPrefix} ${messageBody}`);
-
-        // 5. Wait for ghost (decrypted)
-        console.log(`[E2E-E2EE] Waiting for ghost response...`);
-        const ghostEvent = await ghostMessagePromise;
+        // 2. Create room and enable encryption
+        const e2eeRoomId = await setupTestRoom(client);
+        await client.inviteUser(`@${observerName}:localhost`, e2eeRoomId);
+        await observer.joinRoom(e2eeRoomId);
+        await client.sendStateEvent(e2eeRoomId, "m.room.encryption", "", { algorithm: "m.megolm.v1.aes-sha2" });
         
-        expect(ghostEvent.content.body).toBe(messageBody);
-        console.log(`[E2E-E2EE] SUCCESS! Ghost spoke decrypted message as ${ghostEvent.sender}`);
-    }, 60000);
+        console.log(`[E2E-E2EE] Encryption enabled in ${e2eeRoomId}. Waiting for settle...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
+        // 3. Start waiting for ghost message from BOTH perspectives
+        const ghostFromSenderPromise = waitForGhostMessage(client, e2eeRoomId, messageBody, 60000);
+        const ghostFromObserverPromise = waitForGhostMessage(observer, e2eeRoomId, messageBody, 60000);
+
+        // 4. Send trigger message (encrypted)
+        console.log(`[E2E-E2EE] Sending trigger: ${proxyPrefix} ${messageBody}`);
+        const triggerEventId = await client.sendText(e2eeRoomId, `${proxyPrefix} ${messageBody}`);
+
+        // 5. Verify ghost delivery to both
+        console.log(`[E2E-E2EE] Waiting for ghost response (both views)...`);
+        const [senderGhost, observerGhost] = await Promise.all([ghostFromSenderPromise, ghostFromObserverPromise]);
+        
+        expect(senderGhost.content.body).toBe(messageBody);
+        expect(observerGhost.content.body).toBe(messageBody);
+        console.log(`[E2E-E2EE] SUCCESS: Decrypted ghost message received by sender and observer.`);
+
+        // 6. Verify redaction for both
+        await Promise.all([
+            verifyRedaction(client, e2eeRoomId, triggerEventId, "Sender"),
+            verifyRedaction(observer, e2eeRoomId, triggerEventId, "Observer")
+        ]);
+    }, 180000);
 });

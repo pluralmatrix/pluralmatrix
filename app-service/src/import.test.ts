@@ -79,7 +79,7 @@ describe('Importer Logic', () => {
         });
     });
 
-    describe('exportToPluralKit', () => {
+    describe('generatePkJson', () => {
         it('should format system and member data correctly for PK', async () => {
             const mockSystem = {
                 id: 'sys-uuid',
@@ -105,8 +105,8 @@ describe('Importer Logic', () => {
             const { prisma } = require('./bot');
             (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
 
-            const { exportToPluralKit } = require('./import');
-            const result = await exportToPluralKit('@user:localhost');
+            const { generatePkJson } = require('./import');
+            const result = await generatePkJson('@user:localhost');
 
             expect(result.version).toBe(2);
             expect(result.name).toBe('My System');
@@ -116,8 +116,9 @@ describe('Importer Logic', () => {
             const m = result.members[0];
             expect(m.name).toBe('Lily');
             expect(m.display_name).toBe('Lily Override');
-            expect(m.id).toBe('lily'); // No truncation/pad logic anymore
-            expect(m.proxy_tags).toEqual([{ prefix: 'l:', suffix: '' }]);
+            expect(m.id).toMatch(/^[a-z]{5}$/); 
+            expect(m.proxy_tags).toEqual([{ prefix: 'l:', suffix: null }]);
+
             expect(m.privacy.visibility).toBe('public');
         });
     });

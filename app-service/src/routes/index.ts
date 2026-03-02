@@ -16,10 +16,6 @@ router.use('/system', systemRoutes);
 router.use('/import', importRoutes);
 router.use('/media', mediaRoutes);
 
-// Compatibility for old frontend paths
-router.get('/export/pluralkit', authenticateToken, importController.exportPluralKit);
-router.get('/media/export', authenticateToken, importController.exportMedia);
-
 router.use('/', gatekeeperRoutes);
 
 export default router;

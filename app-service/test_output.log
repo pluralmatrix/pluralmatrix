@@ -1,0 +1,167 @@
+(node:67621) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/backup_roundtrip.test.ts
+  ● Console
+
+    console.log
+      [Importer] Starting import for @ow...:localhost
+
+      at importFromPluralKit (src/import.ts:189:13)
+
+    console.log
+      [Ghost] Syncing global profile for @_plural_seraphim-main_riven-fox:localhost
+
+      at syncGhostProfile (src/import.ts:141:17)
+
+    console.log
+      [Importer] Successfully imported 1 members for @ow...:localhost
+
+      at importFromPluralKit (src/import.ts:344:13)
+
+    console.error
+      [Import] Failed to re-upload avatar avatars/riven-fox_media123.png: TypeError: Cannot read properties of undefined (reading 'slug')
+          at syncGhostProfile (/home/chiaracoetzee/pluralmatrix/app-service/src/import.ts:149:68)
+          at importAvatarsZip (/home/chiaracoetzee/pluralmatrix/app-service/src/import.ts:666:39)
+          at processTicksAndRejections (node:internal/process/task_queues:103:5)
+          at importSystemZip (/home/chiaracoetzee/pluralmatrix/app-service/src/import.ts:612:5)
+          at Object.<anonymous> (/home/chiaracoetzee/pluralmatrix/app-service/src/backup_roundtrip.test.ts:110:30)
+
+      668 |             count++;
+      669 |         } catch (e) {
+    > 670 |             console.error(`[Import] Failed to re-upload avatar ${filename}:`, e);
+          |                     ^
+      671 |         }
+      672 |     }
+      673 |
+
+      at importAvatarsZip (src/import.ts:670:21)
+      at importSystemZip (src/import.ts:612:5)
+      at Object.<anonymous> (src/backup_roundtrip.test.ts:110:30)
+
+PASS src/import.test.ts
+  ● Console
+
+    console.log
+      [Ghost] Decommissioning @_plural_sys_ghost:localhost...
+
+      at decommissionGhost (src/import.ts:165:17)
+
+    console.log
+      [Ghost] @_plural_sys_ghost:localhost has left all rooms.
+
+      at decommissionGhost (src/import.ts:177:17)
+
+    console.log
+      [Ghost] Decommissioning @_plural_sys_ghost:localhost...
+
+      at decommissionGhost (src/import.ts:165:17)
+
+    console.error
+      [Ghost] Failed to decommission ghost: API Fail
+
+      177 |         console.log(`[Ghost] ${ghostUserId} has left all rooms.`);
+      178 |     } catch (e: any) {
+    > 179 |         console.error(`[Ghost] Failed to decommission ${member.slug}:`, e.message || e);
+          |                 ^
+      180 |     }
+      181 | };
+      182 |
+
+      at decommissionGhost (src/import.ts:179:17)
+      at Object.<anonymous> (src/import.test.ts:157:13)
+
+PASS src/pk_compat.test.ts
+(node:67621) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+PASS src/roundtrip.test.ts
+  ● Console
+
+    console.log
+      [Importer] Starting import for @us...:localhost
+
+      at importFromPluralKit (src/import.ts:189:13)
+
+    console.log
+      [Ghost] Syncing global profile for @_plural_test-system_alice:localhost
+
+      at syncGhostProfile (src/import.ts:141:17)
+
+    console.log
+      [Importer] Successfully imported 1 members for @us...:localhost
+
+      at importFromPluralKit (src/import.ts:344:13)
+
+    console.log
+      [Importer] Starting import for @us...:localhost
+
+      at importFromPluralKit (src/import.ts:189:13)
+
+    console.log
+      [Ghost] Syncing global profile for @_plural_my-custom-system-slug_very-long-member-slug-that-should-not-be-truncated:localhost
+
+      at syncGhostProfile (src/import.ts:141:17)
+
+    console.log
+      [Importer] Successfully imported 1 members for @us...:localhost
+
+      at importFromPluralKit (src/import.ts:344:13)
+
+    console.log
+      [Importer] Starting import for @us...:localhost
+
+      at importFromPluralKit (src/import.ts:189:13)
+
+    console.log
+      [Importer] Successfully imported 0 members for @us...:localhost
+
+      at importFromPluralKit (src/import.ts:344:13)
+
+    console.log
+      [Ghost] Syncing global profile for @_plural_mysys_alice:localhost
+
+      at syncGhostProfile (src/import.ts:141:17)
+
+PASS src/pk_roundtrip_seraphim.test.ts
+  ● Console
+
+    console.log
+      [Importer] Starting import for @se...:localhost
+
+      at importFromPluralKit (src/import.ts:189:13)
+
+    console.log
+      [Importer] Progress: 10 members...
+
+      at importFromPluralKit (src/import.ts:337:25)
+
+    console.log
+      [Importer] Progress: 20 members...
+
+      at importFromPluralKit (src/import.ts:337:25)
+
+    console.log
+      [Importer] Progress: 30 members...
+
+      at importFromPluralKit (src/import.ts:337:25)
+
+    console.log
+      [Importer] Progress: 40 members...
+
+      at importFromPluralKit (src/import.ts:337:25)
+
+    console.log
+      [Importer] Progress: 50 members...
+
+      at importFromPluralKit (src/import.ts:337:25)
+
+    console.log
+      [Importer] Successfully imported 59 members for @se...:localhost
+
+      at importFromPluralKit (src/import.ts:344:13)
+
+
+Test Suites: 5 passed, 5 total
+Tests:       24 passed, 24 total
+Snapshots:   0 total
+Time:        3.1 s
+Ran all test suites matching src/pk_roundtrip_seraphim.test.ts|src/import.test.ts|src/roundtrip.test.ts|src/pk_compat.test.ts|src/backup_roundtrip.test.ts.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -6,7 +6,7 @@ import MemberCard from '../components/MemberCard';
 import MemberEditor from '../components/MemberEditor';
 import ImportTool from '../components/ImportTool';
 import SystemSettings from '../components/SystemSettings';
-import { LogOut, Plus, Upload, Search, LayoutGrid, List, Trash2, Download, Image, ChevronDown, Database, Edit3, Loader2, Info } from 'lucide-react';
+import { LogOut, Plus, Upload, Search, LayoutGrid, List, Trash2, Download, ChevronDown, Database, Edit3, Loader2, Info, Archive } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const DashboardPage: React.FC = () => {
@@ -104,22 +104,6 @@ const DashboardPage: React.FC = () => {
                 fetchData();
             } catch (e) {
                 alert('Bulk delete failed');
-            }
-        }
-    };
-
-    const handleImportMedia = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!isOwner) return;
-        if (e.target.files && e.target.files[0]) {
-            try {
-                setLoading(true);
-                const res = await memberService.importMedia(e.target.files[0]);
-                alert(`Successfully imported ${res.data.count} avatars!`);
-                fetchData();
-            } catch (err) {
-                alert('Media import failed.');
-            } finally {
-                setLoading(false);
             }
         }
     };
@@ -270,30 +254,29 @@ const DashboardPage: React.FC = () => {
                                             >
                                                 <div className="px-4 py-2 text-[10px] font-bold text-matrix-muted uppercase tracking-wider">Export</div>
                                                 <button 
-                                                    onClick={() => { memberService.exportPk(); setIsDataMenuOpen(false); }}
-                                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors"
+                                                    onClick={() => { memberService.exportBackupZip(); setIsDataMenuOpen(false); }}
+                                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors group"
                                                 >
-                                                    <Download size={16} className="mr-3 text-matrix-primary" /> Export JSON (PK)
+                                                    <Archive size={16} className="mr-3 text-matrix-primary group-hover:scale-110 transition-transform" /> 
+                                                    <div className="font-bold">Export Backup (ZIP)</div>
                                                 </button>
                                                 <button 
-                                                    onClick={() => { memberService.exportMedia(); setIsDataMenuOpen(false); }}
-                                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors"
+                                                    onClick={() => { memberService.exportPkZip(); setIsDataMenuOpen(false); }}
+                                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors group"
                                                 >
-                                                    <Image size={16} className="mr-3 text-matrix-primary" /> Export Avatars (ZIP)
+                                                    <Download size={16} className="mr-3 text-matrix-primary group-hover:scale-110 transition-transform" /> 
+                                                    <div className="font-bold">Export for PluralKit</div>
                                                 </button>
 
                                                 <div className="h-px bg-white/5 my-2" />
                                                 <div className="px-4 py-2 text-[10px] font-bold text-matrix-muted uppercase tracking-wider">Import</div>
                                                 <button 
                                                     onClick={() => { setIsImporting(true); setIsDataMenuOpen(false); }}
-                                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors"
+                                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors group"
                                                 >
-                                                    <Upload size={16} className="mr-3 text-matrix-primary" /> Import JSON (PK)
+                                                    <Upload size={16} className="mr-3 text-matrix-primary group-hover:scale-110 transition-transform" /> 
+                                                    <div className="font-bold">Import System</div>
                                                 </button>
-                                                <label className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center cursor-pointer transition-colors">
-                                                    <Upload size={16} className="mr-3 text-matrix-primary" /> Import Avatars (ZIP)
-                                                    <input type="file" accept=".zip" onChange={(e) => { handleImportMedia(e); setIsDataMenuOpen(false); }} className="hidden" />
-                                                </label>
 
                                                 <div className="h-px bg-white/5 my-2" />
                                                 <div className="px-4 py-2 text-[10px] font-bold text-red-400 uppercase tracking-wider">Danger Zone</div>

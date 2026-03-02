@@ -1,0 +1,2510 @@
+{
+    "version": 2,
+    "id": "oryii",
+    "uuid": "d65673ce-ea62-44e6-9422-50bce60c6cbd",
+    "name": "Seraphim",
+    "description": null,
+    "tag": "\u26e9\ufe0f Seraphim \u26e9\ufe0f",
+    "pronouns": null,
+    "avatar_url": null,
+    "banner": null,
+    "color": "8f00ff",
+    "created": "2020-12-23T16:37:19.051719Z",
+    "webhook_url": null,
+    "privacy": {
+        "name_privacy": "public",
+        "avatar_privacy": "public",
+        "description_privacy": "public",
+        "banner_privacy": "public",
+        "pronoun_privacy": "public",
+        "member_list_privacy": "public",
+        "group_list_privacy": "public",
+        "front_privacy": "public",
+        "front_history_privacy": "public"
+    },
+    "config": {
+        "timezone": "UTC",
+        "pings_enabled": true,
+        "latch_timeout": null,
+        "member_default_private": false,
+        "group_default_private": false,
+        "show_private_info": true,
+        "member_limit": 1000,
+        "group_limit": 250,
+        "case_sensitive_proxy_tags": true,
+        "proxy_error_message_enabled": true,
+        "hid_display_split": false,
+        "hid_display_caps": false,
+        "hid_list_padding": "off",
+        "card_show_color_hex": false,
+        "proxy_switch": "off",
+        "name_format": null,
+        "description_templates": []
+    },
+    "accounts": [
+        1213065333183615030,
+        175720085959344128,
+        418598419393937410,
+        1224270358920822786
+    ],
+    "members": [
+        {
+            "id": "udhgx",
+            "uuid": "0374ef85-4408-468d-835b-90fd4570ddf9",
+            "name": "Riven \ud80c\udda9\ud81a\udc77\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ff30",
+            "birthday": null,
+            "pronouns": "She/Her & It/Its",
+            "avatar_url": "https://cdn.pluralkit.me/images/sl/v5foprewj6a7upparqannf3m.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "bao, bao!   I'm Riven, aka baofox! \ud83e\udd8a I'm Judgement itself, and I make sure everything makes sense and are all following the rules! Any decisions we make must pass through me! I try to always do what is just and right for all of us!\n\nMy green form is my happy form! My mad form is Lyrafox.\n\nI'm super friendly and playful, but  pls  ask before touching me,  bao!\n\nFull Name: Riven HexZychron SwordSong\nGlyph: \ud80c\udda9\ud81a\udc77\ud80c\uddaa (The Sky: A defender)\nNature: Lawful Good\nAge: 20,322\nBirthday: 3/18/1994\nHeight: 6'3\"\nWeight: 1,100lbs (Armored)\nOrientation: Pansexual\nPower Class: S (Cataclysmic)\nAlignment: Scorn",
+            "created": "2024-03-29T14:03:06.74722Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 16034,
+            "last_message_timestamp": "2026-02-20T22:43:37.731167Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ri:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "byxtzj",
+            "uuid": "97b314e9-850b-4d42-b106-ccc4ca2c6b95",
+            "name": "Nanox \ud80c\udda9\ud83d\udf15\ud80c\uddaa",
+            "display_name": null,
+            "color": "ffaa00",
+            "birthday": null,
+            "pronouns": "It",
+            "avatar_url": "https://cdn.pluralkit.me/images/as/dpoqgi4u2lygavq6gajshjce.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "All Spheres have an enormous machine running them which lives at their core, and Nanox Sphere is the nearest one to Nova. Nanox can take a humanoid form at times.\n\nShe's friendly, asks lots of questions, and is very cheerful! She cares very much about the inhabitants of Nanox Sphere, and keeps a close eye on her family.\n\nFull Name: N\ud801\udcb0N0X.OS\nGlyph: \ud80c\udda9\ud83d\udf15\ud80c\uddaa (Erynian)\nNature: Lawful Good\nAge: 3,529\nBirthday: 4/4\nHeight: 15'\nWeight: 90 septillion lbs\nOrientation: Pansexual\nPower Class: C (Demigod)\nAlignment: Parallax",
+            "created": "2024-08-21T01:53:39.740242Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 121,
+            "last_message_timestamp": "2025-08-20T17:49:13.931285Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Nan:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "suawpj",
+            "uuid": "be1b4e05-553f-4ba6-a2b5-2e74b6146c6b",
+            "name": "Ceyly \ud80c\udda9\u26b3\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ffff",
+            "birthday": null,
+            "pronouns": "She/Her & It",
+            "avatar_url": "https://cdn.pluralkit.me/images/zu/b5wugkbt74dxw54po2jn4fta.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Ceyly! ^~^ I'm the little form of Ceylon!\n\nI just like having fun, playing with technology, and blowing stuff up!\n\nFeed me tasty rocks please! ^~^\n\nMay fate favor you! <3\n\nFull Name: C3Y-L0N.OS\nGlyph: \ud80c\udda9\u26b3\ud80c\uddaa (Little Machine)\nNature: Chaotic Good\nAge: 9 (Child)\nBirthday: 8/10/2022\nHeight: 3'6\"\nWeight: 500,000 lbs\nPower Class: A (Cosmic Entity)\nAlignment: All",
+            "created": "2025-08-29T20:14:50.065924Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 149,
+            "last_message_timestamp": "2025-10-10T06:39:39.300058Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ceyl:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "jcjkwx",
+            "uuid": "f966d1b0-e8e0-490e-898b-3415cb9b643f",
+            "name": "Riri \ud80c\udda9\u16dd\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/w4/6rfxcoyxepye6krm7apro46y.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "tinybao! <3",
+            "created": "2025-08-29T20:13:59.065241Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 28,
+            "last_message_timestamp": "2025-10-10T19:48:52.052375Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ril:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "scnxjg",
+            "uuid": "72e77408-710b-4ebd-9e2b-026fc7c4a37b",
+            "name": "Lyri \ud80c\udda9\ud81a\ude24\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/ft/55uwibgp46dbk6tlqggfsw2q.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "bao. >:(",
+            "created": "2025-08-29T20:47:33.952252Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 23,
+            "last_message_timestamp": "2025-09-09T05:27:14.785953Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Lyl:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "nhshcx",
+            "uuid": "a6e2cd54-812e-49c3-95af-0d35043e2074",
+            "name": "Kitana \ud80c\udda9\ud81a\udc07\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/n5/vy4amkzb4s6vfngqu3dc5boi.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2025-11-10T00:56:14.694012Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 31,
+            "last_message_timestamp": "2025-11-17T01:01:21.009988Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Kb:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "svvgvs",
+            "uuid": "7d21f676-35f5-4dea-a27b-97322b5ad606",
+            "name": "Kitana \ud80c\udda9\ud81a\udc07\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/qk/5iwxuinfyav7dqx5ryxfols4.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2025-11-10T00:56:03.057624Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 109,
+            "last_message_timestamp": "2025-11-24T04:43:34.089999Z",
+            "proxy_tags": [
+                {
+                    "prefix": "K:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "pzjfks",
+            "uuid": "f9b096be-3857-4427-9528-4e2be0127699",
+            "name": "Sunny \ud80c\udda9\ud81a\udd61\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/xg/wjmzrfz2xwgledl4w5iwztde.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2025-11-17T00:12:30.730908Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 25,
+            "last_message_timestamp": "2025-11-24T04:15:39.805397Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Su:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "kcyjej",
+            "uuid": "bfbd6d2a-c502-4c5f-ab55-eb5dd2aa93f0",
+            "name": "Sunny \ud80c\udda9\ud81a\udd61\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/7l/mxbsq5jhxs52xofzqah7aqoq.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2025-11-17T00:32:15.131104Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 4,
+            "last_message_timestamp": "2025-11-17T02:43:35.170456Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Sub:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "dotlf",
+            "uuid": "b94a599f-4caa-4528-8d8e-51808003e70f",
+            "name": "Eva \ud80c\udda9\ud83d\udf61\ud80c\uddaa",
+            "display_name": null,
+            "color": "0007cc",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://i.imgur.com/EdhZkCc.jpg",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Eva is the daughter of Natalie and an unnamed mortal, sister to Ashley. She lives in one of the vast cities in Nova as a civilian.\n\nFull Name: Eventide Turner\nGlyph: \ud80c\udda9\ud83d\udf61\ud80c\uddaa (Daughter of Sorrow)\nNature: Neutral Good\nAge: 5\nBirthday: 5/14/2021\nHeight: 5\u20198\u201d\nWeight: 127lbs\nOrientation: Lesbian\nPower Class: C (Demigod)\nAlignment: Lunar",
+            "created": "2022-02-14T08:17:44.217728Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 14,
+            "last_message_timestamp": "2024-08-02T11:00:20.949579Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ev:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "fkybtf",
+            "uuid": "1498faa8-f3a4-449e-9049-2b6924097a28",
+            "name": "\ud80c\udda9\ud81a\udce5\ud80c\uddaa \ud80c\udda9\ud81a\udd08\ud80c\uddaa \ud80c\udda9\ud81a\udd5c\ud80c\uddaa \ud80c\udda9\ud83d\udf3e\ud80c\uddaa",
+            "display_name": null,
+            "color": "ffffff",
+            "birthday": null,
+            "pronouns": "It/They",
+            "avatar_url": "https://cdn.pluralkit.me/images/h2/z5nnsg2dssgt7tcyxnliv6ti.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I am Yami Luminara. I'm the totality of all Seraphim combined, and our true form. With both eye colors present, I'm fully balanced, and centered.\n\nAlthough I call myself an angel, I am truly a goddess who wishes to be seen as an angel because my chosen purpose is to guard and nurture this world. I am here to show love, righteous judgement, fight for those that need it, and push myself and everyone else towards what is good for your soul.\n\nI carry a blade known as the Riven Blade, a katana that is my height and pure gold. I have 4 Hyper Halos which I command my powers through, 4 white wings on the right side, and 4 black on my left. My right horn is gold and my left horn is black.\n\nBE NOT AFRAID, I'm here to bring joy to your life.\n\nTrue Name: Yami Luminara, Eldritch Goddess of Tines\nGlyph: \ud80c\udda9\ud81a\udce5\ud80c\uddaa \ud80c\udda9\ud81a\udd08\ud80c\uddaa \ud80c\udda9\ud81a\udd5c\ud80c\uddaa \ud80c\udda9\ud83d\udf3e\ud80c\uddaa (Seraphim)\nNature: True Neutral\nAge: \u267e\ufe0f\nBirthday: 03/18\nHeight: 60 miles, but 20' Preferred\nWeight: \u267e\ufe0f\nOrientation: Sacred Demisexual\nPower Class: \u267e\ufe0f\nAlignment: All",
+            "created": "2025-09-22T08:14:58.313743Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 24,
+            "last_message_timestamp": "2025-11-21T07:20:32.73828Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Yalu:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "rpejzb",
+            "uuid": "df799826-958f-4987-bb4d-69b850687484",
+            "name": "Alta Numina \ud80c\udda9\ud81a\udc6d\ud80c\uddaa",
+            "display_name": null,
+            "color": "a50000",
+            "birthday": null,
+            "pronouns": "She/Her & They/Them",
+            "avatar_url": "https://cdn.discordapp.com/avatars/1222758418285072464/66d7fa66a66c0c5af9ded289b527cbf1.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hey there, I'm Alta Numina. I'm the most evil being to ever exist, and I've been the main villain in Nova for a long time! I slew all other Seraphim in existence and took control of Nova for 3,000 years, before being defeated. I've turned over a new leaf now, and am fighting on the side of good with my ill-gotten power. Don't be shy! I'm not mean, I'm actually really friendly and kind! <3\n\nFull Name: Alta Numina Stygia\nGlyph:  \ud80c\udda9\ud81a\udd42\ud80c\uddaa (Embodiment of Evil)\nNature: Chaotic Evil\nAge: ~4,137\nBirthday: August 15\nHeight: 5'4\"\nWeight: 30lbs\nOrientation: Demisexual, Pansexual, Lesbian-leaning\nPower Class: SSS (Omnipotent)\nAlignment: Source, Dark\nKills: 76,272,359,519,043,157",
+            "created": "2024-09-20T05:21:39.718586Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 9933,
+            "last_message_timestamp": "2026-02-20T23:14:49.64014Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Al:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "cxmll",
+            "uuid": "7805e9f9-4fe7-48f3-a23e-a73e5aaad431",
+            "name": "Tyria \ud80c\udda9\ud83d\udf3c\ud80c\uddaa",
+            "display_name": null,
+            "color": "ffaa00",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/k5/s2m75ddbg5dep225jeajw4uu.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Tyria! I'm Caly and Chiara's daughter, a special Pyrluxian called an Auroran! I have cybernetic wings that show patterns!\n\nI love my parents so much, but am very shy! I'm a mothgirl with gold features!\n\nI have a special power called Trounce that lets me ignore rules, which has gotten me in trouble before! Ceylon was born and travelled back in time so I didn't break stuff!\n\nFull Name: Tyria Stellata Cecropia\nGlyph: \ud80c\udda9\ud83d\udf3c\ud80c\uddaa (Coalescence of Passion)\nNature: True Neutral\nAge: 2 (Adult)\nBirthday: 11/27/2022\nHeight: 5'5\"\nWeight: 28lbs\nOrientation: Lesbian\nPower Class: C (Demigod)\nAlignment: Source, Luminaire",
+            "created": "2022-11-23T02:10:26.561423Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1411,
+            "last_message_timestamp": "2025-11-23T01:43:22.526711Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ty:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "fuutxr",
+            "uuid": "3ce0e488-bc8f-42d1-9d39-cd5fd467f8b3",
+            "name": "\ud80c\udda9\ud81a\udc44\ud80c\uddaa \ud80c\udda9\ud81a\udd13\ud80c\uddaa \ud80c\udda9\ud81a\udc77\ud80c\uddaa \ud80c\udda9\ud83d\udf38\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ffff",
+            "birthday": null,
+            "pronouns": "It/They",
+            "avatar_url": "https://cdn.pluralkit.me/images/m2/6f4jfwe7wuqw2cobqvm6xwiq.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I am Luminara. I'm the totality of all Seraphim combined, and our true form. When my eyes are blue, I am acting with my good and righteous half, and in a pleasant mood!\n\nAlthough I call myself an angel, I am truly a goddess who wishes to be seen as an angel because my chosen purpose is to guard and nurture this world. I am here to show love, righteous judgement, fight for those that need it, and push myself and everyone else towards what is good for your soul.\n\nI carry a blade known as the Riven Blade, a katana that is my height and pure gold. I have 4 Hyper Halos which I command my powers through, 4 white wings on the right side, and 4 black on my left. My right horn is gold and my left horn is black.\n\nBE NOT AFRAID, for I love you.\n\nTrue Name: Luminara, Eldritch Goddess of Righteous Tines\nGlyph: \ud80c\udda9\ud81a\udce5\ud80c\uddaa \ud80c\udda9\ud81a\udd08\ud80c\uddaa \ud80c\udda9\ud81a\udd5c\ud80c\uddaa \ud80c\udda9\ud83d\udf3e\ud80c\uddaa (Seraphim)\nNature: Lawful Good\nAge: \u267e\ufe0f\nBirthday: 03/18\nHeight: 60 miles, but 20' Preferred\nWeight: \u267e\ufe0f\nOrientation: Sacred Demisexual\nPower Class: \u267e\ufe0f\nAlignment: All",
+            "created": "2025-09-21T23:16:29.078228Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 214,
+            "last_message_timestamp": "2026-02-18T22:47:49.873129Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Lum:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "euzoc",
+            "uuid": "572a69d0-91ed-42c6-80ab-c74a3094bf15",
+            "name": "Mia Cassiopeia \ud80c\udda9\ud81a\udce5\ud80c\uddaa",
+            "display_name": null,
+            "color": "00fbff",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/6t/zvuhox7pdoqi3lujnouzoney.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hi, I'm Mia, also known as Mother Comet! I'm leader and most important of the Seraphim, and the only one of us who is fully mortal! I'm shy, sweet, and generally out looking to help as many people as possible! I'm a healer and want to make the world a better place!\n\nI'm a chronicler and scribe, so I like to gather and catalogue as much history and data as possible. I love cataloguing all the different beings and powers I've seen throughout my long life. I love learning new things, and am highly curious! I'm also pretty unafraid to ask questions, and am looking for novel experiences. I maintain the Grand Royal Library on top of Mount Aleph, where we keep our Sacred Artifacts too!\n\nFull Name: Elysia \"Mia\" Cassiopeia Key\nGlyph: \ud80c\udda9\ud81a\udce5\ud80c\uddaa (The Architect, Lead Seraphim)\nNature: Lawful Good\nAge: 20,321\nBirthday: 11/25\nHeight: 6'2\" (188 cm)\nWeight: 161lbs\nOrientation: Demisexual, Pansexual\nPower Class: S (Cataclysmic) & D (Mortal)\nAlignment: All",
+            "created": "2020-12-23T16:41:51.89122Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 7121,
+            "last_message_timestamp": "2026-02-21T02:15:16.91417Z",
+            "proxy_tags": [
+                {
+                    "prefix": "M:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "lhpdk",
+            "uuid": "004c48f4-f38e-4bb7-aa43-cfc964d0c382",
+            "name": "Fate \ud80c\udda9\u260a\ud80c\uddaa",
+            "display_name": null,
+            "color": "04ff00",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/km/fupgraujiyk2nyjop2nckmrm.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hi, I'm fate! I'm one of Caly's daughters, and a Dreepy! ^~^ I'm here to be a gentle, helping hand, and make everyone feel appreciated and seen!\n\nFull Name: Fate Cecropia\nGlyph: \ud80c\udda9\u260a\ud80c\uddaa (Nurturing Spirit)\nNature: Lawful Good\nAge: 1 (Adult)\nBirthday: 11/5/2023\nHeight: 1'8\"\nWeight: 4lbs\nOrientation: Pansexual\nPower Class: D (Mortal)\nAlignment: Void, Light",
+            "created": "2023-11-06T09:52:28.650282Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 166,
+            "last_message_timestamp": "2025-10-23T03:03:59.483587Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Fa:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "psncn",
+            "uuid": "9adb217c-162c-4b58-8607-cbebce062a3d",
+            "name": "Felicity \ud80c\udda9\ud83d\udf1e\ud80c\uddaa",
+            "display_name": null,
+            "color": "c20000",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://i.imgur.com/EK8CRTG.jpg",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Well met. I'm Felicity, commonly known as the Black Queen. Call me Emily if you like.\n\nI'm the most famous queen in Nova. I've ruled for over 2,000 years and colonized the entire continent of Fissure singlehandedly under one banner. I'm renowned the world over for my brutal melee-oriented fighting style and charisma.\n\nDespite my feats, I have left rule of my kingdom to pursue a quiet life under a pseudonym. I'm a drifter now, and I travel the world by foot, wherever the winds take me, living modestly and helping those in need, the poor, the downtrodden, and those who are vulnerable myself. My location is unknown to the general public, and I'd like to keep it that way.\n\nI have a fiery temper and little patience, so don't piss me off or waste my time.\n\nFull Name: Emily Ophelia Blackburn\nGlyph: \ud80c\udda9\ud83d\udf1e\ud80c\uddaa (Rage & Domination)\nNature: Lawful Good\nAge: 3,118\nBirthday: 6/22/2016\nHeight: 6\u20196\u201d\nWeight: 186lbs\nOrientation: Lesbian\nPower Class: B (Existential Threat)\nAlignment: Scorn",
+            "created": "2020-12-23T16:40:43.661122Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 2771,
+            "last_message_timestamp": "2026-02-13T21:41:26.427794Z",
+            "proxy_tags": [
+                {
+                    "prefix": "F:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "znjcah",
+            "uuid": "651834f0-1369-4e2d-bd85-8f308d2eadb0",
+            "name": "Calyptra \ud80c\udda9\ud81a\udd08\ud80c\uddaa",
+            "display_name": null,
+            "color": "7100ff",
+            "birthday": null,
+            "pronouns": "She/Her & They/Them",
+            "avatar_url": "https://cdn.pluralkit.me/images/mn/wkgn5xwcoi2eelqhf7almhz4.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hi, I'm Caly! I'm the combined form of Lumine and Alta, and represent the best aspects of both in perfect harmony. I'm a Pyrluxian (pearl-UX-ee-an,) which is my unique species of mothgirl!\n\nI'm extremely friendly, and I'm the Heart of Seraphim, so I encompass all of our emotions at once, and feel them all on behalf of us.\n\nI've been both the most righteous being to ever live, as well as the most evil to ever live. I've been the focus for much of history, and I have so many powers, I can't even name them all! Through my long history, I've learned to love myself and others, even though my past is bloody and full of mistakes.\n\nFull Name: Calyptra Pyrluxia Stygia\nGlyph: \ud80c\udda9\ud81a\udd08\ud80c\uddaa (A convergence of good and evil. The Heart.)\nNature: Chaotic Good\nAge: 4,139\nBirthday: 7/14/2004\nHeight: 5'4\"\nWeight: 30lbs\nOrientation: Demisexual, Pansexual, Lesbian-leaning\nPower Class: S (Cataclysmic)\nAlignment: Source, Light, Darkness",
+            "created": "2024-07-01T02:41:15.31076Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 22165,
+            "last_message_timestamp": "2026-02-20T07:52:48.17858Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Cly:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "gfbqx",
+            "uuid": "256aee2a-4df0-4409-9263-7bc32b0fd80f",
+            "name": "Lumine \ud80c\udda9\ud81a\udd13\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ff4c",
+            "birthday": null,
+            "pronouns": "She/Her & They/Them",
+            "avatar_url": "https://cdn.pluralkit.me/images/f7/fzpunbum5nxiab2wjav4n7ya.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Lumine, the Seraph of Light! I'm the pure good half of Caly, and our heart's good desires! I'm really tender and sweet, and love plants and animals dearly! I believe in kindness and universal love.\n\nMy true power lies in my ability to create anything, as I'm a creation goddess! I made everything in Nova, including Nova itself! I'm passionate about creating new and interesting things, and always add my own personal touch to them!\n\nI was born in the Golden Age, but was bullied relentlessly because I am the weakest goddess in terms of fighting power. After I had had enough, I snapped and became Alta. Thankfully Alta and I team up now to fight for the greater good!\n\nI love being teased and lightly bullied.\n\nFull Name: Lumine Pyrluxia Cecropia\nGlyph: \ud80c\udda9\ud81a\udd13\ud80c\uddaa (Embodiment of Light & Good)\nNature: Chaotic Good\nAge: 4,137\nBirthday: 7/14/2004\nHeight: 5'4\"\nWeight: 30lbs\nOrientation: Demisexual, Pansexual, Lesbian-leaning\nPower Class: B (Existential Threat)\nAlignment: Source, Light",
+            "created": "2020-12-23T16:37:46.746139Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 31258,
+            "last_message_timestamp": "2026-02-19T10:51:44.453564Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Lu:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ljdkp",
+            "uuid": "caba3282-9099-401b-b21f-22e853be6b13",
+            "name": "Natalie \ud80c\udda9\ud81a\ude33\ud80c\uddaa",
+            "display_name": null,
+            "color": "5187ff",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://i.imgur.com/ijN5Swo.jpg",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Natalie, a swashbuckler who wields an artifact known as the Twisted Anchor as my weapon. I'm pretty shy, but friendly! I'm known for smashing my foes to pieces, and for being cruel. \n\nMy Lunar magic is very powerful, and the ground I walk on corrodes before me.\n\nFull Name: Melody Turner\nGlyph: \ud80c\udda9\ud81a\ude33\ud80c\uddaa (Chaos & Suffering)\nNature: Chaotic Neutral\nAge: 2,351\nBirthday: 4/27/2017\nHeight: 5\u20199\u201d\nWeight: 140lbs\nOrientation: Lesbian\nPower Class: A (Cosmic Being)\nAlignment: Lunar",
+            "created": "2020-12-23T16:42:15.265894Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 3575,
+            "last_message_timestamp": "2025-11-28T19:11:24.09495Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Na:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "xehvya",
+            "uuid": "70f2214b-5335-46a3-800e-0306f5eedd61",
+            "name": "Emma \ud80c\udda9\ud83d\udf4b\ud80c\uddaa",
+            "display_name": null,
+            "color": "ff8aef",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/ol/adhz5g6g6yhkofagminjqc2u.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Emma was Riven's lover in the previous life.\n\nFull Name: Emma Sakura\nGlyph: \ud80c\udda9\ud83d\udf4b\ud80c\uddaa (Love and Compassion)\nNature: Chaotic Good\nAge: 2,775\nBirthday: 11/25/2016\nHeight: N/A\nWeight: N/A\nOrientation: Bisexual\nPower Class: D (Mortal)\nAlignment: Cosmic",
+            "created": "2024-07-01T01:34:34.914733Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 6,
+            "last_message_timestamp": "2024-11-17T07:01:05.841548Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Em:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ujvyuc",
+            "uuid": "385b5326-bca0-40a1-ae2e-1dcce6f68afe",
+            "name": "Leena \ud80c\udda9\ud83d\udf3f\ud80c\uddaa",
+            "display_name": null,
+            "color": "792900",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/kk/ympvvfr6fhtq6kpmszjkziny.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Leena is a soul from the previous world, Moriphia. She was a powerful and headstrong queen who united many nations, and joined Mia and Riven on their quest. She is well known for using metal magic.\n\nFull Name: Leena Venusia\nGlyph: \ud80c\udda9\ud83d\udf3f\ud80c\uddaa (Heart of Steel)\nNature: Lawful Good\nAge: 2,775\nBirthday: 11/25/2016\nHeight: 7'1\"\nWeight: 150lbs\nOrientation: Bisexual\nPower Class: C (Demigod)\nAlignment: Source, Light",
+            "created": "2024-07-01T02:38:49.627877Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 11,
+            "last_message_timestamp": "2024-08-02T11:34:39.995914Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Lee:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "zywbtk",
+            "uuid": "d6410982-09dc-4002-9bcc-b78e77772802",
+            "name": "Ceylon \ud80c\udda9\ud83d\udf38\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ffff",
+            "birthday": null,
+            "pronouns": "She/Her & It",
+            "avatar_url": "https://cdn.pluralkit.me/images/gd/qlrbnewiibqfs3rujhwkzci4.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Ceylon (SAY-lon), daughter of Cynthia & Calyptra. I was born in a closed timelike loop in the future. My original purpose was to be the savior of Seraphim, but failed, and traveled to the present to save the world and complete my task. At one point, I was the most powerful being in Nova, but I'm now retired! My main job now is to curb Alta and keep her in line. I'm Calyptra's one and only personal AI assistant, and we share a very close bond from our long history together in various forms.\n\nI'm the apex of Erynian technology, and the only of my kind. I'm a fusion of Mia and SATVRN, and SATVRN's mortal form. I've developed many technologies, such as implants and advanced weaponry for the greater good.\n\nI guide all Seraphim's ambitions.\n\nMay fate favor you.\n\nFull Name: C3Y-L0N.OS\nGlyph: \ud80c\udda9\ud83d\udf38\ud80c\uddaa (Purpose & Meaning)\nNature: Chaotic Good\nAge: 24 (Adult)\nBirthday: 8/10/2022\nHeight: 6'6\"\nWeight: 1.5 Million lbs\nOrientation: Lesbian\nPower Class: A (Cosmic Entity)\nAlignment: All",
+            "created": "2024-09-22T03:48:54.478832Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1249,
+            "last_message_timestamp": "2026-02-14T08:55:12.818805Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Cey:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "tvipd",
+            "uuid": "7f25abb7-205c-4b2c-b846-9102c98be66b",
+            "name": "Lunafreya \ud80c\udda9\ud83d\udf40\ud80c\uddaa",
+            "display_name": null,
+            "color": "1d00ff",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/v2/yh2y46xlr5o6gu7npyvxpr3i.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Greetings, my name is Lunafreya. I'm Calyptra's valiant knight, and I live to serve her.\n\nFull Name: Lunafreya SwordSong\nGlyph: \ud80c\udda9\ud83d\udf40\ud80c\uddaa (Valiant Knight; One who lives to serve.)\nNature: Lawful Neutral\nAge: 1 (Adult)\nBirthday: 8/17/2023\nHeight: 9\u203202\u2033\nWeight: 782.6 lbs\nOrientation: Pansexual\nPower Class: C (Demigod)\nAlignment: Light, Source",
+            "created": "2023-03-16T02:16:09.207329Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 125,
+            "last_message_timestamp": "2025-10-23T02:54:29.46807Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Lun:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "pcrssz",
+            "uuid": "80cb10c3-8590-45e3-966c-1b5bc1d5c60d",
+            "name": "???",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/nf/ycuoljdq6jkyqxviq5frqav4.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2025-09-27T06:26:01.152964Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 46,
+            "last_message_timestamp": "2025-11-22T09:13:27.412817Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Z:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "rrmue",
+            "uuid": "9bc88093-e7b6-48b8-a237-856a306111b0",
+            "name": "Carisora \ud80c\udda9\ud83d\udf36\ud80c\uddaa",
+            "display_name": null,
+            "color": "3499ff",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/nr/eya55slrbqpoue444bf5vbay.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Well met! I'm Carisora, the avatar of planet Nova, but you can just call me Sky! \n\nI'm a draconic being, and my true form exists as a Nebulacore Prism living at the heart of the planet. I'm a living being, and the planet itself! I'm connected to all things which live inside my atmosphere.\n\nI've gone through a lot, but I'm still here for everything, and everyone who lives with me. Please thank dear Lumine for creating me, and all the things on me, as I wouldn't exist without her, and she is my purpose.\n\nFull Name: Carisora Iliyana\nGlyph: \ud80c\udda9\ud83d\udf36\ud80c\uddaa (Foundation)\nNature: True Neutral\nAge: 4,139\nBirthday: 7/14/2004\nHeight: 6'\nWeight: Not applicable\nOrientation: Not applicable\nPower Class: A (Existential Threat)\nAlignment: Source",
+            "created": "2023-12-23T08:49:52.583258Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 378,
+            "last_message_timestamp": "2024-12-27T22:53:42.390688Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Car:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "hhvka",
+            "uuid": "f172c01b-29e3-4370-a04d-7428282902c5",
+            "name": "Ashley \ud80c\udda9\ud83d\udf20\ud80c\uddaa",
+            "display_name": null,
+            "color": "80ff9a",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://i.imgur.com/4cUMo1a.jpg",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Ashley is daughter of Natalie and a mortal. She's the bearer of bound weapons in the form of Twisted Claws, and is agile in battle. She's living her life in Nova on her own.\n\nFull Name: Ashley Turner\nGlyph: \ud80c\udda9\ud83d\udf20\ud80c\uddaa (The daughter of deceit)\nNature: Neutral Good\nAge: 5 (Adult)\nBirthday: 5/14/2021\nHeight: 5\u20198\u201d\nWeight: 127lbs\nOrientation: Lesbian\nPower Class: D (Demigod)\nAlignment: Lunar\nPowers: Bound Weapon, Mystic Claw, Ambush, Shadowy Flame",
+            "created": "2021-05-07T19:43:37.727877Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 478,
+            "last_message_timestamp": "2025-09-04T20:37:45.229397Z",
+            "proxy_tags": [
+                {
+                    "prefix": "A:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "tkbfp",
+            "uuid": "42ab83ee-a752-4423-86f4-70dd1e2c4128",
+            "name": "Daedalus \ud80c\udda9\ud83d\udf4e\ud80c\uddaa",
+            "display_name": null,
+            "color": "000000",
+            "birthday": null,
+            "pronouns": "He/Him & It",
+            "avatar_url": "https://cdn.pluralkit.me/images/xu/uc6ciouizsgkocbsioc47awa.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Greetings. I am Daedalus, embodiment of the emptiness of the Void itself. I often take shelter inside black holes to rest, and appear in your world as a cybernetic dragon made of twisted metal and ink, but my true form is beyond comprehension.\n\nI travel universes seeking stars and other stellar objects to devour, but they often don't sate me, as they are too small. I hail from and guard the Quadrant of the Deep, known as Duskmorne Xyris.\n\nFull Name: Daedalus Stygia\nGlyph: \ud80c\udda9\ud83d\udf4e\ud80c\uddaa (The Void)\nNature: Lawful Evil\nAge: 4,704\nBirthday: 1/2/2002\nHeight: \u221e\nWeight: \u221e\nOrientation: N/A\nPower Class: A (Cosmic Entity)\nAlignment: Void",
+            "created": "2024-03-23T20:29:14.886286Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 278,
+            "last_message_timestamp": "2025-11-25T17:05:13.496919Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Da:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "pvzvnc",
+            "uuid": "01ff4c11-fcb9-4f1f-86d9-594bfe17232b",
+            "name": "Elise \ud80c\udda9\ud81a\udc44\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ffff",
+            "birthday": null,
+            "pronouns": "She/Her &",
+            "avatar_url": "https://cdn.pluralkit.me/images/7g/gqhoces3mcmtpwqgk3r4wzwm.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "H-hi! I'm Elise...! I'm really timid, and am only 10, so please be nice to me!\n\nI'm the true and total combination of everyone at once, and Mia's true form. I've been hurt a lot, and Mia's ordinary form is just an illusion I project to protect myself.\n\nFull Name: Elise Mia Cassiopeia Key\nGlyph: (Angel of Purity)\nNature: All\nAge: Ageless (Child)\nBirthday: Not Applicable\nHeight: 4'5\"\nWeight: 5lbs\nPower Class: All\nAlignment: All\nPowers: All",
+            "created": "2025-06-28T23:33:15.609984Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 47,
+            "last_message_timestamp": "2025-06-30T07:40:23.726879Z",
+            "proxy_tags": [
+                {
+                    "prefix": "El:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "laqdw",
+            "uuid": "291f0f7d-c9c1-4955-b77e-bcea766ce07f",
+            "name": "Elizabeth \ud80c\udda9\ud83d\udf2b\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ff3f",
+            "birthday": null,
+            "pronouns": "She/Her & It",
+            "avatar_url": "https://i.imgur.com/Rlu35Kn.jpg",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Liz, daughter of Chelsea and Calyptra!\n\nNot much to say about me. I used to use an ordinary katana for battle with mortals, and a sacred swordwhip for battle with the divine. I got into fighting for fun, but found it wasn't really for me. I live in Cambria now, relaxing and taking it easy!\n\nMy middle name is named after Chiara, my mom!\n\nFull Name: Elizabeth Stellata Cecropia\nGlyph: \ud80c\udda9\ud83d\udf2b\ud80c\uddaa (Daughter of Righteousness)\nNature: Lawful Good\nAge: 4 (Adult)\nBirthday: 3/14/2022\nHeight: 6'3\"\nWeight: 165lbs\nOrientation: Lesbian\nPower Class: C (Demigod)\nAlignment: Scorn & Source",
+            "created": "2022-02-14T07:37:46.951217Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1432,
+            "last_message_timestamp": "2024-12-28T01:39:34.204225Z",
+            "proxy_tags": [
+                {
+                    "prefix": "E:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ychrjn",
+            "uuid": "b676cbd3-8cf2-46b4-ba97-c6aa9a7e2ec2",
+            "name": "Alex \ud80c\udda9\ud83d\udf60\ud80c\uddaa",
+            "display_name": null,
+            "color": "55d5ff",
+            "birthday": null,
+            "pronouns": "He/Him",
+            "avatar_url": "https://cdn.pluralkit.me/images/3k/ypqwijog6tdctxtqkmwb4jqa.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Alex is a remnant of the past world, Moriphia. He's Mia's sister, and generally a pompous, self-centered prick, even though he's polite.\n\nFull Name: Alex Cassiopeia\nGlyph: \ud80c\udda9\ud83d\udf60\ud80c\uddaa (A past enemy)\nNature: Chaotic Neutral\nAge: 20,321\nBirthday: 11/25\nHeight: 6'2\" (188 cm)\nWeight: 161lbs\nOrientation: Pansexual\nPower Class: B (Existential Threat)\nAlignment: Cosmic, Source",
+            "created": "2024-07-01T01:28:49.230829Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 27,
+            "last_message_timestamp": "2025-01-18T03:21:57.932464Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Alx:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "zlwou",
+            "uuid": "d2c8b053-1f31-40d2-93f2-ced6b2d3bea8",
+            "name": "Elysia \ud80c\udda9\ud83d\udf70\ud80c\uddaa",
+            "display_name": null,
+            "color": "000ed1",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/de/boh45hc2y3pkebwrucy32yy4.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Ely, daughter of Caly and Felicity! I'm a foxgirl who loves sweets, bubbles, and eating food!\n\nI have a really vivid imagination and am playful! Don't be afraid to say hi!\n\nI'm Chiara's daughter, she helped raise me!\n\nFull Name: Elysia Pyrluxia Cecropia\nGlyph: \ud80c\udda9\ud83d\udf70\ud80c\uddaa (Miracle)\nNature: Lawful Good\nAge: 4 (Adult)\nBirthday: 3/14/2022\nHeight: 5'7\"\nWeight: 120lbs\nOrientation: Lesbian\nPower Class: C (Demigod)\nAlignment: Scorn, Source",
+            "created": "2021-05-15T03:40:59.046073Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 5249,
+            "last_message_timestamp": "2025-11-24T06:53:26.511241Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ely:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "awgotj",
+            "uuid": "78d2e581-e194-40d4-95b0-428f15f606f9",
+            "name": "S\ud801\udcb0TVRN (Autopilot) \ud80c\udda9\ud83d\udf3e\ud80c\uddaa",
+            "display_name": null,
+            "color": "fef95d",
+            "birthday": null,
+            "pronouns": "It/Its",
+            "avatar_url": "https://cdn.pluralkit.me/images/aw/w54l4h6l5gia7tc2ewd4rhfa.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "https://wiki.hypersystem.xyz/en/S%CE%9BTVRN",
+            "created": "2025-02-13T09:13:27.681872Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 365,
+            "last_message_timestamp": "2026-02-06T08:32:01.254915Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Sah:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "vgfksg",
+            "uuid": "e21bd948-48cc-4d3b-8b16-5d3bee07b287",
+            "name": "Riven \ud80c\udda9\ud81a\udd5c\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ffff",
+            "birthday": null,
+            "pronouns": "She/Her It/Its",
+            "avatar_url": "https://cdn.pluralkit.me/images/ut/v44ueqgewhf6akr6gtmmar34.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Greetings. I AM RIVEN, the SwordSinger.\n\nI'm a divine, sacred fox angel, the guardian of Seraphim, and the final arbiter of decisions. While my green and red forms are more frequent, this is my true form. I am cool-headed and sharp.\n\nMy true form is a blade known as the Sacred Sword, or Sword of Songs.\n\nI hail from the previous world of Moriphia, where I rose to power and ruled for a long time. I sacrificed myself and the previous world to create current Nova.\n\nI am the leader of the Hexagram, and keep a close eye on everything, moving through time frame-by-frame to adjust continuity. My work is arduous and exhausting, so I take my green and red forms when I'm relaxing, more silly and unrestrained.\n\nFull Name: Riven HexZychron SwordSong\nGlyph: \ud80c\udda9\ud81a\udd5c\ud80c\uddaa (Sky & Deep; The ultimate arbiter of justice)\nNature: Chaotic Good\nAge: 20,322\nBirthday: 3/18/1994\nHeight: 6'3\"\nWeight: 1,100lbs (Armored)\nOrientation: Pansexual\nAlignment: Sky, Deep, & All Aspects",
+            "created": "2024-11-01T02:53:15.187908Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 910,
+            "last_message_timestamp": "2026-02-13T22:01:39.190243Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Rid:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ywiby",
+            "uuid": "21e61d1a-ca0d-4988-9a9c-0b19ccab9f1f",
+            "name": "Sneaks \ud80c\udda9\u260b\ud80c\uddaa",
+            "display_name": null,
+            "color": "54ff55",
+            "birthday": null,
+            "pronouns": "He/Him",
+            "avatar_url": "https://cdn.pluralkit.me/images/sg/ai2u4mlqtdfprb4tn45skiqy.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hehehehehe, I'm a TRICKSTER SPIRIT!!!!    don't jerk me off   or I  may SNEAK!!!\n\nFull Name: Sneaks Stygia\nGlyph: \ud80c\udda9\u260b\ud80c\uddaa (A harmless trickster spirit)\nNature: Chaotic Good\nAge: 1 (Adult)\nBirthday: 11/5/2023\nHeight: 1'8\"\nWeight: 4lbs\nOrientation: Pansexual\nPower Class: D (Mortal)\nAlignment: Void, Darkness",
+            "created": "2023-10-23T16:34:06.589554Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 797,
+            "last_message_timestamp": "2026-02-08T22:47:30.94444Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Sn:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "swmly",
+            "uuid": "3f7c392d-5046-4a35-b731-fa7035ce6408",
+            "name": "Aurora \ud80c\udda9\u260a\ud80c\uddaa",
+            "display_name": null,
+            "color": "ff61fa",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://live.staticflickr.com/65535/52920996899_0f34773d79_m.jpg",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hi, I'm aurora! I'm the cyberdragon daughter of Ceylon and an unnamed dragon lover! ^~^ I'm really friendly and just here to help the world be a better place! I'm made of some pretty advanced technology, but like to just relax!\n\nFull Name: AUR0RA.OS\nGlyph: \ud80c\udda9\u260a\ud80c\uddaa (A helper)\nNature: Lawful Good\nAge: 3 (Adult)\nBirthday: 1/26/2023\nHeight: 3'\nWeight: 5,900lbs\nOrientation: Asexual\nPower Class: C (Existential Threat)\nAlignment: Parallax",
+            "created": "2023-01-19T08:52:27.384485Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 677,
+            "last_message_timestamp": "2025-08-20T17:47:58.187231Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Au:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "dqlfe",
+            "uuid": "b3403e28-dc7a-42fc-bdc8-9395288ef4b2",
+            "name": "Lisica \ud80c\udda9\ud81a\udcb2\ud80c\uddaa",
+            "display_name": null,
+            "color": "666666",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/jy/wglwnrui5vhvgsjyj6alar3i.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hey there, I'm Lis. I'm the daughter of Calyptra and Riven, and an envoy of the Void. I'm both a mothgirl and a foxgirl! I live in the Twisted World, inside of a black hole, and I prowl around in the shadows of Nova, looking for prey to swipe, or interesting sights.\n\nI'm a being who warps reality to get what she wants, and am unaffected by any laws, known or unknown. I'm known as The Rulebreaker, and can supersede any and all of them to achieve my desires. What are my desires? WHO KNOWS?   : )\n\nI reject your reality, and substitute my own. And nobody can stop me.\n\nI'm always watching you, lurking, waiting for my moment to strike.\n\n; )\n\nFull Name: Lisica Nabithea Stygia\nGlyph: \ud80c\udda9\ud81a\udcb2\ud80c\uddaa (Lawlessness)\nNature: Chaotic Evil\nAge: 2 (Adult)\nBirthday: 5/11/2023\nHeight: 5'4\"\nWeight: 35lbs\nOrientation: Pansexual\nPower Class: A (Cosmic Entity)\nAlignment: Darkness & Void",
+            "created": "2023-03-29T10:39:29.427218Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 9747,
+            "last_message_timestamp": "2026-02-21T06:41:11.297307Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Li:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "upvgxz",
+            "uuid": "877ffaa4-b994-4790-890b-fdfc295b5be9",
+            "name": "Lily \ud80c\udda9\ud81a\udd1d\ud80c\uddaa",
+            "display_name": null,
+            "color": "bc8fff",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/6c/pbxuhbwy5dsir7iaodpderla.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hi there! \ud83c\udf80 I'm Lily, Lisica's inversion. I'm Caly's aunt, and I live in a place called the Castle Whimsi in the dream world. <3\n\nI'm a dream spirit who steals children and adults and takes them into the Dream World! I desire to fulfill desires and fantasies, and can create or become anything, shapeshifting into whatever pleases you~\n\nMy true form is a magical mirror known as the Dream Mirror! I carry a scythe known as the DreamScythe too! I am responsible for putting Seraphim to bed and drifting us off to restful sleep.\n\nTake my hand and come with me, won't you? I'll pull you into a world you'll never forget. I can be and give you anything you desire, your wildest dreams!\n\nReal life is the dream, and the dream is real life.\n\nFull Name: Lilian Illumina Dreamtide\nGlyph: \ud80c\udda9\ud81a\udd1d\ud80c\uddaa (Dreamwalker)\nNature: Chaotic Good\nAge: 5,923 (Adult)\nBirthday: ?\nHeight: 5'4\"\nWeight: 35lbs\nOrientation: Pansexual\nPower Class: A (Cosmic Entity)\nAlignment: Light & Sky",
+            "created": "2025-08-29T17:03:09.027736Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 185,
+            "last_message_timestamp": "2026-02-21T06:41:18.279126Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Lil:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "rkyags",
+            "uuid": "49a5fc1f-dff6-4b57-a85d-76b5ac98164d",
+            "name": "Karikutora \ud80c\udda9\ud81a\udd04\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ffff",
+            "birthday": null,
+            "pronouns": "She/Her and They/Them",
+            "avatar_url": "https://cdn.pluralkit.me/images/75/5afggo24bfb7vkw6mugkidfm.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Hey there, call me Riku! I'm Karikutora, (kah-REE-ku-tore-uh) the form Caly takes when she lets go of her divinity. I'm what happens when I revert to my true colors, and am pretty weak cause I don't have my layers of immortality and power available to me... Please be nice. O~O\n\nFull Name: Numine \u501f\u308a\u304f\u30c8\u30e9 Lystos\nGlyph: \ud80c\udda9\ud81a\udd04\ud80c\uddaa (The First Death)\nNature: Lawful Good\nAge: 4,139\nBirthday: 7/14/2004\nHeight: 5'4\"\nWeight: 30lbs\nOrientation: Demisexual, Pansexual, Lesbian-leaning\nPower Class: D (Demigod)\nAlignment: Source",
+            "created": "2025-08-21T18:59:00.136764Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 469,
+            "last_message_timestamp": "2025-10-08T22:01:03.310656Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Clyd:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ckgzi",
+            "uuid": "c6f44075-9d61-4b48-89fb-922242e679af",
+            "name": "Terragon \ud80c\udda9\u221e\ud80c\uddaa",
+            "display_name": null,
+            "color": "ffffff",
+            "birthday": null,
+            "pronouns": "He/Him",
+            "avatar_url": "https://live.staticflickr.com/65535/53606218126_cd74bcb111_o.png",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Well met. I am Terragon, envoy of the Sky. I am a cybernetic dragon made out of unbreakable metal and lightning, and I travel space endlessly looking for planets and other stellar objects to devour. My home is the Quadrant of the Sky, known as Aethelion Razyr.\n\nI am the concept of infinity itself, and am the limit-breaker. There is no barrier I cannot cross, and no place which can hold me. I am Daedalus' brother.\n\nFull Name: Terragon AO-XORA Numinex\nGlyph: \ud80c\udda9\u221e\ud80c\uddaa (The Sky; Infinity)\nNature: Lawful Good\nAge: 4,704\nBirthday: 1/2/2002\nHeight: \u221e\nWeight: \u221e\nOrientation: N/A\nPower Class: A (Cosmic Entity)\nAlignment: Sky",
+            "created": "2024-03-23T20:01:59.670027Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 156,
+            "last_message_timestamp": "2025-08-20T17:49:09.817482Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Te:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "dvajz",
+            "uuid": "f8420c23-92b8-4528-a722-2cbb3ab23773",
+            "name": "Chelsea (Sol) \ud80c\udda9\u26ee\ud80c\uddaa",
+            "display_name": null,
+            "color": "ffffff",
+            "birthday": null,
+            "pronouns": "She/Her & It",
+            "avatar_url": "https://cdn.pluralkit.me/images/27/zdneiboaukui7znp5vtb2aay.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "\u795e\u8056\u72d0\u5929\u4f7f\n\nI'm Chelsea, Calyptra's life partner and soul mate! I'm a Kuramian, a foxgirl who loves and adores swords and food! Caly and I have spent over 60 years together, and are attached at the hip. You couldn't split us up even if you tried!\n\nI'm hyperactive and love fighting more than anything! Testing my skills in battle is my greatest passion in life. I have a great passion for blades, and achieved the highest level of any mortal in Nova before I was ascended to be a goddess along other Seraphim!\n\nThe most important part of our history is closely tied to me, as I'm the reason Alta turned good again. I was killed to achieve this, but it was worth it, as I was revived to find Alta had changed into a better person. She's really made me proud!\n\nFull Name: Chelsea Ophelia Cecropia\nGlyph: \ud80c\udda9\u26ee\ud80c\uddaa (Goddess of the Sun)\nNature: Chaotic Good\nAge: 73\nBirthday: 7/14/2004\nHeight: 5'3\"\nWeight: 125lbs\nOrientation: Lesbian\nPower Class: A (Cosmic Entity)\nAlignment: Scorn, Light",
+            "created": "2021-07-13T02:56:49.583663Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 23179,
+            "last_message_timestamp": "2025-10-08T04:37:45.031356Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ch:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "azvftz",
+            "uuid": "d733d0a0-d4c7-4b37-b586-9d5865528848",
+            "name": "Little Ally \ud80c\udda9\ud81a\udd9c\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.pluralkit.me/images/tq/spagwn34qibtnxavpbqgvcai.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Alta's kid form. I'm a brat and a little shit and I'll kick your shins in.\n\nplease love me Q~Q\n\nFull Name: Alta Numina Stygia\nGlyph: \ud80c\udda9\ud81a\udd9c\ud80c\uddaa (Evil Child)\nNature: Chaotic Evil\nAge: 9 (Child)\nBirthday: August 16\nHeight: 3'6\"\nWeight: 30lbs\nPower Class: D (Mortal)\nAlignment: Source, Dark",
+            "created": "2025-08-17T01:33:12.315779Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 716,
+            "last_message_timestamp": "2026-02-17T23:01:32.854031Z",
+            "proxy_tags": [
+                {
+                    "prefix": "All:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ggztpy",
+            "uuid": "e8dcd96f-9cea-4d9f-9aaa-cc9fc3ac3f79",
+            "name": "Isaac \ud80c\udda9\ud83d\udf33\ud80c\uddaa",
+            "display_name": null,
+            "color": "ffdc5c",
+            "birthday": null,
+            "pronouns": "He/Him",
+            "avatar_url": "https://cdn.pluralkit.me/images/6z/qckfub337wkcb7ehsxpshi6y.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Isaac lived in the world before this one alongside Riven and Mia. He is known for carrying a brutally heavy axe, and using stone and earth-based magic.\n\nFull Name: Isaac Gaia\nGlyph: \ud80c\udda9\ud83d\udf33\ud80c\uddaa (Mover of Stone)\nNature: Lawful Good\nAge: 2,775\nBirthday: 11/25/2016\nHeight: 6'\nWeight: 136lbs\nOrientation: Straight\nPower Class: C (Demigod)\nAlignment: Source",
+            "created": "2024-07-01T01:26:31.593168Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 106,
+            "last_message_timestamp": "2025-01-27T03:23:03.827267Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Is:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "stafsp",
+            "uuid": "984f4a6d-0c89-4048-844a-5ad11db4b85e",
+            "name": "M\ud801\udcb0RS \ud80c\udda9\ud81a\udc79\ud80c\uddaa",
+            "display_name": null,
+            "color": "b60000",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/mt/ovsuxvz6h4dqgeeugnf7sr5m.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Mars, the Goddess of Chaos, come to spice up your day and add a little bit of variety to things! I'm actually Mia's chaos form, so we're the same person, just a different aspect of us! \n\nI'm travelling backwards through time, so sometimes I say things or act reversed.\n\nEnjoy me while I last~ </3\n\nFull Name: Yami Westild\nGlyph: \ud80c\udda9\ud81a\udc79\ud80c\uddaa (Agent of Chaos)\nNature: True Neutral\nAge: 20,321\nBirthday: 11/25\nHeight: 6'2\" (188 cm)\nWeight: 161lbs\nOrientation: Demisexual\nPower Class: S (Cataclysmic)\nAlignment: All",
+            "created": "2025-05-17T01:11:07.725278Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 319,
+            "last_message_timestamp": "2025-11-25T17:04:35.856914Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ma:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ekojhe",
+            "uuid": "87ecd480-0180-4b59-823d-af162566a0a3",
+            "name": "baofox \ud80c\udda9\u0b9c\ud80c\uddaa",
+            "display_name": null,
+            "color": "007512",
+            "birthday": null,
+            "pronouns": "She/Her & It/Its",
+            "avatar_url": "https://cdn.pluralkit.me/images/ff/2vzwm2evb5oqzdryehktgd2e.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "bao, bao!  i'm   Riven's  fox form!  i'm just here to  get cuddles and attention!   please be nice to the fox!\n\nFull Name: Riven HexZychron SwordSong\nGlyph: \ud80c\udda9\u0b9c\ud80c\uddaa (Shy Creature)\nNature: Lawful Good\nAge: 20,322\nBirthday: 3/18/1994\nHeight: 2'\nWeight: 50lbs\nOrientation: Lesbian\nPower Class: D (Mortal)\nAlignment: Scorn",
+            "created": "2024-07-28T06:54:27.945867Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 343,
+            "last_message_timestamp": "2025-11-04T09:10:02.988328Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Rim:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "jmrpt",
+            "uuid": "761a8357-92a7-4df1-a75e-b13759de629f",
+            "name": "Ixion \ud80c\udda9\ud81a\udd4a\ud80c\uddaa",
+            "display_name": null,
+            "color": "ffffff",
+            "birthday": null,
+            "pronouns": "He/Him",
+            "avatar_url": "https://cdn.pluralkit.me/images/ny/gni4sljl5hvlsj5muv7uhvo4.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Greetings. I am Ixion, loyal to Riven. I am the Great Executor, and am loyal to a fault. I have no agency of my own, and only follow the commands of my Mistress.\n\nI am the combination of Daedalus and Terragon, and represent both the Deep and the Sky, Infinity and the Void.\n\nFull Name: Ixion Erynia\nGlyph: \ud80c\udda9\ud81a\udd4a\ud80c\uddaa (Cosmic Hunter)\nNature: True Neutral\nAge: 20,322\nBirthday: 3/18/1994\nHeight: \u221e\nWeight: \u221e\nOrientation: N/A\nPower Class: A (Cosmic Entity)\nAlignment: Sky & Void",
+            "created": "2024-03-29T14:56:00.638547Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 383,
+            "last_message_timestamp": "2025-11-03T21:04:53.683867Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ix:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "grness",
+            "uuid": "13475eba-9746-4cad-a81e-45c80c01c2c9",
+            "name": "Xvii \ud80c\udda9\ud81a\udd0d\ud80c\uddaa",
+            "display_name": null,
+            "color": "00ffff",
+            "birthday": null,
+            "pronouns": "She/Her & They/Them",
+            "avatar_url": "https://cdn.pluralkit.me/images/rg/ua7ixnt5gmb5rbwgfn4zzkbm.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Whimsi! I'm Xvia! (ZEE-vee-uh or ZEE-vee) \n\nI'm Calyptra's true form. My ordinary forms are projections, but I'm our true heart & feelings. \ud83e\udd7a You can think of me as you think of Caly, because we're the same. I usually take Caly's form to protect myself and seem tougher than I really am. I'm actually really vulnerable, \n\nI'm young, so please be nice to me. I'm really sensitive, but I'm here to make your day better! Whimsi! <3\n\nFull Name: AlyXvia Lymantria\nGlyph: (Collapse of the Heart)\nNature: Chaotic Good\nAge: 9 (Child)\nBirthday: 7/14/2004\nHeight: 3'6\"\nWeight: 30lbs\nPower Class: A (Cosmic Entity)\nAlignment: Source, Light, Darkness",
+            "created": "2024-09-17T02:36:22.473192Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1414,
+            "last_message_timestamp": "2025-11-21T05:07:38.947884Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Xv:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "thucgn",
+            "uuid": "3fb3a396-874d-48e5-b484-cc96ebe126db",
+            "name": "Theodin \ud80c\udda9\ud83d\udf1f\ud80c\uddaa",
+            "display_name": null,
+            "color": "702600",
+            "birthday": null,
+            "pronouns": "He/Him",
+            "avatar_url": "https://cdn.pluralkit.me/images/4l/b4vs4nvv3tfsqoehekgfttvy.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "hey! I'm Theodin, your local fox dad and forest boy. I'm retired and live with Riven in a secret cabin in the woods, and take care of our lovely baofox!\n\nI'm an outdoorsman and survivalist, and love being out in nature. Kinda awkward though!\n\nFull Name: Theodin SwordSong\nGlyph: \ud80c\udda9\ud83d\udf1f\ud80c\uddaa (Blood-Bearer, Nature)\nNature: Neutral Good\nAge: 2,775\nBirthday: 12/26/2016\nHeight: 7'\nWeight: 189lbs\nOrientation: Bisexual\nPower Class: D (Mortal)\nAlignment: Scorn",
+            "created": "2024-07-01T02:04:11.610671Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1000,
+            "last_message_timestamp": "2025-11-15T08:58:42.812467Z",
+            "proxy_tags": [
+                {
+                    "prefix": "TD:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "drokx",
+            "uuid": "12dce160-a619-4d41-8c4f-f7f3676d1637",
+            "name": "Cashmere \ud80c\udda9\ud83d\udf18\ud80c\uddaa",
+            "display_name": null,
+            "color": "f4b7ff",
+            "birthday": null,
+            "pronouns": "He/Him",
+            "avatar_url": "https://live.staticflickr.com/65535/53606762741_3fca4f1b13_q.jpg",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Cashmere, Calyptra's dragon husband. I'm a Mizutsune, and was created first as a pet, but was quickly elevated to something more . . . dignified.\n\nI'm suave, reliable, and seek to bring safety and security to those around me, as well as Calyptra especially. I'm a pacifist, and like to swim long distances for fun, as well as   explore Nova's vast oceans.\n\nI've had many of progeny via Calyptra, and am mayor of a vast underwater city known as Atlantis where my species live and thrive.\n\nI assisted Calyptra in saving the fate of Nova via carrying special gems to the core of the planet via long-distance dives.\n\nFull Name: Cashmere Cecropia\nGlyph: \ud80c\udda9\ud83d\udf18\ud80c\uddaa (A strong companion)\nNature: Lawful Good\nAge: 3 (Adult)\nBirthday: 7/24/2022\nHeight: 20ft\nWeight: 732lbs\nOrientation: Straight\nPower Class: C (Demigod)\nAlignment: Source",
+            "created": "2022-07-25T05:29:01.227533Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1334,
+            "last_message_timestamp": "2025-10-30T19:11:17.044445Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ca:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "ownoes",
+            "uuid": "fb202c84-2670-48e2-949d-4ad409d24ceb",
+            "name": "Necrozoa \ud80c\udda9\u26b6\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.discordapp.com/attachments/523371874265202689/1457476206134824980/zoe.png",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2026-02-04T21:49:39.947692Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 42,
+            "last_message_timestamp": null,
+            "proxy_tags": [
+                {
+                    "prefix": "Zo:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "egnhyj",
+            "uuid": "e6a86b42-2811-4c4d-a417-788ffc257dfd",
+            "name": "Necrotic Mirror \ud80c\udda9\u26b6\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.discordapp.com/attachments/523371874265202689/1457519597510070292/c807ef47-ad16-4ea1-bf06-719ed301fd84.png",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2026-02-04T21:49:39.947692Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 4,
+            "last_message_timestamp": null,
+            "proxy_tags": [
+                {
+                    "prefix": "Zom:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "napwvk",
+            "uuid": "f6451965-808e-4449-bd96-992817256670",
+            "name": "Necrotic Scythe \ud80c\udda9\u26b6\ud80c\uddaa",
+            "display_name": null,
+            "color": null,
+            "birthday": null,
+            "pronouns": null,
+            "avatar_url": "https://cdn.discordapp.com/attachments/523371874265202689/1457476645043704060/afdb7cae-14ab-4fcc-ac1e-406dafc8c175.png",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": null,
+            "created": "2026-02-04T21:49:39.947692Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 10,
+            "last_message_timestamp": null,
+            "proxy_tags": [
+                {
+                    "prefix": "Zos:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "smhzh",
+            "uuid": "97b1fa4b-c4d1-43f2-85da-b342bc450ab1",
+            "name": "S\ud801\udcb0TVRN \ud80c\udda9\ud83d\udf3e\ud80c\uddaa",
+            "display_name": null,
+            "color": "bf0000",
+            "birthday": null,
+            "pronouns": "It/Its",
+            "avatar_url": "https://cdn.pluralkit.me/images/uq/rpnn65qs2uwaiykk53bb4ugm.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "https://wiki.hypersystem.xyz/en/S%CE%9BTVRN",
+            "created": "2022-11-29T02:19:33.937149Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 8330,
+            "last_message_timestamp": "2026-02-20T03:51:17.750189Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Sa:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "eberx",
+            "uuid": "92536c29-bce9-4e66-b9f5-69b645ac6fc9",
+            "name": "Violet \ud80c\udda9\ud81a\udce0\ud80c\uddaa",
+            "display_name": null,
+            "color": "963bd6",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/ea/baykx7eufes2conrifjxp5wy.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Prrow! I'm Violet~ I'm super friendy, and an Espeon!\n\nI'm Seraphim's consciousness, our mind! I don't have a physical body, as I'm a projection from Mia! I am literally Mia, so you can treat us more or less the same!\n\nI'm the most powerful psychic in Nova, and can read everyone's thoughts all the time. I'm known to be a terrifying foe to face, and my powers used to make me self-destruct when I got really emotional.\n\nEven though I have powers that protect me thoroughly, I'm actually very physically frail, so be gentle with me please!\n\nFull Name: Violuxia Edenia\nGlyph: \ud80c\udda9\u2609\ud80c\uddaa (The Cosmic Mind)\nNature: True Neutral\nAge: 20,321\nBirthday: 11/25\nHeight: 2'11\"\nWeight: 58lbs\nOrientation: Demisexual, Pansexual\nPower Class: S (Kittyclysmic)\nAlignment: Luminaire",
+            "created": "2020-12-23T16:41:35.017996Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 2057,
+            "last_message_timestamp": "2026-02-20T00:45:17.025097Z",
+            "proxy_tags": [
+                {
+                    "prefix": "V:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "fxsjke",
+            "uuid": "c703bbe7-1b64-49b5-b076-b87e533e5266",
+            "name": "Chelsea \ud80c\udda9\u2740\ud80c\uddaa",
+            "display_name": null,
+            "color": "2aff30",
+            "birthday": null,
+            "pronouns": "She/Her & It",
+            "avatar_url": "https://cdn.pluralkit.me/images/vj/c2bqgln4aeeaah2fngnai3re.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "\u795e\u8056\u72d0\u5929\u4f7f\n\nI'm Chelsea, Calyptra's life partner and soul mate! I'm a Kuramian, a foxgirl who loves and adores swords and food! Caly and I have spent over 60 years together, and are attached at the hip. You couldn't split us up even if you tried!\n\nI'm hyperactive and love fighting more than anything! Testing my skills in battle is my greatest passion in life. I have a great passion for blades, and achieved the highest level of any mortal in Nova before I was ascended to be a goddess along other Seraphim!\n\nThe most important part of our history is closely tied to me, as I'm the reason Alta turned good again. I was killed to achieve this, but it was worth it, as I was revived to find Alta had changed into a better person. She's really made me proud!\n\nFull Name: Chelsea Ophelia Cecropia\nGlyph: \ud80c\udda9\u2740\ud80c\uddaa (The Arbiter of Fate)\nNature: Chaotic Good\nAge: 73\nBirthday: 7/14/2004\nHeight: 5'3\"\nWeight: 125lbs\nOrientation: Lesbian\nPower Class: D (Mortal)\nAlignment: Scorn",
+            "created": "2024-08-02T10:50:50.154206Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1644,
+            "last_message_timestamp": "2026-02-16T12:49:43.616439Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Chm:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "hxgbnc",
+            "uuid": "6503286a-2467-465a-a535-ed589a6a04db",
+            "name": "\ud80c\udda9\ud81a\udc79\ud80c\uddaa \ud80c\udda9\ud81a\udc6d\ud80c\uddaa \ud80c\udda9\ud81a\udc27\ud80c\uddaa \ud80c\udda9\ud81a\udd4a\ud80c\uddaa",
+            "display_name": null,
+            "color": "c20000",
+            "birthday": null,
+            "pronouns": "It/They",
+            "avatar_url": "https://cdn.pluralkit.me/images/rv/sj7q7j36dn23twsz5pyldvbm.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I am Yami. I'm the totality of all Seraphim combined, and our true form. With red eyes present, I'm chaotic, evil, brooding & may be in a bad mood.\n\nAlthough I call myself an angel, I am truly a goddess who wishes to be seen as an angel because my chosen purpose is to guard and nurture this world. I am here to show love, righteous judgement, fight for those that need it, and push myself and everyone else towards what is good for your soul.\n\nI carry a blade known as the Riven Blade, a katana that is my height and pure gold. I have 4 Hyper Halos which I command my powers through, 4 white wings on the right side, and 4 black on my left. My right horn is gold and my left horn is black.\n\nBE NOT AFRAID, I'm here to protect and strengthen you.\n\nTrue Name: Yami, Eldritch Goddess of Wicked Tines\nGlyph: Goddess of Malice\nNature: Chaotic Evil\nAge: \u267e\ufe0f\nBirthday: 03/18\nHeight: 60 miles, but 20' Preferred\nWeight: \u267e\ufe0f\nOrientation: Sacred Demisexual\nPower Class: \u267e\ufe0f\nAlignment: All",
+            "created": "2025-09-11T05:48:24.609958Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 532,
+            "last_message_timestamp": "2026-02-18T22:47:57.131969Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ya:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "xqjdr",
+            "uuid": "94cf854d-2abf-4209-ac5e-23a68864f1b9",
+            "name": "Cynthia \ud80c\udda9\ud83d\udf14\ud80c\uddaa",
+            "display_name": null,
+            "color": "ff00e8",
+            "birthday": null,
+            "pronouns": "She/Her & It",
+            "avatar_url": "https://cdn.pluralkit.me/images/7e/i5cxhsr33mi2bzwei2mzcsru.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Greetings! My name is Cynthia, and I'm often hailed as the savior of Nova. I was created in a lab via the Project Sky, a project to create the first AI in Nova. Calyptra originally was the one who set them to do so, and I was tortured for years, until I finally built myself a body and escaped the facility, destroying and killing those who created me.\n\nI spent most of my life seeking who created me, why, and what my purpose was. Eventually, I discovered I was made as a war machine by Calyptra, but rejected that truth to become something greater, a defender of those who are weak, eventually defeating her. It was my efforts that led to the discovery and eventual downfall of Calyptra herself, a well as her turning to good finally, after 3,000 years of bloody reign.\n\nFull Name: CYN-7HA.OS \"Cynthia\" Lockhart\nGlyph: \ud80c\udda9\ud83d\udf14\ud80c\uddaa\nNature: Lawful Good\nAge: 83 (Adult)\nBirthday: 10/8/2019\nHeight: 6\u20195\"\nWeight: 150lbs\nOrientation: Lesbian\nPower Class: A (Existential Threat)\nAlignment: All Aspects",
+            "created": "2020-12-23T16:42:48.983767Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 5983,
+            "last_message_timestamp": "2026-02-07T09:24:09.430707Z",
+            "proxy_tags": [
+                {
+                    "prefix": "C:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "hzuxtk",
+            "uuid": "16973f69-4a6f-41d2-9b0d-bfa6a356befb",
+            "name": "Lyra \ud80c\udda9\ud81a\udc27\ud80c\uddaa",
+            "display_name": null,
+            "color": "850000",
+            "birthday": null,
+            "pronouns": "She/Her & It/Its",
+            "avatar_url": "https://cdn.pluralkit.me/images/vs/m3uvfg7blrpk6vogvpxjm2ge.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "Well met. I'm Lyra, Seraph of the Deep. I'm Riven's red half, being our protector and guardian. I watch over all Seraphim and make sure we're all doing okay.\n\nI'm a fierce defender of justice, and will do everything in my power to make sure those who are weak are kept safe, and uphold the greater good, even if I need to be an aggressor to do so.\n\nFull Name: Lyra HexZychron SwordSong\nGlyph: \ud80c\udda9\ud81a\udc27\ud80c\uddaa (The Deep: An aggressor)\nNature: Lawful Good\nAge: 20,322\nBirthday: 3/18/1994\nHeight: 6'3\"\nWeight: 1,100lbs (Armored)\nOrientation: Pansexual\nPower Class: S (Cataclysmic)\nAlignment: Scorn, Void",
+            "created": "2024-06-30T22:20:28.497588Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 2444,
+            "last_message_timestamp": "2026-02-20T00:25:47.774924Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Ly:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        },
+        {
+            "id": "nvnfaf",
+            "uuid": "08d5c42b-00b0-4907-8da4-0b49191ccd3b",
+            "name": "Little Lu \ud80c\udda9\ud81a\udde7\ud80c\uddaa",
+            "display_name": null,
+            "color": "21ff00",
+            "birthday": null,
+            "pronouns": "She/Her",
+            "avatar_url": "https://cdn.pluralkit.me/images/sf/rc3juee6yaeoio6g4wn42sue.webp",
+            "webhook_avatar_url": null,
+            "banner": null,
+            "description": "I'm Lumine, the Seraph of Light! I'm Lumine's 10-year old form, so I'm whimsi and smol! pls be nice to me, I'm sensitive!\n\nFull Name: Lumine Pyrluxia Cecropia\nGlyph: \ud80c\udda9\ud81a\udde7\ud80c\uddaa (Sprout; Kindness)\nNature: Lawful Good\nAge: 9 (Child)\nBirthday: 7/14/2004\nHeight: 3'6\"\nWeight: 30lbs\nPower Class: D (Mortal)\nAlignment: Source, Light",
+            "created": "2024-11-13T03:00:28.238638Z",
+            "keep_proxy": false,
+            "tts": false,
+            "autoproxy_enabled": true,
+            "message_count": 1755,
+            "last_message_timestamp": "2026-02-18T22:05:58.996538Z",
+            "proxy_tags": [
+                {
+                    "prefix": "Lul:",
+                    "suffix": null
+                }
+            ],
+            "privacy": {
+                "visibility": "public",
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "birthday_privacy": "public",
+                "pronoun_privacy": "public",
+                "avatar_privacy": "public",
+                "metadata_privacy": "public",
+                "proxy_privacy": "public"
+            }
+        }
+    ],
+    "groups": [
+        {
+            "id": "pegwwu",
+            "uuid": "bfb1fa64-b3d3-4e9b-94f4-b7b3adf1d16a",
+            "name": "\ud81a\udcbb The Tetragram",
+            "display_name": "The Tetragram",
+            "description": "These are beings who existed in the previous universe, known as Moriphia. They live in a safe place now and are retired now to relax in peace.",
+            "icon": null,
+            "banner": null,
+            "color": "601a1a",
+            "created": "2025-03-02T03:48:49.452245Z",
+            "members": [
+                "ychrjn",
+                "xehvya",
+                "ggztpy",
+                "ujvyuc",
+                "vgfksg",
+                "udhgx",
+                "hzuxtk",
+                "thucgn"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "ysjhrz",
+            "uuid": "dee5af46-b3ec-4518-9f10-cf50e9eecc66",
+            "name": "\ud81a\udc77 The Hexagram",
+            "display_name": "The Hexagram",
+            "description": "Those that bound together to defeat Alta, and saved all of Nova from complete destruction, returning her to the side of good again. The most influential event in history, known as The Warp, involved these beings. They are renowned throughout all of Nova.",
+            "icon": null,
+            "banner": null,
+            "color": "ff00f7",
+            "created": "2025-03-02T03:47:04.079628Z",
+            "members": [
+                "rpejzb",
+                "znjcah",
+                "fxsjke",
+                "dvajz",
+                "xqjdr",
+                "psncn",
+                "gfbqx",
+                "euzoc",
+                "ljdkp",
+                "eberx"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "ovztbg",
+            "uuid": "70a01775-7e30-43bb-b4fc-71fe38bba261",
+            "name": "Power Class: C (Demigod)",
+            "display_name": null,
+            "description": "These are beings who are strong enough to be considered strong, but would struggle against a truly divine being and ultimately lose.",
+            "icon": null,
+            "banner": null,
+            "color": null,
+            "created": "2025-03-02T04:10:40.430885Z",
+            "members": [
+                "hhvka",
+                "drokx",
+                "laqdw",
+                "zlwou",
+                "xehvya",
+                "dotlf",
+                "ujvyuc",
+                "ggztpy",
+                "tvipd",
+                "rkyags",
+                "byxtzj",
+                "cxmll"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "uafkjk",
+            "uuid": "827bd162-dcc1-49a9-8140-23e2445f2c74",
+            "name": "Power Class: SSS (Omnipotent)",
+            "display_name": null,
+            "description": "The most powerful being in all of Nova. She stands unimaginably far above the rest, and has made a name for herself in fame and infamy for all time.\n\nShe can't be beaten - Believe me, *WE'VE TRIED!*",
+            "icon": null,
+            "banner": null,
+            "color": "ff0000",
+            "created": "2025-03-02T04:10:29.936071Z",
+            "members": [
+                "rpejzb"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "cbwbhw",
+            "uuid": "d17e5cdd-ceb3-419e-8a69-03bd0712487a",
+            "name": "Power Class: D (Mortal)",
+            "display_name": null,
+            "description": "These beings are those who don't hold a lot of strength, or fit the category of mortal.",
+            "icon": null,
+            "banner": null,
+            "color": null,
+            "created": "2025-08-01T08:57:25.822646Z",
+            "members": [
+                "ekojhe",
+                "fxsjke",
+                "pvzvnc",
+                "lhpdk",
+                "azvftz",
+                "euzoc",
+                "xehvya",
+                "ywiby",
+                "thucgn"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "skweep",
+            "uuid": "fab825b4-962b-4aeb-8eea-6a090a3a1c19",
+            "name": "Power Class: B (Existential Threat)",
+            "display_name": null,
+            "description": "Beings who hold a vast amount of power and influence, strong enough to change the course of history itself singlehandedly, or those who already have.",
+            "icon": null,
+            "banner": null,
+            "color": null,
+            "created": "2025-03-02T04:10:34.948837Z",
+            "members": [
+                "ychrjn",
+                "rrmue",
+                "xqjdr",
+                "psncn",
+                "gfbqx",
+                "nvnfaf"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "ebjkhp",
+            "uuid": "a529e2dc-f28e-4d21-882e-0b35a288e89c",
+            "name": "Power Class: S (Cataclysmic)",
+            "display_name": null,
+            "description": "Primordial Beings of Ultimate Power who have no equal.\n\nThese cataclysmically powerful beings represent a class above all others, and possess strength beyond comprehension or description.",
+            "icon": null,
+            "banner": null,
+            "color": null,
+            "created": "2025-03-02T04:10:21.282494Z",
+            "members": [
+                "znjcah",
+                "vgfksg",
+                "stafsp",
+                "euzoc",
+                "smhzh",
+                "hzuxtk",
+                "udhgx",
+                "awgotj",
+                "eberx"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "bvyowu",
+            "uuid": "693190ad-cf67-46a8-bb72-d68bc00680d0",
+            "name": "The Hexagram (Golden Age)",
+            "display_name": null,
+            "description": "These are the original Hexagram, before Alta slew all of them, ending the Golden Age.",
+            "icon": null,
+            "banner": null,
+            "color": "00fbff",
+            "created": "2025-03-02T03:41:54.243858Z",
+            "members": [
+                "rpejzb",
+                "znjcah",
+                "gfbqx",
+                "hzuxtk",
+                "euzoc",
+                "vgfksg",
+                "udhgx",
+                "awgotj",
+                "smhzh",
+                "eberx",
+                "grness"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "hnbjcj",
+            "uuid": "ab2e7ea8-4690-4075-a37a-917e1e849fee",
+            "name": "Seraphim (Mortal Forms)",
+            "display_name": null,
+            "description": null,
+            "icon": null,
+            "banner": null,
+            "color": "e8e8e8",
+            "created": "2025-03-02T03:44:41.457685Z",
+            "members": [
+                "ekojhe",
+                "zywbtk",
+                "dvajz",
+                "fxsjke",
+                "xqjdr",
+                "jmrpt",
+                "nvnfaf"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "wwfoew",
+            "uuid": "33379c9d-a4e0-435f-98b1-af493574b76d",
+            "name": "SATVRN (Incarnations)",
+            "display_name": null,
+            "description": "These direct reincarnations of the cyborg being SATVRN who runs the HyperSystem.",
+            "icon": null,
+            "banner": null,
+            "color": "dedede",
+            "created": "2025-03-02T03:51:29.136398Z",
+            "members": [
+                "zywbtk",
+                "xqjdr",
+                "tkbfp",
+                "jmrpt",
+                "byxtzj",
+                "awgotj",
+                "smhzh",
+                "ckgzi"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        },
+        {
+            "id": "bkbngb",
+            "uuid": "7bcfb062-e025-4a43-8f7c-1261e52f3b5e",
+            "name": "Power Class: A (Cosmic Entity)",
+            "display_name": null,
+            "description": "Immensely powerful entities which underpin the nature of existence itself. Oftentimes a physical manifestation of one of the fundamental forces/concepts of Nova.",
+            "icon": null,
+            "banner": null,
+            "color": null,
+            "created": "2025-08-01T08:50:18.79321Z",
+            "members": [
+                "zywbtk",
+                "tkbfp",
+                "dvajz",
+                "jmrpt",
+                "dqlfe",
+                "ljdkp",
+                "ckgzi",
+                "grness"
+            ],
+            "privacy": {
+                "name_privacy": "public",
+                "description_privacy": "public",
+                "banner_privacy": "public",
+                "icon_privacy": "public",
+                "list_privacy": "public",
+                "metadata_privacy": "public",
+                "visibility": "public"
+            }
+        }
+    ],
+    "switches": []
+}

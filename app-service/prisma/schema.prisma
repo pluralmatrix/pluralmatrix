@@ -11,7 +11,13 @@ datasource db {
 model System {
   id          String   @id @default(uuid())
   slug        String   @unique // Unique identifier for ghost user IDs (e.g. "chiara")
+  pkId        String?  // PluralKit-compatible random ID (e.g. "abcde")
   name        String?
+  description String?
+  pronouns    String?
+  avatarUrl   String?
+  banner      String?
+  color       String?
   systemTag   String?  // The suffix tag (e.g. ⛩️ Seraphim ⛩️)
   autoproxyId String?
   autoproxy   Member?  @relation("Autoproxy", fields: [autoproxyId], references: [id])
@@ -34,6 +40,7 @@ model Member {
   system      System   @relation("SystemMembers", fields: [systemId], references: [id], onDelete: Cascade)
   autoproxiedSystems System[] @relation("Autoproxy")
   slug        String   // Name-based ID for commands (e.g. "lily")
+  pkId        String?  // PluralKit-compatible random ID (e.g. "abcde")
   name        String
   displayName String?
   avatarUrl   String?
@@ -46,4 +53,5 @@ model Member {
   updatedAt   DateTime @updatedAt
 
   @@unique([systemId, slug])
+  @@unique([systemId, pkId])
 }

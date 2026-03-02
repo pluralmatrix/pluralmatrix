@@ -1,4 +1,4 @@
-import { importFromPluralKit, exportToPluralKit, stringifyWithEscapedUnicode, exportAvatarsZip, importAvatarsZip } from './import';
+import { importFromPluralKit, generatePkJson, generateBackupJson, stringifyWithEscapedUnicode, exportSystemZip, importAvatarsZip } from './import';
 import { prisma } from './bot';
 import { PassThrough } from 'stream';
 import AdmZip from 'adm-zip';
@@ -49,6 +49,15 @@ jest.mock('./bot', () => ({
     },
 }));
 
+async function streamToBuffer(stream: PassThrough): Promise<Buffer> {
+    const chunks: any[] = [];
+    return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('error', (err) => reject(err));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+}
+
 describe('PluralKit Roundtrip', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -60,7 +69,7 @@ describe('PluralKit Roundtrip', () => {
                     get: (name: string) => name.toLowerCase() === 'content-type' ? 'image/png' : null
                 },
                 arrayBuffer: () => Promise.resolve(new Uint8Array(Buffer.from('fake-image-binary-data-123')).buffer)
-            });
+            } as any);
         });
     });
 
@@ -79,7 +88,7 @@ describe('PluralKit Roundtrip', () => {
                     pronouns: 'She/Her',
                     color: 'ff00ff',
                     avatar_url: 'https://example.com/avatar.png',
-                    proxy_tags: [{ prefix: 'a:', suffix: '' }]
+                    proxy_tags: [{ prefix: 'a:', suffix: null }]
                 }
             ]
         };
@@ -113,7 +122,7 @@ describe('PluralKit Roundtrip', () => {
         });
 
         // 3. Run Export
-        const exportedData = await exportToPluralKit('@user:localhost');
+        const exportedData = await generatePkJson('@user:localhost');
 
         // 4. Verify roundtrip consistency
         expect(exportedData).toBeDefined();
@@ -145,7 +154,7 @@ describe('PluralKit Roundtrip', () => {
                 {
                     id: longSlug,
                     name: 'Alice',
-                    proxy_tags: [{ prefix: 'a:', suffix: '' }]
+                    proxy_tags: [{ prefix: 'a:', suffix: null }]
                 }
             ]
         };
@@ -183,10 +192,10 @@ describe('PluralKit Roundtrip', () => {
         });
 
         // 3. Run Export
-        const exportedData = await exportToPluralKit('@user:localhost');
+        const exportedData = await generateBackupJson('@user:localhost');
 
         // 4. Verify export preserved the long slugs
-        expect(exportedData?.config.pluralmatrix_version).toBe(1);
+        expect(exportedData?.pluralmatrix_metadata?.version).toBe(2);
         expect(exportedData?.id).toBe(systemSlug);
         expect(exportedData?.members[0].id).toBe(longSlug);
     });
@@ -239,35 +248,46 @@ describe('PluralKit Roundtrip', () => {
     });
 
     describe('Avatar ZIP Roundtrip', () => {
-        it('should export avatars to a ZIP stream with correct data', async () => {
+        it('should export avatars to a ZIP stream with correct data and README', async () => {
             const fakeImageData = Buffer.from('fake-image-binary-data-123');
             const mockSystem = {
                 id: 'sys1',
+                slug: 'sys1-slug',
+                createdAt: new Date(),
                 members: [
-                    { name: 'Alice', slug: 'alice', avatarUrl: 'mxc://localhost/media1' }
+                    { id: 'm1', name: 'Alice', slug: 'alice', avatarUrl: 'mxc://localhost/media1', createdAt: new Date(), proxyTags: [] }
                 ]
             };
             (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
 
-            const chunks: any[] = [];
-            const zipStream = new PassThrough();
-            zipStream.on('data', (chunk) => chunks.push(chunk));
+            // 1. PK Export should have README and placeholder URLs
+            const zipStreamPk = new PassThrough();
+            const bufferPkPromise = streamToBuffer(zipStreamPk);
             
-            // Wait for both the function to finish AND the stream to emit 'end'
-            const [buffer] = await Promise.all([
-                new Promise<Buffer>((resolve) => {
-                    zipStream.on('end', () => resolve(Buffer.concat(chunks)));
-                }),
-                exportAvatarsZip('@user:localhost', zipStream)
-            ]);
+            await exportSystemZip('@user:localhost', zipStreamPk, 'pk');
+            const bufferPk = await bufferPkPromise;
 
-            const zip = new AdmZip(buffer);
-            const entries = zip.getEntries();
+            const zipPk = new AdmZip(bufferPk);
+            expect(zipPk.getEntries().some(e => e.entryName === 'README_AVATARS.txt')).toBe(true);
+            
+            const jsonPk = JSON.parse(zipPk.getEntry('pluralkit_system.json')!.getData().toString());
+            expect(jsonPk.members[0].avatar_url).toContain('https://myimageserver/avatars/alice_media1');
 
-            expect(entries).toHaveLength(1);
-            expect(entries[0].entryName).toBe('alice_media1.png');
-            // Compare as strings or buffers directly
-            expect(entries[0].getData().toString()).toBe(fakeImageData.toString());
+            // 2. Backup Export should have the JSON and avatars
+            const zipStreamBackup = new PassThrough();
+            const bufferBackupPromise = streamToBuffer(zipStreamBackup);
+            
+            await exportSystemZip('@user:localhost', zipStreamBackup, 'backup');
+            const bufferBackup = await bufferBackupPromise;
+
+            const zipBackup = new AdmZip(bufferBackup);
+            const entriesBackup = zipBackup.getEntries();
+
+            expect(entriesBackup.some(e => e.entryName === 'pluralmatrix_backup.json')).toBe(true);
+            expect(entriesBackup.some(e => e.entryName === 'avatars/alice_media1.png')).toBe(true);
+            
+            const avatarEntry = entriesBackup.find(e => e.entryName === 'avatars/alice_media1.png');
+            expect(avatarEntry?.getData().toString()).toBe(fakeImageData.toString());
         });
 
         it('should import avatars from a ZIP and re-upload exact binary data', async () => {
@@ -288,21 +308,19 @@ describe('PluralKit Roundtrip', () => {
             });
 
             const zip = new AdmZip();
-            // Test with the new descriptive filename format
-            zip.addFile('alice_media1.png', originalData);
+            zip.addFile('avatars/alice_media1.png', originalData);
             const zipBuffer = zip.toBuffer();
 
             mockBotClient.uploadContent.mockResolvedValue('mxc://new/uploaded');
 
-            const count = await importAvatarsZip('@user:localhost', zipBuffer);
+            const result = await importAvatarsZip('@user:localhost', zipBuffer);
 
-            expect(count).toBe(1);
+            expect(result.count).toBe(1);
             
-            // Verify that the data uploaded to Matrix matches the data in the ZIP
             expect(mockBotClient.uploadContent).toHaveBeenCalledWith(
                 originalData,
                 'image/png',
-                'alice_media1.png'
+                'avatars/alice_media1.png'
             );
 
             expect(prisma.member.update).toHaveBeenCalledWith(expect.objectContaining({

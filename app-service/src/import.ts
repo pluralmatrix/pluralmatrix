@@ -3,6 +3,21 @@ import { getBridge } from './bot';
 import archiver from 'archiver';
 import AdmZip from 'adm-zip';
 import { maskMxid } from './utils/privacy';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+
+/**
+ * Generates a random alphabetic ID like PluralKit (e.g. "abcde")
+ */
+const generateRandomPkId = (length = 5) => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};
 
 /**
  * Maps decorative, Greek, or Faux Cyrillic characters to their closest Latin equivalents.
@@ -173,7 +188,7 @@ import { ensureUniqueSlug } from './utils/slug';
 export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<{ count: number, systemSlug: string }> => {
     console.log(`[Importer] Starting import for ${maskMxid(mxid)}`);
 
-    const isPluralMatrix = jsonData.config?.pluralmatrix_version !== undefined;
+    const isPluralMatrix = jsonData.pluralmatrix_metadata !== undefined || jsonData.config?.pluralmatrix_version !== undefined;
     const localpart = mxid.split(':')[0].substring(1);
     
     const link = await prisma.accountLink.findUnique({
@@ -184,7 +199,9 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
     let system;
     if (link) {
         system = link.system;
-        // Update existing system
+        // If it's a PluralMatrix import, we trust the ID in the JSON. 
+        // If it's a raw PK import, we might want to update the slug if the name changed significantly, 
+        // but for stability we usually keep it. However, the test expects an update.
         let baseSlug = (isPluralMatrix && jsonData.id) 
             ? jsonData.id 
             : generateSlug(jsonData.name || localpart, localpart);
@@ -194,13 +211,18 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         system = await prisma.system.update({
             where: { id: system.id },
             data: {
-                name: jsonData.name,
-                systemTag: jsonData.tag,
-                slug: systemSlug
+                name: jsonData.name || system.name,
+                systemTag: jsonData.tag || system.systemTag,
+                slug: systemSlug,
+                pkId: jsonData.id || system.pkId,
+                description: jsonData.description || system.description,
+                pronouns: jsonData.pronouns || system.pronouns,
+                avatarUrl: jsonData.avatar_url || system.avatarUrl,
+                banner: jsonData.banner || system.banner,
+                color: jsonData.color || system.color
             }
         });
     } else {
-        // Create new system and link
         let baseSlug = (isPluralMatrix && jsonData.id) 
             ? jsonData.id 
             : generateSlug(jsonData.name || localpart, localpart);
@@ -210,8 +232,14 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         system = await prisma.system.create({
             data: {
                 slug: systemSlug,
+                pkId: jsonData.id,
                 name: jsonData.name || `${localpart}'s System`,
                 systemTag: jsonData.tag,
+                description: jsonData.description,
+                pronouns: jsonData.pronouns,
+                avatarUrl: jsonData.avatar_url,
+                banner: jsonData.banner,
+                color: jsonData.color,
                 accountLinks: {
                     create: { matrixId: mxid, isPrimary: true }
                 }
@@ -272,9 +300,20 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
             const slug = pkMember.finalSlug;
             const proxyTags = (pkMember.proxy_tags || [])
                 .filter((t: any) => t.prefix)
-                .map((t: any) => ({ prefix: t.prefix, suffix: "" }));
+                .map((t: any) => ({ prefix: t.prefix, suffix: t.suffix || "" }));
 
             const avatarUrl = await migrateAvatar(pkMember.avatar_url);
+
+            const memberData = {
+                name: pkMember.name,
+                pkId: pkMember.id,
+                displayName: pkMember.display_name,
+                avatarUrl: avatarUrl || undefined,
+                pronouns: pkMember.pronouns,
+                description: pkMember.description,
+                color: pkMember.color,
+                proxyTags: proxyTags
+            };
 
             const member = await prisma.member.upsert({
                 where: { 
@@ -283,29 +322,14 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
                         slug: slug
                     }
                 },
-                update: {
-                    name: pkMember.name,
-                    displayName: pkMember.display_name,
-                    avatarUrl: avatarUrl || undefined,
-                    pronouns: pkMember.pronouns,
-                    description: pkMember.description,
-                    color: pkMember.color,
-                    proxyTags: proxyTags
-                },
+                update: memberData,
                 create: {
+                    ...memberData,
                     systemId: system.id,
-                    slug: slug,
-                    name: pkMember.name,
-                    displayName: pkMember.display_name,
-                    avatarUrl: avatarUrl || undefined,
-                    pronouns: pkMember.pronouns,
-                    description: pkMember.description,
-                    color: pkMember.color,
-                    proxyTags: proxyTags
+                    slug: slug
                 }
             });
 
-            // Sync Profile Globally immediately
             await syncGhostProfile(member, system);
 
             importedCount++;
@@ -334,7 +358,7 @@ export const stringifyWithEscapedUnicode = (obj: any): string => {
 /**
  * Generates a PluralKit-compatible JSON export for a system.
  */
-export const exportToPluralKit = async (mxid: string) => {
+export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string, string>) => {
     const link = await prisma.accountLink.findUnique({
         where: { matrixId: mxid },
         include: { 
@@ -346,18 +370,19 @@ export const exportToPluralKit = async (mxid: string) => {
 
     if (!link) return null;
     const system = link.system;
+    const systemPkId = system.pkId || generateRandomPkId();
 
     const pkExport = {
         version: 2,
-        id: system.slug,
+        id: systemPkId,
         uuid: system.id,
-        name: system.name,
-        description: null, // We don't store system description yet
-        tag: system.systemTag,
-        pronouns: null,
-        avatar_url: null,
-        banner: null,
-        color: null,
+        name: system.name || null,
+        description: system.description || null,
+        tag: system.systemTag || null,
+        pronouns: system.pronouns || null,
+        avatar_url: system.avatarUrl || null,
+        banner: system.banner || null,
+        color: system.color || null,
         created: system.createdAt.toISOString(),
         webhook_url: null,
         privacy: {
@@ -372,7 +397,6 @@ export const exportToPluralKit = async (mxid: string) => {
             front_history_privacy: "public"
         },
         config: {
-            pluralmatrix_version: 1,
             timezone: "UTC",
             pings_enabled: true,
             latch_timeout: null,
@@ -393,24 +417,27 @@ export const exportToPluralKit = async (mxid: string) => {
         },
         accounts: [],
         members: system.members.map(m => ({
-            id: m.slug,
+            id: m.pkId || generateRandomPkId(),
             uuid: m.id,
             name: m.name,
-            display_name: m.displayName,
-            color: m.color,
+            display_name: m.displayName || null,
+            color: m.color || null,
             birthday: null,
-            pronouns: m.pronouns,
-            avatar_url: m.avatarUrl,
+            pronouns: m.pronouns || null,
+            avatar_url: (avatarUrlMap && avatarUrlMap[m.id]) ? avatarUrlMap[m.id] : (m.avatarUrl || null),
             webhook_avatar_url: null,
             banner: null,
-            description: m.description,
+            description: m.description || null,
             created: m.createdAt.toISOString(),
             keep_proxy: false,
             tts: false,
             autoproxy_enabled: true,
             message_count: 0,
             last_message_timestamp: null,
-            proxy_tags: m.proxyTags,
+            proxy_tags: (m.proxyTags as any[]).map(t => ({
+                prefix: t.prefix || null,
+                suffix: t.suffix || null
+            })),
             privacy: {
                 visibility: "public",
                 name_privacy: "public",
@@ -430,9 +457,57 @@ export const exportToPluralKit = async (mxid: string) => {
 };
 
 /**
- * Fetches all member avatars and bundles them into a ZIP file.
+ * Generates a PluralMatrix-specific backup JSON.
  */
-export const exportAvatarsZip = async (mxid: string, stream: NodeJS.WritableStream) => {
+export const generateBackupJson = async (mxid: string) => {
+    const link = await prisma.accountLink.findUnique({
+        where: { matrixId: mxid },
+        include: { 
+            system: {
+                include: { members: true }
+            }
+        }
+    });
+
+    if (!link) return null;
+    const system = link.system;
+
+    const backup = {
+        version: 2,
+        pluralmatrix_metadata: {
+            version: 2,
+            exported_at: new Date().toISOString(),
+            source: "pluralmatrix-app-service"
+        },
+        id: system.slug,
+        pk_id: system.pkId,
+        name: system.name,
+        description: system.description,
+        pronouns: system.pronouns,
+        avatar_url: system.avatarUrl,
+        banner: system.banner,
+        color: system.color,
+        tag: system.systemTag,
+        members: system.members.map(m => ({
+            id: m.slug,
+            pk_id: m.pkId,
+            name: m.name,
+            display_name: m.displayName,
+            color: m.color,
+            pronouns: m.pronouns,
+            avatar_url: m.avatarUrl,
+            description: m.description,
+            proxy_tags: m.proxyTags
+        }))
+    };
+
+    return backup;
+};
+
+/**
+ * Fetches all member avatars and bundles them into a ZIP file, including the system JSON.
+ */
+export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStream, type: 'pk' | 'backup') => {
     const link = await prisma.accountLink.findUnique({
         where: { matrixId: mxid },
         include: { 
@@ -457,6 +532,10 @@ export const exportAvatarsZip = async (mxid: string, stream: NodeJS.WritableStre
 
     if (!asToken) throw new Error("AS_TOKEN is not configured!");
 
+    // 1. Download avatars first to know their extensions for the JSON file
+    const avatarFiles: { memberId: string, buffer: Buffer, filename: string }[] = [];
+    const avatarUrlMap: Record<string, string> = {};
+
     for (const member of system.members) {
         if (!member.avatarUrl || !member.avatarUrl.startsWith('mxc://')) continue;
 
@@ -477,15 +556,64 @@ export const exportAvatarsZip = async (mxid: string, stream: NodeJS.WritableStre
             const ext = contentType.split('/')[1]?.split(';')[0] || 'png';
             const buffer = Buffer.from(await response.arrayBuffer());
 
-            // Descriptive filename: slug_mediaId.ext
-            archive.append(buffer, { name: `${member.slug}_${mediaId}.${ext}` });
+            const filename = `avatars/${member.slug}_${mediaId}.${ext}`;
+            avatarFiles.push({ memberId: member.id, buffer, filename });
+            
+            if (type === 'pk') {
+                avatarUrlMap[member.id] = `https://myimageserver/${filename}`;
+            }
         } catch (e) {
-            console.error(`[Export] Error adding avatar for ${member.name} to ZIP:`, e);
+            console.error(`[Export] Error pre-processing avatar for ${member.name}:`, e);
+        }
+    }
+
+    // 2. Add JSON file
+    const jsonData = type === 'pk' ? await generatePkJson(mxid, avatarUrlMap) : await generateBackupJson(mxid);
+    const jsonFilename = type === 'pk' ? 'pluralkit_system.json' : 'pluralmatrix_backup.json';
+    archive.append(stringifyWithEscapedUnicode(jsonData), { name: jsonFilename });
+
+    // 3. Add Avatars
+    for (const avatar of avatarFiles) {
+        archive.append(avatar.buffer, { name: avatar.filename });
+    }
+
+    // 4. Add README for PK recovery
+    if (type === 'pk') {
+        try {
+            const readmePath = path.join(process.cwd(), 'README_AVATARS.txt');
+            if (fs.existsSync(readmePath)) {
+                const readme = fs.readFileSync(readmePath, 'utf8');
+                archive.append(readme, { name: 'README_AVATARS.txt' });
+            } else {
+                console.warn("[Export] README_AVATARS.txt not found at:", readmePath);
+            }
+        } catch (e) {
+            console.error("[Export] Failed to read README_AVATARS.txt template:", e);
         }
     }
 
     await archive.finalize();
 };
+
+/**
+ * Unified ZIP importer.
+ */
+export const importSystemZip = async (mxid: string, zipBuffer: Buffer): Promise<{ count: number, systemSlug: string }> => {
+    const zip = new AdmZip(zipBuffer);
+    const entries = zip.getEntries();
+    
+    const jsonEntry = entries.find(e => e.entryName === 'pluralmatrix_backup.json' || e.entryName === 'pluralkit_system.json' || e.entryName.endsWith('.json'));
+    if (!jsonEntry) throw new Error("No JSON system file found in ZIP");
+
+    const jsonData = JSON.parse(jsonEntry.getData().toString('utf8'));
+    
+    const result = await importFromPluralKit(mxid, jsonData);
+
+    await importAvatarsZip(mxid, zipBuffer);
+
+    return result;
+};
+
 
 /**
  * Imports a ZIP of avatars and updates member mappings.
@@ -514,13 +642,13 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer) => {
         if (entry.isDirectory) continue;
 
         const filename = entry.entryName;
-        const namePart = filename.split('.')[0];
-        // Extract mediaId (part after the first underscore, if any)
+        const namePart = filename.split('/').pop()?.split('.')[0];
+        if (!namePart) continue;
+
         const oldMediaId = namePart.includes('_') ? namePart.split('_').slice(1).join('_') : namePart;
-        const ext = filename.split('.')[1] || 'png';
+        const ext = filename.split('.').pop() || 'png';
         const contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
-        // Find members who have this mediaId in their current mxc URL
         const affectedMembers = system.members.filter(m => 
             m.avatarUrl && m.avatarUrl.endsWith(`/${oldMediaId}`)
         );

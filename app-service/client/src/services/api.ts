@@ -26,20 +26,27 @@ export const memberService = {
     update: (id: string, data: any) => api.patch(`/members/${id}`, data),
     delete: (id: string) => api.delete(`/members/${id}`),
     deleteAll: () => api.delete('/members'),
-    importPk: (data: any) => api.post('/import/pluralkit', data),
-    exportPk: () => {
-        const token = localStorage.getItem('token');
-        window.open(`${API_BASE}/export/pluralkit?token=${token}`, '_blank');
-    },
-    exportMedia: () => {
-        const token = localStorage.getItem('token');
-        window.open(`${API_BASE}/media/export?token=${token}`, '_blank');
-    },
-    importMedia: (file: File) => {
-        return api.post('/media/import', file, {
+    
+    // PluralKit Imports
+    importPkJson: (data: any) => api.post('/import/pk/json', data),
+
+    // Unified Backup Imports
+    importBackupZip: (file: File) => {
+        return api.post('/import/backup/zip', file, {
             headers: { 'Content-Type': 'application/zip' }
         });
     },
+
+    // Exports
+    exportPkZip: () => {
+        const token = localStorage.getItem('token');
+        window.open(`${API_BASE}/import/pk/zip?token=${token}`, '_blank');
+    },
+    exportBackupZip: () => {
+        const token = localStorage.getItem('token');
+        window.open(`${API_BASE}/import/backup/zip?token=${token}`, '_blank');
+    },
+    
     uploadMedia: (file: File) => {
         return api.post(`/media/upload?filename=${encodeURIComponent(file.name)}`, file, {
             headers: { 'Content-Type': file.type }

@@ -160,7 +160,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                             <div className="flex-1 space-y-4 w-full">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Internal Name</label>
+                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Name</label>
                                         {isReadOnly ? (
                                             <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.name}</div>
                                         ) : (
@@ -173,6 +173,22 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                             />
                                         )}
                                     </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Display Name</label>
+                                        {isReadOnly ? (
+                                            <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.displayName || 'None'}</div>
+                                        ) : (
+                                            <input 
+                                                className="matrix-input text-sm" 
+                                                value={formData.displayName} 
+                                                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })} 
+                                                placeholder=""
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Short ID (Slug)</label>
                                         {isReadOnly ? (
@@ -187,22 +203,6 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                             />
                                         )}
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Display Name</label>
-                                        {isReadOnly ? (
-                                            <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.displayName || 'None'}</div>
-                                        ) : (
-                                            <input 
-                                                className="matrix-input text-sm" 
-                                                value={formData.displayName} 
-                                                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })} 
-                                                placeholder=""
-                                            />
-                                        )}
-                                    </div>
                                     <div className="space-y-1">
                                         <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Pronouns</label>
                                         {isReadOnly ? (
@@ -212,7 +212,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                                 className="matrix-input text-sm" 
                                                 value={formData.pronouns} 
                                                 onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })} 
-                                                placeholder=""
+                                                placeholder="e.g. she/her"
                                             />
                                         )}
                                     </div>

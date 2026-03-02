@@ -6,13 +6,13 @@ const router = Router();
 
 router.use(authenticateToken);
 
-// PluralKit JSON
-router.post('/pluralkit', importController.importPluralKit);
-router.get('/pluralkit', importController.exportPluralKit); // Compatibility for new structure
-// Note: Frontend uses /api/export/pluralkit, which we will handle in routes/index.ts
+// PluralKit-compatible exports/imports
+router.post('/pk/json', importController.importPluralKit);
+router.get('/pk/json', importController.exportPluralKitJson);
+router.get('/pk/zip', importController.exportPluralKitZip);
 
-// Media ZIP
-router.get('/media', importController.exportMedia);
-router.post('/media', express.raw({ type: 'application/zip', limit: '50mb' }), importController.importMedia);
+// PluralMatrix internal backup exports/imports
+router.get('/backup/zip', importController.exportBackupZip);
+router.post('/backup/zip', express.raw({ type: 'application/zip', limit: '100mb' }), importController.importZip);
 
 export default router;

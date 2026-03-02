@@ -147,8 +147,8 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                                         {failedAvatars.length} Avatar{failedAvatars.length > 1 ? 's' : ''} failed to load
                                     </div>
                                     <p className="text-[10px] text-amber-500/70 leading-relaxed">
-                                        These members were imported, but their avatar images did not meet the requirements 
-                                        (under 1MB, smallest axis &lt; 1000px, largest axis &lt;= 4000px, .jpg/.png/.webp). You can update them manually in their profile.
+                                        These members were imported, but their avatar images either could not be loaded or did not meet the requirements 
+                                        (under 1MB, smallest axis &lt; 1000px, .jpg/.png/.webp). You can update them manually in their profile.
                                     </p>
                                     
                                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">

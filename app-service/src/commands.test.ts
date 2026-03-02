@@ -1,3 +1,4 @@
+import * as botModule from './bot';
 import { handleEvent, prisma, setAsToken } from './bot';
 import { Request } from 'matrix-appservice-bridge';
 
@@ -9,8 +10,9 @@ jest.mock('./services/cache', () => ({
     }
 }));
 
-// Mock bridge and intent
-const mockBotClient = {
+const mockBotClient: any = {
+    getUserId: jest.fn().mockReturnValue('@bot:localhost'),
+    uploadContent: jest.fn().mockResolvedValue('mxc://mock/avatar'),
     redactEvent: jest.fn().mockResolvedValue({}),
     getEvent: jest.fn(),
     getRoomStateEvent: jest.fn().mockResolvedValue({ algorithm: "m.megolm.v1.aes-sha2" }),
@@ -18,6 +20,7 @@ const mockBotClient = {
     homeserverUrl: "http://localhost:8008",
     doRequest: jest.fn()
 };
+mockBotClient.getClient = () => mockBotClient;
 
 const createMockIntent = (userId: string) => ({
     userId: userId,
@@ -46,25 +49,6 @@ jest.mock('./crypto/encryption', () => ({
     })
 }));
 
-// Mock Machine for decryption in tests
-jest.mock('./bot', () => {
-    const original = jest.requireActual('./bot');
-    return {
-        ...original,
-        getBridge: () => mockBridge,
-        sendRichText: jest.fn(),
-        sendEncryptedText: jest.fn(),
-        cryptoManager: {
-            getMachine: jest.fn().mockResolvedValue({
-                deviceId: { toString: () => "MOCK_DEVICE" },
-                decryptRoomEvent: jest.fn().mockResolvedValue({
-                    event: JSON.stringify({ type: "m.room.message", content: { body: "Decrypted Text" } })
-                })
-            })
-        }
-    };
-});
-
 describe('Bot Commands Resolution Tests', () => {
     const roomId = "!room:localhost";
     const sender = "@alice:localhost";
@@ -72,6 +56,17 @@ describe('Bot Commands Resolution Tests', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         setAsToken("mock_token");
+        
+        // Spy on bot module exports
+        jest.spyOn(botModule, 'getBridge').mockReturnValue(mockBridge as any);
+        
+        // Mock cryptoManager getMachine
+        jest.spyOn(botModule.cryptoManager, 'getMachine').mockResolvedValue({
+            deviceId: { toString: () => "MOCK_DEVICE" },
+            decryptRoomEvent: jest.fn().mockResolvedValue({
+                event: JSON.stringify({ type: "m.room.message", content: { body: "Decrypted Text" } })
+            })
+        } as any);
 
         const { proxyCache } = require('./services/cache');
         proxyCache.getSystemRules.mockResolvedValue({

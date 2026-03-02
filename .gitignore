@@ -29,6 +29,7 @@ Thumbs.db
 *~
 \#*#
 *.log
+app-service/coverage/
 
 # Matrix bridge stores
 app-service/data/

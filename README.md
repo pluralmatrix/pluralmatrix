@@ -113,7 +113,19 @@ For the best experience and a clean timeline, we recommend these client-specific
 - ✅ **SchildiChat Revenge:** Disable **Settings → Conversation screen → Show deleted messages** (off by default).
 
 ## Testing <a name="testing" href="#testing">#</a>
-Run the comprehensive test suite to verify full-stack functionality:
+PluralMatrix includes a comprehensive test suite covering the App Service (unit and E2E) and the Synapse module.
+
+### App Service (Backend & E2E)
+Run the full suite of unit and end-to-end tests using the provided runner script:
 ```bash
-cd app-service && npm test
+cd app-service
+./test.sh
 ```
+*This script handles Matrix Rust SDK cleanup gracefully and ensures the process exits correctly.*
+
+### Synapse Module (Python)
+Run the unit tests for the custom Synapse gatekeeper module directly inside the container:
+```bash
+./synapse/modules/test.sh
+```
+

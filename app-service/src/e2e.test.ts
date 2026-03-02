@@ -1,4 +1,11 @@
-import { getPluralMatrixToken, setupTestRoom, getMatrixClient, registerUser } from './test/e2e-helper';
+import { 
+    getPluralMatrixToken, 
+    setupTestRoom, 
+    getMatrixClient, 
+    registerUser,
+    deactivateUser,
+    cleanupCryptoStorage
+} from './test/e2e-helper';
 import { MatrixClient } from "@vector-im/matrix-bot-sdk";
 
 // These E2E tests require a running stack (Synapse + App Service)
@@ -51,6 +58,17 @@ describe('PluralMatrix E2E Roundtrip', () => {
 
     afterAll(async () => {
         console.log(`[E2E] Starting afterAll teardown...`);
+
+        // 1. Cleanup members from PluralMatrix
+        try {
+            console.log(`[E2E] Deleting PluralMatrix members for ${username}...`);
+            await fetch(`http://localhost:9000/api/members`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${jwt}` }
+            });
+        } catch (e) {}
+
+        // 2. Stop clients
         if (client) {
             console.log(`[E2E] Matrix client stopping...`);
             await client.stop();
@@ -59,15 +77,25 @@ describe('PluralMatrix E2E Roundtrip', () => {
             console.log(`[E2E] Observer client stopping...`);
             await observer.stop();
         }
-        console.log(`[E2E] Matrix clients stopped.`);
-        
-        console.log(`[E2E] Waiting for handles to settle...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // 3. Deactivate users in Synapse
+        // We use the admin client to deactivate the observer, then the client deactivates itself
+        if (client && observer) {
+            await deactivateUser(`@${observerName}:localhost`, client.accessToken);
+            await deactivateUser(`@${username}:localhost`, client.accessToken);
+        } else if (client) {
+            await deactivateUser(`@${username}:localhost`, client.accessToken);
+        }
+
+        // 4. Cleanup local disk
+        cleanupCryptoStorage(username);
+        cleanupCryptoStorage(observerName);
+
         console.log(`[E2E] Teardown complete.`);
         
         console.log(`[E2E] Scheduling force-exit in 3s...`);
         setTimeout(() => process.exit(0), 3000).unref();
-    }, 10000);
+    }, 30000);
 
     /**
      * Helper: Wait for a ghost message to appear for a specific client.

@@ -108,3 +108,34 @@ export const setupTestRoom = async (client: MatrixClient): Promise<string> => {
     console.log(`[E2E] Test room created: ${roomId}`);
     return roomId;
 };
+
+export const deactivateUser = async (userId: string, accessToken: string) => {
+    console.log(`[E2E] Deactivating user ${userId} via Admin API...`);
+    try {
+        const response = await fetch(`${SYNAPSE_URL}/_synapse/admin/v1/deactivate/${encodeURIComponent(userId)}`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ erase: true })
+        });
+        
+        if (!response.ok) {
+            const data = await response.json() as any;
+            console.warn(`[E2E] Deactivation failed for ${userId}: ${JSON.stringify(data)}`);
+        } else {
+            console.log(`[E2E] User ${userId} successfully deactivated.`);
+        }
+    } catch (e: any) {
+        console.error(`[E2E] Error during deactivation of ${userId}:`, e.message);
+    }
+};
+
+export const cleanupCryptoStorage = (username: string) => {
+    const storagePath = path.join(process.cwd(), 'data', 'e2e_crypto', username);
+    if (fs.existsSync(storagePath)) {
+        console.log(`[E2E] Cleaning up crypto storage for ${username}...`);
+        fs.rmSync(storagePath, { recursive: true, force: true });
+    }
+};

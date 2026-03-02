@@ -28,6 +28,7 @@ synapse/config/media_store/
 Thumbs.db
 *~
 \#*#
+*.log
 
 # Matrix bridge stores
 app-service/data/

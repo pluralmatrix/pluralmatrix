@@ -181,7 +181,7 @@ const DashboardPage: React.FC = () => {
                                     </Link>
                                 )}
                                 <button 
-                                    onClick={logout}
+                                    onClick={() => { logout(); navigate('/login'); }}
                                     className="p-2 hover:bg-white/5 rounded-lg text-matrix-muted hover:text-white transition-colors flex items-center text-sm font-medium"
                                 >
                                     <LogOut size={18} className="md:mr-2" /> <span className="hidden md:inline">Sign Out</span>

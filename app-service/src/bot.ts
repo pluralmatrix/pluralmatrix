@@ -97,7 +97,7 @@ const getRoomMessages = async (botClient: any, roomId: string, limit: number = 5
  * Handles both plaintext and encrypted messages, explicit reply targets, and chained edits.
  */
 const resolveGhostMessage = async (bridgeInstance: Bridge, botClient: any, roomId: string, systemSlug: string, explicitTargetId?: string) => {
-    const scrollback = await getRoomMessages(botClient, roomId, 50);
+    const scrollback = await getRoomMessages(botClient, roomId, 100);
     const rustRoomId = new RoomId(roomId);
 
     let targetRoot: any = null;
@@ -473,7 +473,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
         const relatesTo = event.content?.["m.relates_to"] as any;
         if (relatesTo?.rel_type === "m.annotation") {
             const reaction = relatesTo.key;
-            if (reaction?.startsWith("❌") || reaction === "x" || reaction === ":x:") {
+            if (reaction?.includes("❌") || reaction?.toLowerCase() === "x" || reaction?.toLowerCase() === ":x:") {
                 const targetEventId = relatesTo.event_id;
                 const system = await proxyCache.getSystemRules(sender, prismaClient);
                 if (!system) return;
@@ -508,7 +508,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     if (content["m.new_content"] && content["m.relates_to"]?.rel_type === "m.replace") {
         body = content["m.new_content"].body;
         isEdit = true;
-        originalEventId = content["m.relates_to"].event_id;
+        originalEventId = content["m.relates_to"].event_id || content["m.relates_to"].id;
     }
 
     if (body === undefined || body === null) return;

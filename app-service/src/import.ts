@@ -107,7 +107,12 @@ export const migrateAvatar = async (url: string): Promise<string | null> => {
         const bridge = getBridge();
         if (!bridge) return null;
 
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         if (!response.ok) return null;
 
         const buffer = Buffer.from(await response.arrayBuffer());
@@ -186,6 +191,7 @@ export const decommissionGhost = async (member: any, system: any) => {
 };
 
 import { ensureUniqueSlug } from './utils/slug';
+import os from 'os';
 
 /**
  * Main importer logic for PluralKit JSON.
@@ -429,7 +435,7 @@ export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string,
             color: m.color || null,
             birthday: null,
             pronouns: m.pronouns || null,
-            avatar_url: (avatarUrlMap && avatarUrlMap[m.id]) ? avatarUrlMap[m.id] : (m.avatarUrl || null),
+            avatar_url: (avatarUrlMap && avatarUrlMap[m.id]) ? avatarUrlMap[m.id] : (m.avatarUrl?.startsWith('mxc://') ? null : m.avatarUrl || null),
             webhook_avatar_url: null,
             banner: null,
             description: m.description || null,
@@ -538,66 +544,89 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
     if (!asToken) throw new Error("AS_TOKEN is not configured!");
 
     // 1. Download avatars first to know their extensions for the JSON file
-    const avatarFiles: { memberId: string, buffer: Buffer, filename: string }[] = [];
+    const avatarFiles: { memberId: string, tmpPath: string, filename: string }[] = [];
     const avatarUrlMap: Record<string, string> = {};
+    
+    // Create a temporary directory for this export
+    const tmpExportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pm-export-'));
 
-    for (const member of system.members) {
-        if (!member.avatarUrl || !member.avatarUrl.startsWith('mxc://')) continue;
+    try {
+        for (const member of system.members) {
+            if (!member.avatarUrl || !member.avatarUrl.startsWith('mxc://')) continue;
 
-        try {
-            const mxc = member.avatarUrl.replace('mxc://', '');
-            const [server, mediaId] = mxc.split('/');
-            
-            const response = await fetch(`${homeserverUrl}/_matrix/client/v1/media/download/${server}/${mediaId}`, {
-                headers: { 'Authorization': `Bearer ${asToken}` }
-            });
+            try {
+                const mxc = member.avatarUrl.replace('mxc://', '');
+                const [server, mediaId] = mxc.split('/');
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for export downloads
 
-            if (!response.ok) {
-                console.warn(`[Export] Failed to download an avatar: ${response.status}`);
-                continue;
+                const response = await fetch(`${homeserverUrl}/_matrix/client/v1/media/download/${server}/${mediaId}`, {
+                    headers: { 'Authorization': `Bearer ${asToken}` },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    console.warn(`[Export] Failed to download an avatar: ${response.status}`);
+                    continue;
+                }
+
+                const contentType = response.headers.get('content-type') || 'image/png';
+                const ext = contentType.split('/')[1]?.split(';')[0] || 'png';
+                const buffer = Buffer.from(await response.arrayBuffer());
+
+                const filename = `avatars/${member.slug}_${mediaId}.${ext}`;
+                const tmpPath = path.join(tmpExportDir, `${mediaId}.${ext}`);
+                
+                // Write to disk to prevent memory bloat from holding hundreds of buffers in array
+                fs.writeFileSync(tmpPath, buffer);
+                
+                avatarFiles.push({ memberId: member.id, tmpPath, filename });
+                
+                if (type === 'pk') {
+                    avatarUrlMap[member.id] = `https://myimageserver/${filename}`;
+                }
+            } catch (e) {
+                console.error(`[Export] Error pre-processing avatar for ${member.name}:`, e);
             }
-
-            const contentType = response.headers.get('content-type') || 'image/png';
-            const ext = contentType.split('/')[1]?.split(';')[0] || 'png';
-            const buffer = Buffer.from(await response.arrayBuffer());
-
-            const filename = `avatars/${member.slug}_${mediaId}.${ext}`;
-            avatarFiles.push({ memberId: member.id, buffer, filename });
-            
-            if (type === 'pk') {
-                avatarUrlMap[member.id] = `https://myimageserver/${filename}`;
-            }
-        } catch (e) {
-            console.error(`[Export] Error pre-processing avatar for ${member.name}:`, e);
         }
-    }
 
-    // 2. Add JSON file
-    const jsonData = type === 'pk' ? await generatePkJson(mxid, avatarUrlMap) : await generateBackupJson(mxid);
-    const jsonFilename = type === 'pk' ? 'pluralkit_system.json' : 'pluralmatrix_backup.json';
-    archive.append(stringifyWithEscapedUnicode(jsonData), { name: jsonFilename });
+        // 2. Add JSON file
+        const jsonData = type === 'pk' ? await generatePkJson(mxid, avatarUrlMap) : await generateBackupJson(mxid);
+        const jsonFilename = type === 'pk' ? 'pluralkit_system.json' : 'pluralmatrix_backup.json';
+        archive.append(stringifyWithEscapedUnicode(jsonData), { name: jsonFilename });
 
-    // 3. Add Avatars
-    for (const avatar of avatarFiles) {
-        archive.append(avatar.buffer, { name: avatar.filename });
-    }
-
-    // 4. Add README for PK recovery
-    if (type === 'pk') {
-        try {
-            const readmePath = path.join(process.cwd(), 'README_AVATARS.txt');
-            if (fs.existsSync(readmePath)) {
-                const readme = fs.readFileSync(readmePath, 'utf8');
-                archive.append(readme, { name: 'README_AVATARS.txt' });
-            } else {
-                console.warn("[Export] README_AVATARS.txt not found at:", readmePath);
-            }
-        } catch (e) {
-            console.error("[Export] Failed to read README_AVATARS.txt template:", e);
+        // 3. Add Avatars from disk
+        for (const avatar of avatarFiles) {
+            archive.file(avatar.tmpPath, { name: avatar.filename });
         }
-    }
 
-    await archive.finalize();
+        // 4. Add README for PK recovery
+        if (type === 'pk') {
+            try {
+                const readmePath = path.join(process.cwd(), 'README_AVATARS.txt');
+                if (fs.existsSync(readmePath)) {
+                    const readme = fs.readFileSync(readmePath, 'utf8');
+                    archive.append(readme, { name: 'README_AVATARS.txt' });
+                } else {
+                    console.warn("[Export] README_AVATARS.txt not found at:", readmePath);
+                }
+            } catch (e) {
+                console.error("[Export] Failed to read README_AVATARS.txt template:", e);
+            }
+        }
+
+        await archive.finalize();
+    } finally {
+        // Cleanup temp dir after archive is finalized or if it crashes
+        // We delay the cleanup slightly to ensure archiver is done reading from the file system
+        setTimeout(() => {
+            try {
+                fs.rmSync(tmpExportDir, { recursive: true, force: true });
+            } catch (e) {}
+        }, 5000);
+    }
 };
 
 /**

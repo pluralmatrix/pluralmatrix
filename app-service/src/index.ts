@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.APP_PORT || 9000;
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '50mb' }));
 
 // Request Logger
 app.use((req, res, next) => {

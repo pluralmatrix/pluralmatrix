@@ -18,6 +18,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [error, setError] = useState('');
     const [count, setCount] = useState(0);
+    const [systemSlug, setSystemSlug] = useState<string | undefined>(undefined);
     const [failedAvatars, setFailedAvatars] = useState<AvatarError[]>([]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,6 +39,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                         const json = JSON.parse(e.target?.result as string);
                         const res = await memberService.importPkJson(json);
                         setCount(res.data.count);
+                        setSystemSlug(res.data.systemSlug);
                         setFailedAvatars(res.data.failedAvatars || []);
                         setStatus('success');
                         if (!res.data.failedAvatars?.length) {
@@ -53,6 +55,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                 try {
                     const res = await memberService.importBackupZip(file);
                     setCount(res.data.count);
+                    setSystemSlug(res.data.systemSlug);
                     setFailedAvatars(res.data.failedAvatars || []);
                     setStatus('success');
                     if (!res.data.failedAvatars?.length) {
@@ -77,7 +80,10 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
             <div className="max-w-md w-full bg-matrix-light border border-white/10 rounded-2xl p-8 space-y-6 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                 <div className="flex items-center justify-between shrink-0">
                     <h2 className="text-2xl font-bold">Import System</h2>
-                    <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
+                    <button 
+                        onClick={status === 'success' ? () => onComplete(systemSlug) : onCancel} 
+                        className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors"
+                    >
                         <X size={20} />
                     </button>
                 </div>
@@ -163,7 +169,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                                         ))}
                                     </div>
                                     <button 
-                                        onClick={() => onComplete()}
+                                        onClick={() => onComplete(systemSlug)}
                                         className="matrix-button w-full py-2 text-xs"
                                     >
                                         Got it, Finish

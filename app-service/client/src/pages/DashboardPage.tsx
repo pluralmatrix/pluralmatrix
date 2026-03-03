@@ -27,8 +27,15 @@ const DashboardPage: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
 
-    const fetchData = async () => {
+    // Refs to avoid stale closures in SSE/fetchData
+    const isModalOpenRef = React.useRef(false);
+    isModalOpenRef.current = isImporting || isSettingsOpen;
+    const systemRef = React.useRef<any>(null);
+    systemRef.current = system;
+
+    const fetchData = async (isBackground = false) => {
         if (!urlSlug) return;
+        if (!isBackground) setLoading(true);
         
         try {
             // 1. Fetch public data
@@ -55,14 +62,20 @@ const DashboardPage: React.FC = () => {
             }
             
             setError(null);
-            setLoading(false); // Only stop loading if we successfully found the system
+            setLoading(false); 
         } catch (err: any) {
             console.error('Failed to fetch system data:', err);
             
             // Resilience: If 404 and logged in, check if our own system slug changed
-            if (err.response?.status === 404 && token) {
+            // CRITICAL: We use systemRef to know if we were already successfully viewing a system.
+            if (err.response?.status === 404 && token && systemRef.current) {
+                // If a modal is open, let the modal handle its own redirect/finish state.
+                if (isModalOpenRef.current) {
+                    setLoading(false);
+                    return;
+                }
+
                 try {
-                    // Keep loading spinning while we verify slug change
                     setLoading(true); 
                     const ownRes = await systemService.get();
                     if (ownRes.data.slug !== urlSlug) {
@@ -71,16 +84,27 @@ const DashboardPage: React.FC = () => {
                         return;
                     }
                 } catch (e) {
-                    // Fall through to error state if even the owner fetch fails
+                    // Fall through to error state
                 }
             }
 
-            setError(err.response?.data?.error || 'System not found');
+            // Only show the global error screen if we don't have a system yet,
+            // or if we aren't currently in the middle of an import/settings change.
+            if (!systemRef.current || !isModalOpenRef.current) {
+                setError(err.response?.data?.error || 'System not found');
+            }
             setLoading(false);
         }
     };
 
     useEffect(() => {
+        // Reset states when changing systems
+        setIsImporting(false);
+        setIsSettingsOpen(false);
+        setIsEditing(false);
+        setSystem(null);
+        setError(null);
+        setLoading(true);
         fetchData();
     }, [urlSlug, token]);
 
@@ -94,7 +118,7 @@ const DashboardPage: React.FC = () => {
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === 'SYSTEM_UPDATE') {
-                fetchData();
+                fetchData(true);
             }
         };
 
@@ -106,7 +130,7 @@ const DashboardPage: React.FC = () => {
         if (confirm('Are you sure you want to delete this system member?')) {
             try {
                 await memberService.delete(id);
-                fetchData();
+                fetchData(true);
             } catch (e) {
                 alert('Delete failed');
             }
@@ -118,7 +142,7 @@ const DashboardPage: React.FC = () => {
         if (confirm('⚠️ WARNING: This will permanently delete ALL system members in your system. This cannot be undone. Are you absolutely sure?')) {
             try {
                 await memberService.deleteAll();
-                fetchData();
+                fetchData(true);
             } catch (e) {
                 alert('Bulk delete failed');
             }
@@ -130,7 +154,7 @@ const DashboardPage: React.FC = () => {
         try {
             const newId = system?.autoproxyId === memberId ? null : memberId;
             await systemService.update({ autoproxyId: newId });
-            fetchData();
+            fetchData(true);
         } catch (e) {
             alert('Failed to update autoproxy setting.');
         }
@@ -364,7 +388,7 @@ const DashboardPage: React.FC = () => {
                 <MemberEditor 
                     member={selectedMember} 
                     isReadOnly={!isOwner}
-                    onSave={() => { setIsEditing(false); fetchData(); }}
+                    onSave={() => { setIsEditing(false); fetchData(true); }}
                     onCancel={() => setIsEditing(false)}
                 />
             )}
@@ -376,7 +400,7 @@ const DashboardPage: React.FC = () => {
                         if (newSlug && newSlug !== urlSlug) {
                             navigate(`/s/${newSlug}`);
                         } else {
-                            fetchData(); 
+                            fetchData(true); 
                         }
                     }}
                     onCancel={() => setIsImporting(false)}
@@ -390,7 +414,7 @@ const DashboardPage: React.FC = () => {
                         if (newSlug && newSlug !== urlSlug) {
                             navigate(`/s/${newSlug}`);
                         } else {
-                            fetchData(); 
+                            fetchData(true); 
                         }
                     }}
                     onCancel={() => setIsSettingsOpen(false)}

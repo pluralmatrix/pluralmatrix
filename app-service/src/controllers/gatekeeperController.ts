@@ -8,23 +8,23 @@ import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 export const checkMessage = async (req: Request, res: Response) => {
     try {
         const validated = GatekeeperCheckSchema.parse(req.body);
-        const { event_id, sender, room_id, bot_id } = validated;
+        const { event_id, sender, room_id, bot_id, type, encrypted_payload, origin_server_ts } = validated;
         let content = validated.content;
-        const isEncryptedSource = req.body.type === "m.room.encrypted";
+        const isEncryptedSource = type === "m.room.encrypted";
 
         // --- DECRYPTION SUPPORT (E2EE) ---
-        if ((isEncryptedSource || !content) && req.body.encrypted_payload) {
+        if ((isEncryptedSource || !content) && encrypted_payload) {
             const rustRoomId = new RoomId(room_id);
             const decryptionUserId = bot_id || (getBridge()?.getBot().getUserId()) || sender;
             const machine = await cryptoManager.getMachine(decryptionUserId);
             
             const fullEncryptedEvent = {
-                content: req.body.encrypted_payload,
+                content: encrypted_payload,
                 event_id: event_id,
                 sender: sender,
                 room_id: room_id,
                 type: "m.room.encrypted",
-                origin_server_ts: req.body.origin_server_ts || Date.now()
+                origin_server_ts: origin_server_ts || Date.now()
             };
 
             // Wait/Retry loop for Megolm keys

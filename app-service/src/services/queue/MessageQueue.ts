@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { sleep } from "../../utils/timer";
 import { sendEncryptedEvent } from "../../crypto/encryption";
 import { cryptoManager, asToken, getBridge } from "../../bot";
+import { lastMessageCache } from "../cache";
 
 export interface QueueItem {
     id: string;
@@ -14,6 +15,7 @@ export interface QueueItem {
     attempts: number;
     relatesTo?: any; // For replies/edits
     prisma?: PrismaClient;
+    systemSlug?: string; // Added to update LastMessageCache on success
 }
 
 export interface DeadLetter {
@@ -53,7 +55,8 @@ class MessageQueueService {
         ghostIntent: Intent,
         plaintext: string,
         relatesTo?: any,
-        prisma?: PrismaClient
+        prisma?: PrismaClient,
+        systemSlug?: string
     ) {
         const queue = this.RoomQueues.get(roomId) || [];
         queue.push({
@@ -64,7 +67,8 @@ class MessageQueueService {
             plaintext,
             attempts: 0,
             relatesTo,
-            prisma
+            prisma,
+            systemSlug
         });
         this.RoomQueues.set(roomId, queue);
 
@@ -110,7 +114,7 @@ class MessageQueueService {
                         payload["m.relates_to"] = item.relatesTo;
                     }
 
-                    await sendEncryptedEvent(
+                    const result: any = await sendEncryptedEvent(
                         item.ghostIntent,
                         item.roomId,
                         "m.room.message",
@@ -119,6 +123,24 @@ class MessageQueueService {
                         asToken,
                         item.prisma
                     );
+
+                    // Success! Update Last Message Cache if system info is present
+                    if (item.systemSlug && result?.event_id) {
+                        const isReplacement = item.relatesTo?.rel_type === "m.replace";
+                        const rootId = isReplacement ? (item.relatesTo.event_id || item.relatesTo.id) : result.event_id;
+                        
+                        const currentLast = lastMessageCache.get(item.roomId, item.systemSlug);
+                        
+                        // ONLY update if it's a brand new message OR if it's an edit to the message we currently think is 'last'
+                        if (!isReplacement || (currentLast && currentLast.rootEventId === rootId)) {
+                            lastMessageCache.set(item.roomId, item.systemSlug, {
+                                rootEventId: rootId,
+                                latestEventId: result.event_id,
+                                latestContent: payload,
+                                sender: item.ghostIntent.userId
+                            });
+                        }
+                    }
 
                     // Success! Remove from queue.
                     queue.shift();

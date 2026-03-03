@@ -61,6 +61,7 @@ const mockAuth = (mxid: string) => (req: any, res: any, next: any) => {
 };
 
 // Route setup
+app.get('/system', mockAuth('@alice:localhost'), systemController.getSystem);
 app.get('/links', mockAuth('@alice:localhost'), systemController.getLinks);
 app.post('/links', mockAuth('@alice:localhost'), systemController.createLink);
 app.delete('/links/:mxid', mockAuth('@alice:localhost'), systemController.deleteLink);
@@ -71,6 +72,11 @@ app.patch('/system', mockAuth('@alice:localhost'), systemController.updateSystem
 app.get('/public/:slug', systemController.getPublicSystem);
 
 import { decommissionGhost, syncGhostProfile } from '../import';
+import { ensureUniqueSlug } from '../utils/slug';
+
+jest.mock('../utils/slug', () => ({
+    ensureUniqueSlug: jest.fn()
+}));
 
 jest.mock('../import', () => ({
     syncGhostProfile: jest.fn().mockResolvedValue(null),
@@ -99,6 +105,33 @@ describe('System Controller', () => {
             (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
             const res = await request(app).get('/links');
             expect(res.status).toBe(404);
+        });
+    });
+
+    describe('GET /system', () => {
+        it('should return existing system if it exists', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ 
+                system: { id: 'sys1', slug: 'alice' } 
+            });
+
+            const res = await request(app).get('/system');
+            expect(res.status).toBe(200);
+            expect(res.body.slug).toBe('alice');
+        });
+
+        it('should auto-create system with slug retry if it does not exist', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+            (ensureUniqueSlug as jest.Mock).mockResolvedValue('alice');
+
+            (prisma.system.create as jest.Mock)
+                .mockRejectedValueOnce({ code: 'P2002', meta: { target: ['slug'] } })
+                .mockResolvedValueOnce({ id: 'sys1', slug: 'alice-2' });
+
+            const res = await request(app).get('/system');
+
+            expect(res.status).toBe(200);
+            expect(prisma.system.create).toHaveBeenCalledTimes(2);
+            expect(res.body.id).toBe('sys1');
         });
     });
 

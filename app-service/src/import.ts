@@ -264,52 +264,89 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
     let system;
     if (link) {
         system = link.system;
-        // If it's a PluralMatrix import, we trust the ID in the JSON. 
-        // If it's a raw PK import, we might want to update the slug if the name changed significantly, 
-        // but for stability we usually keep it. However, the test expects an update.
-        let baseSlug = (isPluralMatrix && jsonData.id) 
-            ? jsonData.id 
-            : generateSlug(jsonData.name || localpart, localpart);
         
-        const systemSlug = await ensureUniqueSlug(prisma, baseSlug, system.id);
+        let attempts = 0;
+        while (attempts < 5) {
+            try {
+                let baseSlug = (isPluralMatrix && jsonData.id) 
+                    ? jsonData.id 
+                    : generateSlug(jsonData.name || localpart, localpart);
+                
+                const systemSlug = await ensureUniqueSlug(prisma, baseSlug, system.id);
 
-        system = await prisma.system.update({
-            where: { id: system.id },
-            data: {
-                name: jsonData.name || system.name,
-                systemTag: jsonData.tag || system.systemTag,
-                slug: systemSlug,
-                pkId: jsonData.id || system.pkId,
-                description: jsonData.description || system.description,
-                pronouns: jsonData.pronouns || system.pronouns,
-                avatarUrl: jsonData.avatar_url || system.avatarUrl,
-                banner: jsonData.banner || system.banner,
-                color: jsonData.color || system.color
-            }
-        });
-    } else {
-        let baseSlug = (isPluralMatrix && jsonData.id) 
-            ? jsonData.id 
-            : generateSlug(jsonData.name || localpart, localpart);
-        
-        const systemSlug = await ensureUniqueSlug(prisma, baseSlug);
-
-        system = await prisma.system.create({
-            data: {
-                slug: systemSlug,
-                pkId: jsonData.id,
-                name: jsonData.name || `${localpart}'s System`,
-                systemTag: jsonData.tag,
-                description: jsonData.description,
-                pronouns: jsonData.pronouns,
-                avatarUrl: jsonData.avatar_url,
-                banner: jsonData.banner,
-                color: jsonData.color,
-                accountLinks: {
-                    create: { matrixId: mxid, isPrimary: true }
+                system = await prisma.system.update({
+                    where: { id: system.id },
+                    data: {
+                        name: jsonData.name || system.name,
+                        systemTag: jsonData.tag || system.systemTag,
+                        slug: systemSlug,
+                        pkId: jsonData.id || system.pkId,
+                        description: jsonData.description || system.description,
+                        pronouns: jsonData.pronouns || system.pronouns,
+                        avatarUrl: jsonData.avatar_url || system.avatarUrl,
+                        banner: jsonData.banner || system.banner,
+                        color: jsonData.color || system.color
+                    }
+                });
+                break;
+            } catch (err: any) {
+                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+                    attempts++;
+                    console.warn(`[Import] Slug race condition detected during update, retrying (attempt ${attempts})...`);
+                    continue;
                 }
+                throw err;
             }
-        });
+        }
+
+        if (attempts >= 5) {
+            throw new Error(`Failed to update system after ${attempts} slug collision retries.`);
+        }
+    } else {
+        let attempts = 0;
+        while (attempts < 5) {
+            try {
+                let baseSlug = (isPluralMatrix && jsonData.id) 
+                    ? jsonData.id 
+                    : generateSlug(jsonData.name || localpart, localpart);
+                
+                const systemSlug = await ensureUniqueSlug(prisma, baseSlug);
+
+                system = await prisma.system.create({
+                    data: {
+                        slug: systemSlug,
+                        pkId: jsonData.id,
+                        name: jsonData.name || `${localpart}'s System`,
+                        systemTag: jsonData.tag,
+                        description: jsonData.description,
+                        pronouns: jsonData.pronouns,
+                        avatarUrl: jsonData.avatar_url,
+                        banner: jsonData.banner,
+                        color: jsonData.color,
+                        accountLinks: {
+                            create: { matrixId: mxid, isPrimary: true }
+                        }
+                    }
+                });
+                break;
+            } catch (err: any) {
+                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+                    attempts++;
+                    console.warn(`[Import] Slug race condition detected during creation, retrying (attempt ${attempts})...`);
+                    continue;
+                }
+                throw err;
+            }
+        }
+
+        if (attempts >= 5) {
+            throw new Error(`Failed to create system after ${attempts} slug collision retries.`);
+        }
+    }
+
+    // Safety: ensure system is definitely defined for TS
+    if (!system) {
+        throw new Error("System resolution failed unexpectedly.");
     }
 
     const rawMembers = jsonData.members || [];

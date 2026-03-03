@@ -61,7 +61,7 @@ export const sendGhostMessage = async (options: GhostMessageOptions) => {
         } catch (e) {}
         
         // Pass the prepared message into the Dead Letter Queue
-        messageQueue.enqueue(roomId, senderId, intent, cleanContent);
+        messageQueue.enqueue(roomId, senderId, intent, cleanContent, undefined, undefined, system.slug);
 
     } catch (e: any) { 
         console.error("[GhostService] Error:", e.message || e);

@@ -5,7 +5,7 @@ import { RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { OlmMachineManager } from "../crypto/OlmMachineManager";
 import { sendEncryptedEvent } from "../crypto/encryption";
 import { registerDevice, processCryptoRequests } from "../crypto/crypto-utils";
-import { proxyCache } from "./cache";
+import { proxyCache, lastMessageCache } from "./cache";
 import { emitSystemUpdate } from "./events";
 import { ensureUniqueSlug } from "../utils/slug";
 import { maskMxid } from "../utils/privacy";
@@ -143,24 +143,36 @@ export class CommandHandler {
 
     async resolveGhostMessage(roomId: string, systemSlug: string, explicitTargetId?: string) {
         const botClient = this.bridge.getBot().getClient();
-        const scrollback = await this.getRoomMessages(roomId, 100);
         const rustRoomId = new RoomId(roomId);
-
-        let targetRoot: any = null;
-        let latestContent: any = null;
         const ghostPrefix = `@_plural_${systemSlug}_`;
 
+        // 1. Fast Path: Cache Lookup
+        if (!explicitTargetId) {
+            const cached = lastMessageCache.get(roomId, systemSlug);
+            if (cached) {
+                console.log(`[Janitor] Cache hit for system ${systemSlug} in ${roomId}`);
+                return {
+                    event: { sender: cached.sender, event_id: cached.latestEventId },
+                    latestContent: cached.latestContent,
+                    originalId: cached.rootEventId
+                };
+            }
+        }
+
+        // 2. Slow Path: Search/History
+        const scrollback = await this.getRoomMessages(roomId, 100);
+        let targetRoot: any = null;
+        let latestContent: any = null;
         let rootId = explicitTargetId;
 
         if (rootId) {
+            // Target specific message (Reply or Manual ID)
             try {
                 let explicitEvent: any = null;
-                try {
-                    explicitEvent = scrollback.chunk.find((e: any) => e.event_id === rootId || e.id === rootId);
-                    if (!explicitEvent) {
-                        explicitEvent = await botClient.getEvent(roomId, rootId);
-                    }
-                } catch (apiErr: any) {}
+                explicitEvent = scrollback.chunk.find((e: any) => e.event_id === rootId || e.id === rootId);
+                if (!explicitEvent) {
+                    explicitEvent = await botClient.getEvent(roomId, rootId);
+                }
 
                 if (!explicitEvent) return null;
                 
@@ -190,6 +202,7 @@ export class CommandHandler {
                 return null;
             }
         } else {
+            // Auto-resolve last ghost message
             for (const e of scrollback.chunk) {
                 if (e.unsigned?.redacted_by) continue;
                 if (!e.sender.startsWith(ghostPrefix)) continue;
@@ -222,6 +235,7 @@ export class CommandHandler {
 
         if (!targetRoot || !rootId) return null;
 
+        // Final Pass: Find newest edit in history if not using cache
         for (const e of scrollback.chunk) {
             if (e.unsigned?.redacted_by) continue;
             if (e.sender !== targetRoot.sender) continue;
@@ -310,6 +324,12 @@ export class CommandHandler {
 
                 await this.safeRedact(roomId, originalId, "PluralReproxy", this.bridge.getIntent(targetSender));
                 
+                // Invalidate cache if we just deleted the 'last message'
+                const cached = lastMessageCache.get(roomId, system.slug);
+                if (cached && (cached.rootEventId === originalId || cached.latestEventId === originalId)) {
+                    lastMessageCache.delete(roomId, system.slug);
+                }
+
                 const ghostUserId = `@_plural_${system.slug}_${member.slug}:${this.domain}`;
                 const intent = this.bridge.getIntent(ghostUserId);
                 const finalDisplayName = system.systemTag ? `${member.displayName || member.name} ${system.systemTag}` : (member.displayName || member.name);
@@ -327,6 +347,12 @@ export class CommandHandler {
             const subCmd = parts[1]?.toLowerCase();
             if (subCmd === "-delete" || subCmd === "-d") {
                 await this.safeRedact(roomId, originalId, "UserRequest", this.bridge.getIntent(targetSender));
+                
+                // Invalidate cache if we just deleted the 'last message'
+                const cached = lastMessageCache.get(roomId, system.slug);
+                if (cached && (cached.rootEventId === originalId || cached.latestEventId === originalId)) {
+                    lastMessageCache.delete(roomId, system.slug);
+                }
             }
         }
 
@@ -359,12 +385,25 @@ export class CommandHandler {
                 return true;
             }
 
+            let targetMxid = (parts[1].toLowerCase() === "primary" ? parts[2] : parts[1])?.toLowerCase();
+            if (!targetMxid) {
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Usage: `pk;link <@user:domain>` or `pk;link primary <@user:domain>`");
+                return true;
+            }
+
+            if (!targetMxid.startsWith("@")) targetMxid = `@${targetMxid}`;
+            if (!targetMxid.includes(":")) targetMxid = `${targetMxid}:${sender.split(":")[1]}`;
+
+            // Issue #5: Verify user existence before linking
+            try {
+                await (this.bridge.getIntent() as any).matrixClient.getUserProfile(targetMxid);
+            } catch (e: any) {
+                await this.sendRichText(this.bridge.getIntent(), roomId, `❌ Could not verify Matrix ID **${targetMxid}**. Please ensure the ID is correct and the user exists.`);
+                return true;
+            }
+
             if (parts[1].toLowerCase() === "primary" && parts[2]) {
                 if (!system) return true;
-
-                let targetMxid = parts[2].toLowerCase();
-                if (!targetMxid.startsWith("@")) targetMxid = `@${targetMxid}`;
-                if (!targetMxid.includes(":")) targetMxid = `${targetMxid}:${sender.split(":")[1]}`;
 
                 const link = await this.prisma.accountLink.findUnique({
                     where: { matrixId: targetMxid }
@@ -394,12 +433,6 @@ export class CommandHandler {
 
             // Normal link logic
             const currentSystem = system || await this.getOrCreateSenderSystem(sender);
-            let targetMxid = parts[1].toLowerCase();
-            if (!targetMxid.startsWith("@")) targetMxid = `@${targetMxid}`;
-            if (!targetMxid.includes(":")) {
-                const domain = sender.split(":")[1];
-                targetMxid = `${targetMxid}:${domain}`;
-            }
 
             if (targetMxid === sender) {
                 await this.sendRichText(this.bridge.getIntent(), roomId, "You are already linked to this system.");
@@ -559,30 +592,47 @@ export class CommandHandler {
         if (system) return system;
 
         const localpart = sender.split(':')[0].substring(1);
-        const slug = await ensureUniqueSlug(this.prisma, localpart);
-        const newSystem = await this.prisma.system.create({
-            data: {
-                slug,
-                name: `${localpart}'s System`,
-                accountLinks: {
-                    create: { matrixId: sender, isPrimary: true }
+        
+        let attempts = 0;
+        while (attempts < 5) {
+            try {
+                const slug = await ensureUniqueSlug(this.prisma, localpart);
+                const newSystem = await this.prisma.system.create({
+                    data: {
+                        slug,
+                        name: `${localpart}'s System`,
+                        accountLinks: {
+                            create: { matrixId: sender, isPrimary: true }
+                        }
+                    },
+                    include: { members: true }
+                });
+                proxyCache.invalidate(sender);
+                return newSystem;
+            } catch (err: any) {
+                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+                    attempts++;
+                    console.warn(`[CommandHandler] Slug race condition detected for ${localpart}, retrying (attempt ${attempts})...`);
+                    continue;
                 }
-            },
-            include: { members: true }
-        });
-        proxyCache.invalidate(sender);
-        return newSystem;
+                throw err;
+            }
+        }
+        
+        throw new Error("Failed to auto-create system after multiple slug collisions.");
     }
 
-    async syncPowerLevels(roomId: string, ghostUserId: string) {
+    async promoteSystemPowerLevels(roomId: string, ghostUserId: string) {
         try {
             const ghostIntent = this.bridge.getIntent(ghostUserId);
             const botUserId = this.bridge.getBot().getUserId();
             
+            // Proactively fetch power levels once during room setup
             const state = await (ghostIntent as any).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "");
             const users = state.users || {};
             const ghostLevel = users[ghostUserId] || state.users_default || 0;
             
+            // Only proceed if the ghost has authority to promote others
             if (ghostLevel < 50) return;
 
             const parts = ghostUserId.split(":")[0].split("_");
@@ -598,6 +648,7 @@ export class CommandHandler {
             const primaryUser = primaryLink.matrixId;
 
             let changed = false;
+            // Promote both the Bot and the Owner to match the Ghost's level (usually 100 in DMs)
             const targets = [botUserId, primaryUser];
             
             for (const target of targets) {
@@ -610,11 +661,11 @@ export class CommandHandler {
 
             if (changed) {
                 state.users = users;
-                console.log(`[Ghost] ${ghostUserId} is promoting bot/owner to PL ${ghostLevel} in ${roomId}`);
-                await (ghostIntent as any).matrixClient.sendStateEvent(roomId, "m.room.power_levels", "", state);
+                console.log(`[Ghost] ${ghostUserId} pre-emptively promoting bot/owner to PL ${ghostLevel} in ${roomId}`);
+                await (this.bridge.getIntent(ghostUserId) as any).matrixClient.sendStateEvent(roomId, "m.room.power_levels", "", state);
             }
         } catch (e: any) {
-            console.warn(`[Ghost] Failed to sync power levels in ${roomId}:`, e.message);
+            console.warn(`[Ghost] Failed to pre-emptively promote system in ${roomId}:`, e.message);
         }
     }
 }

@@ -1,5 +1,15 @@
 import { CommandHandler } from './services/commandHandler';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
+import { lastMessageCache } from './services/cache';
+
+jest.mock('./services/cache', () => ({
+    proxyCache: { invalidate: jest.fn(), getSystemRules: jest.fn() },
+    lastMessageCache: {
+        get: jest.fn(),
+        set: jest.fn(),
+        delete: jest.fn()
+    }
+}));
 
 describe('CommandHandler Tests', () => {
     let commandHandler: CommandHandler;
@@ -18,6 +28,7 @@ describe('CommandHandler Tests', () => {
             uploadContent: jest.fn().mockResolvedValue('mxc://mock/avatar'),
             redactEvent: jest.fn().mockResolvedValue({}),
             getEvent: jest.fn(),
+            getUserProfile: jest.fn(),
             getRoomStateEvent: jest.fn().mockResolvedValue({ algorithm: "m.megolm.v1.aes-sha2" }),
             getJoinedRoomMembers: jest.fn().mockResolvedValue(["@alice:localhost", "@_plural_seraphim_lily:localhost"]),
             homeserverUrl: "http://localhost:8008",
@@ -177,12 +188,26 @@ describe('CommandHandler Tests', () => {
             const parts = ["pk;link", "@bob:localhost"];
             
             mockPrisma.accountLink.findUnique.mockResolvedValue(null);
+            mockBotClient.getUserProfile.mockResolvedValue({ displayname: "Bob" });
             
             await commandHandler.handleCommand(event, "link", parts, mockSystem);
 
             expect(mockPrisma.accountLink.create).toHaveBeenCalledWith({
                 data: { matrixId: "@bob:localhost", systemId: "sys123" }
             });
+        });
+
+        it('pk;link should fail if profile does not exist', async () => {
+            const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+            const parts = ["pk;link", "@nonexistent:localhost"];
+            
+            mockBotClient.getUserProfile.mockRejectedValue({ errcode: "M_NOT_FOUND" });
+            
+            await commandHandler.handleCommand(event, "link", parts, mockSystem);
+
+            expect(mockPrisma.accountLink.create).not.toHaveBeenCalled();
+            // Should send an error message
+            expect(mockCryptoManager.getMachine).toHaveBeenCalledWith("@plural_bot:localhost");
         });
 
         it('pk;unlink should remove a link', async () => {
@@ -199,6 +224,58 @@ describe('CommandHandler Tests', () => {
             });
         });
 
+        it('pk;message -delete should invalidate cache if target is current last message', async () => {
+            const roomId = "!room:localhost";
+            const rootId = "$root";
+            const ghostUserId = "@_plural_seraphim_lily:localhost";
+            const event = { room_id: roomId, sender: "@alice:localhost" };
+            
+            // Mock identity resolution
+            mockPrisma.member.findFirst.mockResolvedValue({ id: "mem1", systemId: "sys123" });
+
+            // Mock cache hit for this exact message
+            (lastMessageCache.get as jest.Mock).mockReturnValue({ 
+                rootEventId: rootId, 
+                latestEventId: rootId, 
+                sender: ghostUserId, 
+                latestContent: { body: "del me" } 
+            });
+
+            await commandHandler.executeTargetingCommand(event, "pk;message -delete", mockSystem);
+
+            expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
+            // Should invalidate cache
+            expect(lastMessageCache.delete).toHaveBeenCalledWith(roomId, "seraphim");
+        });
+
+        it('pk;reproxy should invalidate cache', async () => {
+            const roomId = "!room:localhost";
+            const rootId = "$root";
+            const ghostUserId = "@_plural_seraphim_lily:localhost";
+            const event = { room_id: roomId, sender: "@alice:localhost" };
+            
+            mockPrisma.member.findFirst.mockResolvedValue({ id: "mem1", systemId: "sys123" });
+
+            // Mock cache hit
+            (lastMessageCache.get as jest.Mock).mockReturnValue({ 
+                rootEventId: rootId, 
+                latestEventId: rootId, 
+                sender: ghostUserId, 
+                latestContent: { body: "reproxy me" } 
+            });
+
+            // Reproxy to a hypothetical member 'bob'
+            const systemWithBob = {
+                ...mockSystem,
+                members: [...mockSystem.members, { id: "mem2", slug: "bob", name: "Bob", matrixId: "@_plural_seraphim_bob:localhost" }]
+            };
+
+            await commandHandler.executeTargetingCommand(event, "pk;rp bob", systemWithBob);
+
+            expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
+            expect(lastMessageCache.delete).toHaveBeenCalledWith(roomId, "seraphim");
+        });
+
         it('pk;autoproxy should update autoproxyId', async () => {
             const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
             const parts = ["pk;autoproxy", "lily"];
@@ -209,6 +286,137 @@ describe('CommandHandler Tests', () => {
                 where: { id: "sys123" },
                 data: { autoproxyId: "mem1" }
             });
+        });
+    });
+
+    describe('resolveGhostMessage', () => {
+        const roomId = "!room:localhost";
+        const systemSlug = "seraphim";
+
+        it('should return data from cache if available (Fast Path)', async () => {
+            const cachedData = {
+                rootEventId: "$root",
+                latestEventId: "$edit",
+                latestContent: { body: "cached text" },
+                sender: "@_plural_seraphim_lily:localhost"
+            };
+            (lastMessageCache.get as jest.Mock).mockReturnValue(cachedData);
+
+            const result = await commandHandler.resolveGhostMessage(roomId, systemSlug);
+
+            expect(result).toEqual({
+                event: expect.objectContaining({ event_id: "$edit" }),
+                latestContent: cachedData.latestContent,
+                originalId: "$root"
+            });
+            // Should NOT fetch history
+            expect(mockBotClient.doRequest).not.toHaveBeenCalled();
+        });
+
+        it('should fall back to history if cache is empty (Slow Path)', async () => {
+            (lastMessageCache.get as jest.Mock).mockReturnValue(null);
+            mockBotClient.doRequest.mockResolvedValue({ chunk: [] });
+
+            await commandHandler.resolveGhostMessage(roomId, systemSlug);
+
+            expect(mockBotClient.doRequest).toHaveBeenCalled();
+        });
+    });
+
+    describe('getOrCreateSenderSystem', () => {
+        it('should retry system creation on slug collision', async () => {
+            const sender = "@newuser:localhost";
+            
+            // Mock cache miss
+            const { proxyCache } = require('./services/cache');
+            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(null);
+            
+            // Mock first creation attempt to fail with P2002
+            // Then second attempt succeeds
+            mockPrisma.system.create
+                .mockRejectedValueOnce({
+                    code: 'P2002',
+                    meta: { target: ['slug'] }
+                })
+                .mockResolvedValueOnce({ id: 'sys_new', slug: 'newuser-2', members: [] });
+
+            // We need to call the private method via any
+            const result = await (commandHandler as any).getOrCreateSenderSystem(sender);
+
+            expect(mockPrisma.system.create).toHaveBeenCalledTimes(2);
+            expect(result.id).toBe('sys_new');
+        });
+    });
+
+    describe('promoteSystemPowerLevels', () => {
+        const roomId = "!room:localhost";
+        const ghostUserId = "@_plural_seraphim_lily:localhost";
+        const ownerUserId = "@chiara:localhost";
+        const botUserId = "@plural_bot:localhost";
+
+        it('should promote bot and owner to match ghost level', async () => {
+            // Mock ghost is PL 100, others are 0
+            mockBotClient.getRoomStateEvent.mockResolvedValue({
+                users: { [ghostUserId]: 100, [botUserId]: 0, [ownerUserId]: 0 },
+                users_default: 0
+            });
+
+            mockPrisma.system.findUnique.mockResolvedValue({
+                id: "sys123",
+                slug: "seraphim",
+                accountLinks: [{ matrixId: ownerUserId, isPrimary: true }]
+            });
+
+            const sendStateMock = jest.fn().mockResolvedValue({});
+            mockBotClient.sendStateEvent = sendStateMock;
+
+            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+            expect(sendStateMock).toHaveBeenCalledWith(roomId, "m.room.power_levels", "", expect.objectContaining({
+                users: expect.objectContaining({
+                    [botUserId]: 100,
+                    [ownerUserId]: 100
+                })
+            }));
+        });
+
+        it('should do nothing if ghost has no authority (PL < 50)', async () => {
+            mockBotClient.getRoomStateEvent.mockResolvedValue({
+                users: { [ghostUserId]: 0 },
+                users_default: 0
+            });
+
+            const sendStateMock = jest.fn();
+            mockBotClient.sendStateEvent = sendStateMock;
+
+            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+            expect(sendStateMock).not.toHaveBeenCalled();
+        });
+
+        it('should do nothing if bot and owner are already promoted', async () => {
+            mockBotClient.getRoomStateEvent.mockResolvedValue({
+                users: { [ghostUserId]: 100, [botUserId]: 100, [ownerUserId]: 100 },
+                users_default: 0
+            });
+
+            const sendStateMock = jest.fn();
+            mockBotClient.sendStateEvent = sendStateMock;
+
+            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+            expect(sendStateMock).not.toHaveBeenCalled();
+        });
+
+        it('should handle Matrix API errors gracefully', async () => {
+            mockBotClient.getRoomStateEvent.mockRejectedValue(new Error("API Error"));
+            
+            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+            
+            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to pre-emptively promote"), "API Error");
+            consoleSpy.mockRestore();
         });
     });
 });

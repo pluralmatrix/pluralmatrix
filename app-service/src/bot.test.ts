@@ -187,33 +187,6 @@ describe('Bot Event Handler', () => {
             });
         });
 
-        it('should promote bot and owner when they join a room with a ghost', async () => {
-            const event = {
-                type: "m.room.member",
-                state_key: ownerUserId,
-                sender: ownerUserId,
-                room_id: roomId,
-                content: { membership: "join" }
-            };
-
-            (mockPrisma.system.findUnique as jest.Mock).mockResolvedValue({
-                slug: "seraphim",
-                accountLinks: [{ matrixId: ownerUserId, isPrimary: true }]
-            });
-
-            const sendStateMock = jest.spyOn(mockBotClient, 'sendStateEvent');
-
-            await handleEvent(createMockRequest(event), undefined, mockBridge as any, prisma);
-
-            // Should be called to promote bot and owner to PL 50 (ghost's level)
-            expect(sendStateMock).toHaveBeenCalledWith(roomId, "m.room.power_levels", "", expect.objectContaining({
-                users: expect.objectContaining({
-                    [botUserId]: 50,
-                    [ownerUserId]: 50
-                })
-            }));
-        });
-
         it('should clear room topic when primary owner joins', async () => {
             const event = {
                 type: "m.room.member",

@@ -101,19 +101,32 @@ export const getSystem = async (req: AuthRequest, res: Response) => {
 
         // Create new system and link
         const localpart = mxid.split(':')[0].substring(1);
-        const slug = await ensureUniqueSlug(prisma, localpart);
         
-        const system = await prisma.system.create({
-            data: {
-                slug,
-                name: `${localpart}'s System`,
-                accountLinks: {
-                    create: { matrixId: mxid, isPrimary: true }
+        let attempts = 0;
+        while (attempts < 5) {
+            try {
+                const slug = await ensureUniqueSlug(prisma, localpart);
+                const system = await prisma.system.create({
+                    data: {
+                        slug,
+                        name: `${localpart}'s System`,
+                        accountLinks: {
+                            create: { matrixId: mxid, isPrimary: true }
+                        }
+                    }
+                });
+                return res.json(system);
+            } catch (err: any) {
+                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+                    attempts++;
+                    console.warn(`[SystemController] Slug race condition detected for ${localpart}, retrying (attempt ${attempts})...`);
+                    continue;
                 }
+                throw err;
             }
-        });
-
-        res.json(system);
+        }
+        
+        throw new Error("Failed to create system after multiple retries due to slug collisions.");
     } catch (e) {
         console.error('[SystemController] Failed to fetch/create system:', e);
         res.status(500).json({ error: 'Failed to fetch system' });

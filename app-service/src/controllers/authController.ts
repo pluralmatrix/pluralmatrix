@@ -28,17 +28,35 @@ export const login = async (req: Request, res: Response) => {
 
             if (!link) {
                 const localpart = mxid.split(':')[0].substring(1);
-                const slug = await ensureUniqueSlug(prisma, localpart);
                 
-                await prisma.system.create({
-                    data: {
-                        slug,
-                        name: `${localpart}'s System`,
-                        accountLinks: {
-                            create: { matrixId: mxid }
+                // Retry loop for slug race conditions
+                let attempts = 0;
+                while (attempts < 5) {
+                    try {
+                        const slug = await ensureUniqueSlug(prisma, localpart);
+                        await prisma.system.create({
+                            data: {
+                                slug,
+                                name: `${localpart}'s System`,
+                                accountLinks: {
+                                    create: { matrixId: mxid }
+                                }
+                            }
+                        });
+                        break; // Success
+                    } catch (err: any) {
+                        if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+                            attempts++;
+                            console.warn(`[Auth] Slug race condition detected for ${localpart}, retrying (attempt ${attempts})...`);
+                            continue;
                         }
+                        throw err; // Rethrow other errors
                     }
-                });
+                }
+                
+                if (attempts >= 5) {
+                    throw new Error(`Failed to create system after ${attempts} slug collision retries.`);
+                }
             }
 
             // Invalidate cache to ensure new system is picked up if needed

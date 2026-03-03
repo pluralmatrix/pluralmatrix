@@ -55,10 +55,27 @@ const DashboardPage: React.FC = () => {
             }
             
             setError(null);
+            setLoading(false); // Only stop loading if we successfully found the system
         } catch (err: any) {
             console.error('Failed to fetch system data:', err);
+            
+            // Resilience: If 404 and logged in, check if our own system slug changed
+            if (err.response?.status === 404 && token) {
+                try {
+                    // Keep loading spinning while we verify slug change
+                    setLoading(true); 
+                    const ownRes = await systemService.get();
+                    if (ownRes.data.slug !== urlSlug) {
+                        console.log(`[Dashboard] Slug changed from ${urlSlug} to ${ownRes.data.slug}. Redirecting...`);
+                        navigate(`/s/${ownRes.data.slug}`, { replace: true });
+                        return;
+                    }
+                } catch (e) {
+                    // Fall through to error state if even the owner fetch fails
+                }
+            }
+
             setError(err.response?.data?.error || 'System not found');
-        } finally {
             setLoading(false);
         }
     };

@@ -2,6 +2,7 @@ import { messageQueue } from './MessageQueue';
 import { sendEncryptedEvent } from '../../crypto/encryption';
 import { sleep } from '../../utils/timer';
 import { getBridge } from '../../bot';
+import { lastMessageCache } from '../cache';
 
 // Mock dependencies
 jest.mock('../../crypto/encryption', () => ({
@@ -9,6 +10,13 @@ jest.mock('../../crypto/encryption', () => ({
 }));
 jest.mock('../../utils/timer', () => ({
     sleep: jest.fn().mockResolvedValue(undefined)
+}));
+jest.mock('../cache', () => ({
+    lastMessageCache: {
+        get: jest.fn(),
+        set: jest.fn(),
+        delete: jest.fn()
+    }
 }));
 jest.mock('../../bot', () => {
     const mockBotIntent = {
@@ -55,10 +63,10 @@ describe('MessageQueueService', () => {
         (bridge.getIntent as jest.Mock).mockReturnValue(mockBotIntent);
     });
 
-    it('should successfully process and dequeue a message', async () => {
-        (sendEncryptedEvent as jest.Mock).mockResolvedValue({});
+    it('should successfully process and dequeue a message and update cache', async () => {
+        (sendEncryptedEvent as jest.Mock).mockResolvedValue({ event_id: "$new_event" });
 
-        messageQueue.enqueue(roomId, senderId, mockGhostIntent, plaintext);
+        messageQueue.enqueue(roomId, senderId, mockGhostIntent, plaintext, undefined, undefined, "seraphim");
         
         // Let the event loop tick to allow the async processQueue to finish
         await new Promise(r => setImmediate(r));
@@ -74,9 +82,54 @@ describe('MessageQueueService', () => {
             undefined // prisma
         );
 
+        // Verify cache update
+        expect(lastMessageCache.set).toHaveBeenCalledWith(roomId, "seraphim", {
+            rootEventId: "$new_event",
+            latestEventId: "$new_event",
+            latestContent: expect.objectContaining({ body: plaintext }),
+            sender: mockGhostIntent.userId
+        });
+
         // Queue should be empty
         expect((messageQueue as any).RoomQueues.get(roomId).length).toBe(0);
         expect((messageQueue as any).RoomLocks.get(roomId)).toBe(false);
+    });
+
+    it('should update cache for edits if they match the current last message', async () => {
+        const rootId = "$root_event";
+        const editId = "$edit_event";
+        
+        // Mock that the root is currently in cache
+        (lastMessageCache.get as jest.Mock).mockReturnValue({ rootEventId: rootId });
+        (sendEncryptedEvent as jest.Mock).mockResolvedValue({ event_id: editId });
+
+        const relatesTo = { rel_type: "m.replace", event_id: rootId };
+        messageQueue.enqueue(roomId, senderId, mockGhostIntent, "Updated text", relatesTo, undefined, "seraphim");
+        
+        await new Promise(r => setImmediate(r));
+
+        // Should update because it's editing the known last message
+        expect(lastMessageCache.set).toHaveBeenCalledWith(roomId, "seraphim", expect.objectContaining({
+            rootEventId: rootId,
+            latestEventId: editId
+        }));
+    });
+
+    it('should NOT update cache for edits if they do not match the current last message', async () => {
+        const oldRootId = "$old_root";
+        const currentRootId = "$current_root";
+        
+        // Mock that a DIFFERENT root is currently in cache
+        (lastMessageCache.get as jest.Mock).mockReturnValue({ rootEventId: currentRootId });
+        (sendEncryptedEvent as jest.Mock).mockResolvedValue({ event_id: "$new_edit" });
+
+        const relatesTo = { rel_type: "m.replace", event_id: oldRootId };
+        messageQueue.enqueue(roomId, senderId, mockGhostIntent, "Editing history", relatesTo, undefined, "seraphim");
+        
+        await new Promise(r => setImmediate(r));
+
+        // Should NOT update cache because we're editing an older message (side-track)
+        expect(lastMessageCache.set).not.toHaveBeenCalled();
     });
 
     it('should retry transient errors and eventually succeed', async () => {

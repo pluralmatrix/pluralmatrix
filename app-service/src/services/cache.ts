@@ -63,14 +63,45 @@ export class ProxyCacheService {
         return system;
     }
     
-    // For testing purposes
-    _getCacheSize() {
-        return this.cache.size;
+    _clear() {
+        this.cache.clear();
     }
-    
+}
+
+interface LastMessage {
+    rootEventId: string;
+    latestEventId: string;
+    latestContent: any;
+    sender: string;
+}
+
+/**
+ * Remembers the last message sent by each system in each room.
+ * This makes 'pk;e' and 'pk;rp' instant and reliable even in busy rooms.
+ */
+export class LastMessageCacheService {
+    private cache = new Map<string, LastMessage>();
+
+    private makeKey(roomId: string, systemSlug: string): string {
+        return `${roomId}:${systemSlug}`;
+    }
+
+    set(roomId: string, systemSlug: string, data: LastMessage) {
+        this.cache.set(this.makeKey(roomId, systemSlug), data);
+    }
+
+    get(roomId: string, systemSlug: string): LastMessage | undefined {
+        return this.cache.get(this.makeKey(roomId, systemSlug));
+    }
+
+    delete(roomId: string, systemSlug: string) {
+        this.cache.delete(this.makeKey(roomId, systemSlug));
+    }
+
     _clear() {
         this.cache.clear();
     }
 }
 
 export const proxyCache = new ProxyCacheService();
+export const lastMessageCache = new LastMessageCacheService();

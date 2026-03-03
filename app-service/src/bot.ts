@@ -136,8 +136,8 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
                                 }
                             }, 500);
     
-                            // 3. Try to sync power levels if ghost was already promoted by the inviter
-                            await commandHandler.syncPowerLevels(roomId, targetUserId);
+                            // 3. Pre-emptively promote system (Bot & Owner) to Admin
+                            await commandHandler.promoteSystemPowerLevels(roomId, targetUserId);
 
                             if (!isOwnerInviting) {
                                 // 4. Set Room Topic: Temporary notice until owner arrives
@@ -172,32 +172,17 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
 
                     if (system) {
                         const primaryUser = system.accountLinks.find(l => l.isPrimary)?.matrixId || system.accountLinks[0].matrixId;
-                        if (targetUserId === botUserId || targetUserId === primaryUser) {
-                            await commandHandler.syncPowerLevels(roomId, ghostInRoom);
-                            
-                            if (targetUserId === primaryUser) {
-                                try {
-                                    const ghostIntent = bridgeInstance.getIntent(ghostInRoom);
-                                    await ghostIntent.setRoomTopic(roomId, "");
-                                    console.log(`[Ghost] Cleared room topic in ${roomId} as primary user ${targetUserId} has joined.`);
-                                } catch (topicErr: any) {}
-                            }
+                        if (targetUserId === primaryUser) {
+                            try {
+                                const ghostIntent = bridgeInstance.getIntent(ghostInRoom);
+                                await ghostIntent.setRoomTopic(roomId, "");
+                                console.log(`[Ghost] Cleared room topic in ${roomId} as primary user ${targetUserId} has joined.`);
+                            } catch (topicErr: any) {}
                         }
                     }
                 }
             } catch (e) {}
         }
-    }
-
-    // Power Level Synchronization: Watch for Ghost promotion
-    if (event.type === "m.room.power_levels") {
-        try {
-            const members = await (bridgeInstance.getBot().getClient() as any).getJoinedRoomMembers(roomId);
-            const ghostInRoom = members.find((m: string) => m.startsWith("@_plural_"));
-            if (ghostInRoom) {
-                await commandHandler.syncPowerLevels(roomId, ghostInRoom);
-            }
-        } catch (e) {}
     }
 
     // Reaction deletion logic

@@ -54,6 +54,7 @@ services:
     volumes:
       - ./synapse/config/app-service-registration.yaml:/data/app-service-registration.yaml
       - app_service_data:/app/data
+      - ./assets:/app/assets
     depends_on:
       postgres:
         condition: service_healthy

@@ -2,6 +2,7 @@ import { AppServiceRegistration, Bridge, Request, WeakEvent, BridgeContext, Inte
 import { PrismaClient } from "@prisma/client";
 import * as yaml from "js-yaml";
 import * as fs from "fs";
+import * as path from "path";
 import { proxyCache } from "./services/cache";
 import { maskMxid } from "./utils/privacy";
 import { OlmMachineManager } from "./crypto/OlmMachineManager";
@@ -428,6 +429,23 @@ export const startMatrixBot = async () => {
             console.log(`[Bot] ${botUserId} is already registered`);
         } else {
             console.warn(`[Bot] Registration attempt failed: ${e.message}`);
+        }
+    }
+
+    // Set Bot Avatar if it exists (lily_avatar.png)
+    const avatarPath = fs.existsSync(path.join(__dirname, "../assets/images/lily_avatar.png"))
+        ? path.join(__dirname, "../assets/images/lily_avatar.png")
+        : path.join(__dirname, "../../assets/images/lily_avatar.png");
+
+    if (fs.existsSync(avatarPath)) {
+        try {
+            console.log(`[Bot] Found lily_avatar.png, uploading to MXC...`);
+            const avatarData = fs.readFileSync(avatarPath);
+            const mxcUrl = await bridge.getBot().getClient().uploadContent(avatarData, "image/png", "lily_avatar.png");
+            await bridge.getIntent().setAvatarUrl(mxcUrl);
+            console.log(`[Bot] Successfully set bot avatar to ${mxcUrl}`);
+        } catch (e: any) {
+            console.warn(`[Bot] Failed to set bot avatar: ${e.message}`);
         }
     }
 

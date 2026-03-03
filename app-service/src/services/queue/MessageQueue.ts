@@ -1,5 +1,6 @@
 import { Intent } from "matrix-appservice-bridge";
 import { v4 as uuidv4 } from "uuid";
+import { PrismaClient } from "@prisma/client";
 import { sleep } from "../../utils/timer";
 import { sendEncryptedEvent } from "../../crypto/encryption";
 import { cryptoManager, asToken, getBridge } from "../../bot";
@@ -12,6 +13,7 @@ export interface QueueItem {
     plaintext: string;
     attempts: number;
     relatesTo?: any; // For replies/edits
+    prisma?: PrismaClient;
 }
 
 export interface DeadLetter {
@@ -50,7 +52,8 @@ class MessageQueueService {
         senderId: string,
         ghostIntent: Intent,
         plaintext: string,
-        relatesTo?: any
+        relatesTo?: any,
+        prisma?: PrismaClient
     ) {
         const queue = this.RoomQueues.get(roomId) || [];
         queue.push({
@@ -60,7 +63,8 @@ class MessageQueueService {
             ghostIntent,
             plaintext,
             attempts: 0,
-            relatesTo
+            relatesTo,
+            prisma
         });
         this.RoomQueues.set(roomId, queue);
 
@@ -112,7 +116,8 @@ class MessageQueueService {
                         "m.room.message",
                         payload,
                         cryptoManager,
-                        asToken
+                        asToken,
+                        item.prisma
                     );
 
                     // Success! Remove from queue.
@@ -164,7 +169,8 @@ class MessageQueueService {
                     body: `⚠️ Delivery Failed for ${item.ghostIntent.userId}:\n\n> ${item.plaintext}\n\n(Error: ${error.message || "Unknown"})`
                 },
                 cryptoManager,
-                asToken
+                asToken,
+                item.prisma
             );
             return; // Fallback 1 succeeded.
         } catch (botError: any) {

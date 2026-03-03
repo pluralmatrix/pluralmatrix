@@ -1,9 +1,17 @@
 import { OlmMachine, RequestType, KeysUploadRequest, KeysQueryRequest, KeysClaimRequest, SignatureUploadRequest, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { Intent } from "matrix-appservice-bridge";
+import { PrismaClient } from "@prisma/client";
 import { sleep } from "../utils/timer";
 
-// In-memory cache to prevent redundant registrations/logins
-const registeredDevices = new Set<string>();
+// In-memory cache to prevent redundant registrations/logins within a single session
+let registeredDevices = new Set<string>();
+
+/**
+ * Clears the in-memory registered devices cache. (Mainly for tests)
+ */
+export const clearRegisteredDevicesCache = () => {
+    registeredDevices = new Set<string>();
+};
 
 // Helper to perform raw fetch using AS Token (MSC3202 style)
 export async function doAsRequest(
@@ -80,10 +88,36 @@ const MAX_CONCURRENT_REGISTRATIONS = 1;
  * Ensures a device is registered on the homeserver.
  * Returns true if the device was newly registered in this session.
  */
-export async function registerDevice(intent: Intent, deviceId: string): Promise<boolean> {
+export async function registerDevice(intent: Intent, deviceId: string, prisma?: PrismaClient, memberId?: string, systemId?: string): Promise<boolean> {
     const userId = intent.userId;
     const cacheKey = `${userId}|${deviceId}`;
+    
+    // 1. Check in-memory cache (fastest)
     if (registeredDevices.has(cacheKey)) return false;
+
+    // 2. Check DB if memberId provided
+    if (prisma && memberId) {
+        const member = await prisma.member.findUnique({
+            where: { id: memberId },
+            select: { deviceRegistered: true }
+        });
+        if (member?.deviceRegistered) {
+            registeredDevices.add(cacheKey);
+            return false;
+        }
+    }
+
+    // 3. Check DB if systemId provided (for Bot)
+    if (prisma && systemId) {
+        const system = await prisma.system.findUnique({
+            where: { id: systemId },
+            select: { deviceRegistered: true }
+        });
+        if (system?.deviceRegistered) {
+            registeredDevices.add(cacheKey);
+            return false;
+        }
+    }
 
     // Wait for slot in semaphore
     while (activeRegistrations >= MAX_CONCURRENT_REGISTRATIONS) {
@@ -114,10 +148,31 @@ export async function registerDevice(intent: Intent, deviceId: string): Promise<
                 });
                 
                 console.log(`[Crypto] Device ${deviceId} registration verified.`);
+                
+                // Persist to DB
+                if (prisma && memberId) {
+                    await prisma.member.update({
+                        where: { id: memberId },
+                        data: { deviceRegistered: true }
+                    });
+                }
+                if (prisma && systemId) {
+                    await prisma.system.update({
+                        where: { id: systemId },
+                        data: { deviceRegistered: true }
+                    });
+                }
+
                 registeredDevices.add(cacheKey);
                 return true;
             } catch (e: any) {
-                const isRateLimit = e.message?.includes("M_LIMIT_EXCEEDED") || (e.body && JSON.parse(e.body).errcode === "M_LIMIT_EXCEEDED");
+                let isRateLimit = e.message?.includes("M_LIMIT_EXCEEDED");
+                if (!isRateLimit && e.body) {
+                    try {
+                        const parsedBody = typeof e.body === 'string' ? JSON.parse(e.body) : e.body;
+                        isRateLimit = parsedBody.errcode === "M_LIMIT_EXCEEDED";
+                    } catch (parseErr) {}
+                }
                 
                 if (isRateLimit) {
                     attempts++;
@@ -128,7 +183,23 @@ export async function registerDevice(intent: Intent, deviceId: string): Promise<
                 }
                 
                 console.error(`[Crypto] Device registration call failed for ${userId}:`, e.message);
-                // We still add to registeredDevices to prevent infinite loops if the error is permanent (like 403)
+                
+                // If it's a 400 "already registered" error, we consider it a success
+                const bodyStr = typeof e.body === 'string' ? e.body : (e.body ? JSON.stringify(e.body) : "");
+                const errorStr = (e.message + bodyStr).toLowerCase();
+                
+                if (e.errcode === "M_USER_IN_USE" || errorStr.includes("already exists") || errorStr.includes("already taken") || errorStr.includes("in use")) {
+                    console.log(`[Crypto] Device ${deviceId} was already registered for ${userId}.`);
+                    if (prisma && memberId) {
+                        await prisma.member.update({ where: { id: memberId }, data: { deviceRegistered: true } });
+                    }
+                    if (prisma && systemId) {
+                        await prisma.system.update({ where: { id: systemId }, data: { deviceRegistered: true } });
+                    }
+                    registeredDevices.add(cacheKey);
+                    return true;
+                }
+
                 registeredDevices.add(cacheKey);
                 return false;
             }

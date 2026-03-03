@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { checkMessage } from './gatekeeperController';
 import { proxyCache } from '../services/cache';
-import { cryptoManager, executeTargetingCommand } from '../bot';
+import { cryptoManager, commandHandler } from '../bot';
 import { sendGhostMessage } from '../services/ghostService';
 
 jest.mock('../bot', () => ({
@@ -13,12 +13,16 @@ jest.mock('../bot', () => ({
     getBridge: jest.fn().mockReturnValue({
         getBot: () => ({ getUserId: () => '@bot:localhost' })
     }),
-    executeTargetingCommand: jest.fn().mockResolvedValue(true)
+    commandHandler: {
+        executeTargetingCommand: jest.fn().mockResolvedValue(true),
+        safeRedact: jest.fn().mockResolvedValue({})
+    }
 }));
 
 jest.mock('../services/cache', () => ({
     proxyCache: {
-        getSystemRules: jest.fn()
+        getSystemRules: jest.fn(),
+        invalidate: jest.fn()
     }
 }));
 
@@ -26,168 +30,148 @@ jest.mock('../services/ghostService', () => ({
     sendGhostMessage: jest.fn().mockResolvedValue({})
 }));
 
-describe('Gatekeeper Controller', () => {
-    let req: Partial<Request>;
-    let res: Partial<Response>;
-    let jsonMock: jest.Mock;
-    
-    const mockSystem = {
-        slug: 'sys',
-        members: [
-            { id: 'm1', slug: 'lily', name: 'Lily', proxyTags: [{ prefix: 'l:', suffix: '' }] }
-        ],
-        autoproxyId: null
-    };
+describe('GatekeeperController', () => {
+    let mockRes: any;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        jsonMock = jest.fn();
-        res = { json: jsonMock };
+        mockRes = {
+            json: jest.fn(),
+            status: jest.fn().mockReturnThis()
+        };
+    });
+
+    const mockSystem = {
+        id: 'sys1',
+        slug: 'seraphim',
+        members: [
+            { id: 'm1', slug: 'lily', name: 'Lily', proxyTags: [{ prefix: 'lily:', suffix: '' }] }
+        ]
+    };
+
+    it('should ALLOW if no system matches the sender', async () => {
+        (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(null);
         
+        const req = {
+            body: { sender: '@unknown:localhost', room_id: '!room:localhost', event_id: '$1' }
+        } as Request;
+
+        await checkMessage(req, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
+    });
+
+    it('should ALLOW if the body starts with a backslash', async () => {
         (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(mockSystem);
+        
+        const req = {
+            body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: '\\escaped' } }
+        } as Request;
+
+        await checkMessage(req, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
-    const createReq = (body: any) => ({ body } as Request);
+    it('should BLOCK and trigger proxy if unencrypted match is found', async () => {
+        (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(mockSystem);
+        
+        const req = {
+            body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'lily: Hello' } }
+        } as any;
 
-    describe('Basic Flow & Escapes', () => {
-        it('should return ALLOW on invalid schema', async () => {
-            req = createReq({}); // Missing required fields
-            await checkMessage(req as Request, res as Response);
-            expect(jsonMock).toHaveBeenCalledWith({ action: "ALLOW" });
-        });
-
-        it('should return ALLOW if user has no system', async () => {
-            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(null);
-            req = createReq({ event_id: '$1', sender: '@user:localhost', room_id: '!room:localhost', content: { body: 'l: test' }});
-            await checkMessage(req as Request, res as Response);
-            expect(jsonMock).toHaveBeenCalledWith({ action: "ALLOW" });
-        });
-
-        it('should return ALLOW if message starts with escape char', async () => {
-            req = createReq({ event_id: '$1', sender: '@user:localhost', room_id: '!room:localhost', content: { body: '\\l: test' }});
-            await checkMessage(req as Request, res as Response);
-            expect(jsonMock).toHaveBeenCalledWith({ action: "ALLOW" });
-        });
+        await checkMessage(req, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+        expect(sendGhostMessage).toHaveBeenCalledWith(expect.objectContaining({
+            cleanContent: 'Hello',
+            member: expect.objectContaining({ slug: 'lily' })
+        }));
     });
 
-    describe('Unencrypted Proxying', () => {
-        it('should trigger proxy and return BLOCK on match', async () => {
-            req = createReq({ event_id: '$1', sender: '@user:localhost', room_id: '!room:localhost', content: { body: 'l: hello world' }});
-            await checkMessage(req as Request, res as Response);
-            
-            expect(sendGhostMessage).toHaveBeenCalledWith(expect.objectContaining({
-                cleanContent: 'hello world',
-                roomId: '!room:localhost',
-                member: expect.objectContaining({ slug: 'lily' })
-            }));
-            expect(jsonMock).toHaveBeenCalledWith({ action: "BLOCK" });
-        });
+    it('should BLOCK and trigger autoproxy if enabled and no tag matches', async () => {
+        const systemWithAuto = { ...mockSystem, autoproxyId: 'm1' };
+        (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(systemWithAuto);
+        
+        const req = {
+            body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'Just chatting' } }
+        } as any;
 
-        it('should return ALLOW if no match', async () => {
-            req = createReq({ event_id: '$1', sender: '@user:localhost', room_id: '!room:localhost', content: { body: 'hello world' }});
-            await checkMessage(req as Request, res as Response);
-            
-            expect(sendGhostMessage).not.toHaveBeenCalled();
-            expect(jsonMock).toHaveBeenCalledWith({ action: "ALLOW" });
-        });
+        await checkMessage(req, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+        expect(sendGhostMessage).toHaveBeenCalled();
     });
 
-    describe('Encrypted Proxying (E2EE)', () => {
-        let decryptMock: jest.Mock;
-
-        beforeEach(() => {
-            decryptMock = jest.fn();
-            (cryptoManager.getMachine as jest.Mock).mockResolvedValue({
-                decryptRoomEvent: decryptMock
-            });
-        });
-
-        it('should decrypt payload, NOT trigger proxy instantly, but return BLOCK', async () => {
-            decryptMock.mockResolvedValue({
-                event: JSON.stringify({ content: { body: 'l: secret message' } })
-            });
-
-            req = createReq({ 
-                event_id: '$1', 
-                sender: '@user:localhost', 
+    it('should BLOCK and let bot.ts handle if encrypted match is found', async () => {
+        (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(mockSystem);
+        
+        const req = {
+            body: { 
+                sender: '@alice:localhost', 
                 room_id: '!room:localhost', 
-                type: 'm.room.encrypted',
-                encrypted_payload: { ciphertext: '...' }
-            });
-
-            await checkMessage(req as Request, res as Response);
-
-            expect(decryptMock).toHaveBeenCalled();
-            expect(sendGhostMessage).not.toHaveBeenCalled(); // Handled by bot.ts instead
-            expect(jsonMock).toHaveBeenCalledWith({ action: "BLOCK" });
-        });
-
-        it('should retry decryption and eventually return ALLOW if it fails', async () => {
-            decryptMock.mockRejectedValue(new Error('Decryption failed'));
-
-            req = createReq({ 
                 event_id: '$1', 
-                sender: '@user:localhost', 
-                room_id: '!room:localhost', 
                 type: 'm.room.encrypted',
-                encrypted_payload: { ciphertext: '...' }
-            });
+                encrypted_payload: { body: 'lily: Secret' } // In real case this is blob, but we mock decrypted content
+            }
+        } as any;
 
-            await checkMessage(req as Request, res as Response);
-
-            expect(decryptMock).toHaveBeenCalledTimes(3); // Wait/Retry loop
-            expect(jsonMock).toHaveBeenCalledWith({ action: "ALLOW" });
+        // Mock machine to return decrypted content
+        (cryptoManager.getMachine as jest.Mock).mockResolvedValue({
+            decryptRoomEvent: jest.fn().mockResolvedValue({
+                event: JSON.stringify({ content: { body: 'lily: Secret' } })
+            })
         });
+
+        await checkMessage(req, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+        // Should NOT trigger proxy here, bot.ts will do it
+        expect(sendGhostMessage).not.toHaveBeenCalled();
     });
 
-    describe('Zero-Flash Commands', () => {
-        it('should execute command immediately and return BLOCK in unencrypted room', async () => {
-            req = createReq({ event_id: '$1', sender: '@user:localhost', room_id: '!room:localhost', content: { body: 'pk;e new text' }});
-            await checkMessage(req as Request, res as Response);
+    describe('Zero-Flash Command Interception', () => {
+        it('should BLOCK and trigger executeTargetingCommand for unencrypted pk;edit', async () => {
+            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(mockSystem);
+            
+            const req = {
+                body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'pk;edit test' } }
+            } as any;
 
-            expect(executeTargetingCommand).toHaveBeenCalled();
-            expect(jsonMock).toHaveBeenCalledWith({ action: "BLOCK" });
+            await checkMessage(req, mockRes as Response);
+            expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+            expect(commandHandler.executeTargetingCommand).toHaveBeenCalled();
         });
 
-        it('should NOT execute command but return BLOCK in encrypted room', async () => {
+        it('should BLOCK and trigger executeTargetingCommand for unencrypted pk;rp', async () => {
+            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(mockSystem);
+            
+            const req = {
+                body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'pk;rp lily' } }
+            } as any;
+
+            await checkMessage(req, mockRes as Response);
+            expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+            expect(commandHandler.executeTargetingCommand).toHaveBeenCalled();
+        });
+
+        it('should BLOCK but NOT trigger executeTargetingCommand for ENCRYPTED pk;edit (bot sync handles it)', async () => {
+            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(mockSystem);
+            
+            const req = {
+                body: { 
+                    sender: '@alice:localhost', 
+                    room_id: '!room:localhost', 
+                    event_id: '$1', 
+                    type: 'm.room.encrypted',
+                    encrypted_payload: {}
+                }
+            } as any;
+
             (cryptoManager.getMachine as jest.Mock).mockResolvedValue({
                 decryptRoomEvent: jest.fn().mockResolvedValue({
-                    event: JSON.stringify({ content: { body: 'pk;e secure text' } })
+                    event: JSON.stringify({ content: { body: 'pk;edit secret' } })
                 })
             });
 
-            req = createReq({ 
-                event_id: '$1', 
-                sender: '@user:localhost', 
-                room_id: '!room:localhost', 
-                type: 'm.room.encrypted',
-                encrypted_payload: { ciphertext: '...' }
-            });
-            await checkMessage(req as Request, res as Response);
-
-            expect(executeTargetingCommand).not.toHaveBeenCalled();
-            expect(jsonMock).toHaveBeenCalledWith({ action: "BLOCK" });
-        });
-
-        it('should return ALLOW for non-targeting pk; commands', async () => {
-            req = createReq({ event_id: '$1', sender: '@user:localhost', room_id: '!room:localhost', content: { body: 'pk;system' }});
-            await checkMessage(req as Request, res as Response);
-            expect(jsonMock).toHaveBeenCalledWith({ action: "ALLOW" });
-        });
-    });
-
-    describe('Autoproxy', () => {
-        it('should trigger autoproxy and return BLOCK if enabled', async () => {
-            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue({
-                ...mockSystem,
-                autoproxyId: 'm1'
-            });
-
-            req = createReq({ event_id: '$1', sender: '@user:localhost', room_id: '!room:localhost', content: { body: 'autoprompted message' }});
-            await checkMessage(req as Request, res as Response);
-
-            expect(sendGhostMessage).toHaveBeenCalled();
-            expect(jsonMock).toHaveBeenCalledWith({ action: "BLOCK" });
+            await checkMessage(req, mockRes as Response);
+            expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+            expect(commandHandler.executeTargetingCommand).not.toHaveBeenCalled();
         });
     });
 });

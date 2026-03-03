@@ -1,6 +1,7 @@
 import { Intent } from "matrix-appservice-bridge";
 import { OlmMachineManager } from "./OlmMachineManager";
 import { RoomId, UserId, EncryptionSettings, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
+import { PrismaClient } from "@prisma/client";
 import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest } from "./crypto-utils";
 
 /**
@@ -32,7 +33,8 @@ export async function sendEncryptedEvent(
     eventType: string,
     content: any,
     manager: OlmMachineManager,
-    asToken: string
+    asToken: string,
+    prisma?: PrismaClient
 ) {
     const ghostUserId = intent.userId;
 
@@ -54,8 +56,27 @@ export async function sendEncryptedEvent(
     try {
         const machine = await manager.getMachine(ghostUserId);
 
+        // Try to resolve memberId if it's a ghost
+        let memberId = undefined;
+        if (prisma && ghostUserId.startsWith('@_plural_')) {
+            const parts = ghostUserId.split(':')[0].split('_');
+            const memberSlug = parts[parts.length - 1];
+            const systemSlug = parts[parts.length - 2];
+            
+            if (memberSlug && systemSlug) {
+                const member = await prisma.member.findFirst({
+                    where: { 
+                        slug: memberSlug,
+                        system: { slug: systemSlug }
+                    },
+                    select: { id: true }
+                });
+                memberId = member?.id;
+            }
+        }
+
         // Ensure device is registered on HS (MSC3202 requirement)
-        const isNewDevice = await registerDevice(intent, machine.deviceId.toString());
+        const isNewDevice = await registerDevice(intent, machine.deviceId.toString(), prisma, memberId);
 
         // 2. Prepare recipients
         const members = await intent.matrixClient.getJoinedRoomMembers(roomId);

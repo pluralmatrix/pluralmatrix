@@ -70,7 +70,8 @@ describe('MessageQueueService', () => {
             "m.room.message",
             expect.objectContaining({ body: plaintext }),
             expect.anything(),
-            expect.anything()
+            expect.anything(),
+            undefined // prisma
         );
 
         // Queue should be empty
@@ -111,12 +112,28 @@ describe('MessageQueueService', () => {
         await new Promise(r => setImmediate(r));
 
         // Attempted to send as ghost
-        expect(sendEncryptedEvent).toHaveBeenNthCalledWith(1, mockGhostIntent, roomId, "m.room.message", expect.anything(), expect.anything(), expect.anything());
+        expect(sendEncryptedEvent).toHaveBeenNthCalledWith(1, 
+            mockGhostIntent, 
+            roomId, 
+            "m.room.message", 
+            expect.anything(), 
+            expect.anything(), 
+            expect.anything(),
+            undefined
+        );
         
         // Fallback: Attempted to send as bot
-        expect(sendEncryptedEvent).toHaveBeenNthCalledWith(2, mockBotIntent, roomId, "m.room.message", expect.objectContaining({
-            body: expect.stringContaining("Delivery Failed")
-        }), expect.anything(), expect.anything());
+        expect(sendEncryptedEvent).toHaveBeenNthCalledWith(2, 
+            mockBotIntent, 
+            roomId, 
+            "m.room.message", 
+            expect.objectContaining({
+                body: expect.stringContaining("Delivery Failed")
+            }), 
+            expect.anything(), 
+            expect.anything(),
+            undefined
+        );
 
         // No sleeps (no retries)
         expect(sleep).not.toHaveBeenCalled();

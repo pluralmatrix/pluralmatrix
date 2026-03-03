@@ -23,6 +23,7 @@ model System {
   autoproxy   Member?  @relation("Autoproxy", fields: [autoproxyId], references: [id])
   members     Member[] @relation("SystemMembers")
   accountLinks AccountLink[]
+  deviceRegistered Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -49,6 +50,7 @@ model Member {
   color       String?
   proxyTags   Json     // Array of { prefix: string, suffix: string }
   matrixId    String?  // The Ghost User ID (@_plural_id:server)
+  deviceRegistered Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

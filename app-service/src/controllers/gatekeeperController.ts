@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma, asToken, cryptoManager, getBridge, executeTargetingCommand } from '../bot';
+import { prisma, asToken, cryptoManager, getBridge, commandHandler } from '../bot';
 import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
@@ -77,7 +77,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                         sender: sender,
                         content: content
                     };
-                    executeTargetingCommand(mockEvent, body, system, asToken).catch(e => {
+                    commandHandler.executeTargetingCommand(mockEvent, body, system).catch(e => {
                         console.error("[Gatekeeper] Failed to execute targeting command:", e.message);
                     });
                 } else {

@@ -8,6 +8,8 @@ const PKMemberSchema = z.object({
     proxy_tags: z.array(z.object({
         prefix: z.string().optional().nullable(),
         suffix: z.string().optional().nullable()
+    }).refine(data => (data.prefix && data.prefix.length > 0) || (data.suffix && data.suffix.length > 0), {
+        message: "At least one of prefix or suffix must be provided"
     })).optional().nullable(),
     pronouns: z.string().optional().nullable(),
     description: z.string().optional().nullable(),

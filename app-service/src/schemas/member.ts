@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
 export const ProxyTagSchema = z.object({
-    prefix: z.string().min(1),
+    prefix: z.string().optional().nullable(),
     suffix: z.string().optional().nullable()
+}).refine(data => (data.prefix && data.prefix.length > 0) || (data.suffix && data.suffix.length > 0), {
+    message: "At least one of prefix or suffix must be provided",
+    path: ["prefix"]
 });
 
 const emptyToNull = (val: any) => (val === "" ? null : val);

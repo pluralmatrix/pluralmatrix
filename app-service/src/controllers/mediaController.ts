@@ -1,9 +1,6 @@
 import { Request, Response } from 'express';
 import { MediaUploadSchema } from '../schemas/media';
-
-const PROJECT_NAME = process.env.PROJECT_NAME || "pluralmatrix";
-const HOMESERVER_URL = process.env.SYNAPSE_URL || `http://${PROJECT_NAME}-synapse:8008`;
-const AS_TOKEN = process.env.AS_TOKEN;
+import { config } from '../config';
 
 export const uploadMedia = async (req: Request, res: Response) => {
     try {
@@ -29,15 +26,15 @@ export const uploadMedia = async (req: Request, res: Response) => {
             });
         }
 
-        if (!AS_TOKEN) {
+        if (!config.asToken) {
             console.error('[MediaController] AS_TOKEN is not configured!');
             return res.status(500).json({ error: 'AS_TOKEN is not configured' });
         }
 
-        const response = await fetch(`${HOMESERVER_URL}/_matrix/media/v3/upload?filename=${encodeURIComponent(filename)}`, {
+        const response = await fetch(`${config.synapseUrl}/_matrix/media/v3/upload?filename=${encodeURIComponent(filename)}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${AS_TOKEN}`,
+                'Authorization': `Bearer ${config.asToken}`,
                 'Content-Type': contentType
             },
             body: req.body
@@ -59,15 +56,15 @@ export const downloadMedia = async (req: Request, res: Response) => {
     try {
         const { server, mediaId } = req.params;
 
-        if (!AS_TOKEN) {
+        if (!config.asToken) {
             console.error('[MediaController] AS_TOKEN is not configured!');
             return res.sendStatus(500);
         }
 
         // Modern Synapse requires authenticated media download via /client/v1/
-        const response = await fetch(`${HOMESERVER_URL}/_matrix/client/v1/media/download/${server}/${mediaId}`, {
+        const response = await fetch(`${config.synapseUrl}/_matrix/client/v1/media/download/${server}/${mediaId}`, {
             headers: {
-                'Authorization': `Bearer ${AS_TOKEN}`
+                'Authorization': `Bearer ${config.asToken}`
             }
         });
         

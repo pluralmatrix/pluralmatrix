@@ -1,4 +1,5 @@
 import { PrismaClient, System, Member } from '@prisma/client';
+import { config } from '../config';
 
 interface CachedSystem {
     id: string;
@@ -16,7 +17,7 @@ interface CacheEntry {
 
 export class ProxyCacheService {
     private cache = new Map<string, CacheEntry>();
-    private readonly TTL_MS = (parseInt(process.env.CACHE_TTL_SECONDS || '300')) * 1000;
+    private readonly TTL_MS = config.cacheTtlSeconds * 1000;
 
     /**
      * Retrieves system rules from cache or fetches from DB if missing/expired.

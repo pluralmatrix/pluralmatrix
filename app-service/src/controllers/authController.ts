@@ -5,8 +5,9 @@ import { proxyCache } from '../services/cache';
 import { LoginSchema } from '../schemas/auth';
 import { ensureUniqueSlug } from '../utils/slug';
 import { z } from 'zod';
+import { config } from '../config';
 
-const DOMAIN = process.env.SYNAPSE_DOMAIN || "localhost";
+const DOMAIN = config.synapseDomain;
 
 export const login = async (req: Request, res: Response) => {
     try {

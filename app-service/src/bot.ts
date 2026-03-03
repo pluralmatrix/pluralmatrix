@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import * as yaml from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
+import { config } from "./config";
 import { proxyCache } from "./services/cache";
 import { maskMxid } from "./utils/privacy";
 import { OlmMachineManager } from "./crypto/OlmMachineManager";
@@ -14,8 +15,8 @@ import { CommandHandler } from "./services/commandHandler";
 
 // Configuration
 const REGISTRATION_PATH = "/data/app-service-registration.yaml";
-const HOMESERVER_URL = process.env.SYNAPSE_URL || "http://localhost:8008";
-const DOMAIN = process.env.SYNAPSE_DOMAIN || process.env.SYNAPSE_SERVER_NAME || "localhost";
+const HOMESERVER_URL = config.synapseUrl;
+const DOMAIN = config.synapseDomain;
 
 // Initialize Prisma
 export const prisma = new PrismaClient();

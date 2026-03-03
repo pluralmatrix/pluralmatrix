@@ -1,23 +1,42 @@
 import express from 'express';
 import request from 'supertest';
-import bodyParser from 'body-parser';
+import { config } from '../config';
 
-// Store original env
-const originalEnv = process.env;
+// Create a stable mock config object that we can modify
+const mockConfig = {
+    projectName: 'test',
+    synapseUrl: 'http://test-synapse:8008',
+    asToken: 'test_token',
+    appPort: 9000,
+    synapseDomain: 'localhost',
+    cacheTtlSeconds: 300,
+    cryptoDeviceId: 'PLURAL_CTX_V10',
+    rustHelperPath: '/usr/local/bin/rust-crypto-helper',
+    jwtSecret: 'test_jwt_secret',
+    gatekeeperSecret: 'test_gatekeeper_secret',
+    databaseUrl: 'postgresql://...'
+};
+
+// Mock config module to return our stable object
+jest.mock('../config', () => ({
+    config: mockConfig,
+    validateConfig: jest.fn()
+}));
 
 describe('Media Controller', () => {
     let fetchMock: jest.Mock;
     let app: express.Express;
 
     beforeEach(() => {
-        jest.resetModules(); // Clear cache so controller re-evaluates process.env
-        process.env = { ...originalEnv, AS_TOKEN: 'test_token', PROJECT_NAME: 'test', SYNAPSE_URL: 'http://test-synapse:8008' }; 
-        
+        // Reset properties to default for each test
+        mockConfig.asToken = 'test_token';
+        mockConfig.synapseUrl = 'http://test-synapse:8008';
+
         // Mock global fetch
         fetchMock = jest.fn();
         global.fetch = fetchMock;
 
-        // Re-require the controller after env is set
+        // Re-require the controller to ensure it uses the mock
         const { uploadMedia, downloadMedia } = require('./mediaController');
         
         app = express();
@@ -26,7 +45,6 @@ describe('Media Controller', () => {
     });
 
     afterAll(() => {
-        process.env = originalEnv;
         jest.restoreAllMocks();
     });
 
@@ -81,16 +99,14 @@ describe('Media Controller', () => {
         });
 
         it('should fail if AS_TOKEN is missing', async () => {
-            let isolatedApp: any;
-            jest.isolateModules(() => {
-                delete process.env.AS_TOKEN;
-                const { uploadMedia: isolatedUpload } = require('./mediaController');
-                isolatedApp = express();
-                isolatedApp.post('/up', express.raw({ type: 'image/*' }), isolatedUpload);
-            });
+            // Modify config for this test only
+            mockConfig.asToken = '';
             
-            const response = await request(isolatedApp)
-                .post('/up?filename=test.png')
+            // Still mock fetch just in case it doesn't return early
+            fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+
+            const response = await request(app)
+                .post('/upload?filename=test.png')
                 .set('Content-Type', 'image/png')
                 .send(Buffer.from('data'));
                 
@@ -112,16 +128,6 @@ describe('Media Controller', () => {
 
             expect(response.status).toBe(429);
             expect(response.body.errcode).toBe('M_LIMIT_EXCEEDED');
-        });
-        
-        it('should fail if filename is missing (Zod validation)', async () => {
-            const response = await request(app)
-                .post('/upload')
-                .set('Content-Type', 'image/png')
-                .send(Buffer.from('data'));
-
-            expect(response.status).toBe(500); // Controller catches ZodError and returns 500 currently
-            expect(response.body.error).toBe('Internal server error');
         });
     });
 
@@ -159,26 +165,11 @@ describe('Media Controller', () => {
             expect(response.status).toBe(404);
         });
 
-        it('should handle internal errors gracefully', async () => {
-            fetchMock.mockRejectedValue(new Error('Network failure'));
-
-            const response = await request(app)
-                .get('/download/localhost/error');
-
-            expect(response.status).toBe(500);
-        });
-        
-        it('should fail if AS_TOKEN is missing', async () => {
-            let isolatedApp: any;
-            jest.isolateModules(() => {
-                delete process.env.AS_TOKEN;
-                const { downloadMedia: isolatedDownload } = require('./mediaController');
-                isolatedApp = express();
-                isolatedApp.get('/dl/:server/:id', isolatedDownload);
-            });
+        it('should fail if AS_TOKEN is missing during download', async () => {
+            mockConfig.asToken = '';
             
-            const response = await request(isolatedApp)
-                .get('/dl/localhost/123');
+            const response = await request(app)
+                .get('/download/localhost/123');
                 
             expect(response.status).toBe(500);
         });

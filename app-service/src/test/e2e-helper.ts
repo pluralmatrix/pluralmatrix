@@ -2,9 +2,18 @@ import { execSync } from 'child_process';
 import { MatrixClient, RustSdkCryptoStorageProvider, MemoryStorageProvider } from '@vector-im/matrix-bot-sdk';
 import * as path from 'path';
 import * as fs from 'fs';
+import { config } from '../config';
 
-const SYNAPSE_URL = "http://localhost:8008";
-const APP_SERVICE_URL = "http://localhost:9000";
+// Use a helper to get the effective Synapse URL for E2E tests.
+// Outside of Docker, we want to talk to localhost.
+const getSynapseUrl = () => {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+        return "http://localhost:8008";
+    }
+    return config.synapseUrl;
+};
+
+const getAppServiceUrl = () => `http://localhost:${config.appPort}`;
 
 const printRateLimitHelp = () => {
     console.error(`
@@ -24,8 +33,8 @@ Your Synapse server is rate-limiting the E2E tests. To fix this:
 
 export const registerUser = async (username: string, password: string): Promise<string> => {
     console.log(`[E2E] Registering user ${username} with password ${password}...`);
-    const projectName = process.env.PROJECT_NAME || 'pluralmatrix';
-    const domain = 'localhost';
+    const projectName = config.projectName;
+    const domain = config.synapseDomain;
     try {
         const cmd = `sudo docker exec ${projectName}-synapse register_new_matrix_user -c /data/homeserver.yaml -u ${username} -p ${password} --admin http://localhost:8008`;
         execSync(cmd, { stdio: 'pipe' });
@@ -46,7 +55,8 @@ export const registerUser = async (username: string, password: string): Promise<
 
 export const getMatrixClient = async (username: string, password: string): Promise<MatrixClient> => {
     console.log(`[E2E] Logging in user ${username} to Matrix...`);
-    const response = await fetch(`${SYNAPSE_URL}/_matrix/client/v3/login`, {
+    const hsUrl = getSynapseUrl();
+    const response = await fetch(`${hsUrl}/_matrix/client/v3/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -77,12 +87,12 @@ export const getMatrixClient = async (username: string, password: string): Promi
     const baseStorage = new MemoryStorageProvider();
     const crypto = new RustSdkCryptoStorageProvider(storagePath, 0); // 0 = Sqlite (usually)
     
-    return new MatrixClient(SYNAPSE_URL, data.access_token, baseStorage, crypto);
+    return new MatrixClient(hsUrl, data.access_token, baseStorage, crypto);
 };
 
 export const getPluralMatrixToken = async (mxid: string, password: string): Promise<string> => {
     console.log(`[E2E] Fetching PluralMatrix JWT for ${mxid}...`);
-    const response = await fetch(`${APP_SERVICE_URL}/api/auth/login`, {
+    const response = await fetch(`${getAppServiceUrl()}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mxid, password })
@@ -100,10 +110,11 @@ export const getPluralMatrixToken = async (mxid: string, password: string): Prom
 
 export const setupTestRoom = async (client: MatrixClient): Promise<string> => {
     console.log(`[E2E] Creating test room...`);
+    const domain = config.synapseDomain;
     const roomId = await client.createRoom({
         visibility: 'private',
         name: `E2E Test Room ${Date.now()}`,
-        invite: ['@plural_bot:localhost']
+        invite: [`@plural_bot:${domain}`]
     });
     console.log(`[E2E] Test room created: ${roomId}`);
     return roomId;
@@ -111,8 +122,9 @@ export const setupTestRoom = async (client: MatrixClient): Promise<string> => {
 
 export const deactivateUser = async (userId: string, accessToken: string) => {
     console.log(`[E2E] Deactivating user ${userId} via Admin API...`);
+    const hsUrl = getSynapseUrl();
     try {
-        const response = await fetch(`${SYNAPSE_URL}/_synapse/admin/v1/deactivate/${encodeURIComponent(userId)}`, {
+        const response = await fetch(`${hsUrl}/_synapse/admin/v1/deactivate/${encodeURIComponent(userId)}`, {
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${accessToken}`,

@@ -4,12 +4,11 @@ import cors from 'cors';
 import path from 'path';
 import { startMatrixBot } from './bot';
 import routes from './routes';
-import gatekeeperRoutes from './routes/gatekeeperRoutes';
 import * as gatekeeperController from './controllers/gatekeeperController';
-import { messageQueue } from './services/queue/MessageQueue';
+import { config, validateConfig } from './config';
 
 const app = express();
-const PORT = process.env.APP_PORT || 9000;
+const PORT = config.appPort;
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -34,9 +33,8 @@ app.get('/health', (req, res) => {
 });
 
 // Check for mandatory environment variables
-if (!process.env.AS_TOKEN || !process.env.JWT_SECRET) {
-    console.error('FATAL: Missing mandatory environment variables AS_TOKEN or JWT_SECRET!');
-    process.exit(1);
+if (process.env.NODE_ENV !== 'test') {
+    validateConfig();
 }
 
 // Synapse Gatekeeper Compatibility (Module expects /check at root)

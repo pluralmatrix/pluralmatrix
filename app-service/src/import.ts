@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import imageSize from 'image-size';
 import os from 'os';
+import { config } from './config';
 
 export interface AvatarMigrationError {
     slug: string;
@@ -194,7 +195,7 @@ export const syncGhostProfile = async (member: any, system: any) => {
             return;
         }
 
-        const domain = process.env.SYNAPSE_DOMAIN || 'localhost';
+        const domain = config.synapseDomain;
         const ghostUserId = `@_plural_${system.slug}_${member.slug}:${domain}`;
         const intent = bridge.getIntent(ghostUserId);
 
@@ -222,7 +223,7 @@ export const decommissionGhost = async (member: any, system: any) => {
         const bridge = getBridge();
         if (!bridge) return;
 
-        const domain = process.env.SYNAPSE_DOMAIN || 'localhost';
+        const domain = config.synapseDomain;
         const ghostUserId = `@_plural_${system.slug}_${member.slug}:${domain}`;
         const intent = bridge.getIntent(ghostUserId);
 
@@ -596,9 +597,9 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
     const bridge = getBridge();
     if (!bridge) throw new Error("Bridge not initialized");
 
-    const PROJECT_NAME = process.env.PROJECT_NAME || "pluralmatrix";
-    const homeserverUrl = process.env.SYNAPSE_URL || `http://${PROJECT_NAME}-synapse:8008`;
-    const asToken = process.env.AS_TOKEN;
+    const PROJECT_NAME = config.projectName;
+    const homeserverUrl = config.synapseUrl;
+    const asToken = config.asToken;
 
     if (!asToken) throw new Error("AS_TOKEN is not configured!");
 

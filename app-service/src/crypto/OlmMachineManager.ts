@@ -2,6 +2,7 @@ import { OlmMachine, UserId, DeviceId, RequestType } from "@matrix-org/matrix-sd
 import * as fs from "fs";
 import * as path from "path";
 import { Mutex } from "async-mutex";
+import { config } from "../config";
 import { bootstrapCrossSigning, BootstrapResult } from "./CrossSigningBootstrapper";
 
 export class OlmMachineManager {
@@ -43,7 +44,7 @@ export class OlmMachineManager {
 
             const sanitizedId = userId.replace(/[^a-zA-Z0-9]/g, "_");
             const storePath = path.join(this.storageRoot, sanitizedId);
-            const deviceId = process.env.CRYPTO_DEVICE_ID || "PLURAL_CTX_V10"; 
+            const deviceId = config.cryptoDeviceId; 
             const deviceIdFile = path.join(storePath, ".device_id");
 
             // Ensure store directory exists and check for device ID changes

@@ -1,6 +1,8 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { Intent } from 'matrix-appservice-bridge';
+import { Intent } from "matrix-appservice-bridge";
+import { config } from "../config";
+
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -62,7 +64,7 @@ export async function bootstrapCrossSigning(
 
     console.log(`[Crypto] Bootstrapping cross-signing for ${userId} via Rust sidecar...`);
 
-    const helperPath = process.env.RUST_HELPER_PATH || '/usr/local/bin/rust-crypto-helper';
+    const helperPath = config.rustHelperPath;
     
     try {
         const { stdout } = await execFileAsync(helperPath, [userId, deviceId, storePath]);

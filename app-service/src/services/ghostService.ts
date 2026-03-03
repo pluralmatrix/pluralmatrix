@@ -2,8 +2,9 @@ import { getBridge, cryptoManager } from '../bot';
 import { sendEncryptedEvent } from '../crypto/encryption';
 import { messageQueue } from './queue/MessageQueue';
 import { registerDevice } from '../crypto/crypto-utils';
+import { config } from '../config';
 
-const DOMAIN = process.env.SYNAPSE_DOMAIN || process.env.SYNAPSE_SERVER_NAME || "localhost";
+const DOMAIN = config.synapseDomain;
 
 export interface GhostMessageOptions {
     roomId: string;

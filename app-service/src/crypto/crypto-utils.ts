@@ -213,6 +213,48 @@ export async function registerDevice(intent: Intent, deviceId: string, prisma?: 
 }
 
 /**
+ * Polls the homeserver via KeysQuery to ensure a specific device is visible.
+ * This is useful after registering a new device to ensure propagation.
+ */
+export async function waitForDeviceVisibility(
+    machine: OlmMachine, 
+    intent: Intent, 
+    asToken: string, 
+    targetUserId: string, 
+    targetDeviceId: string,
+    maxAttempts = 5
+): Promise<boolean> {
+    const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const response = await doAsRequest(
+                hsUrl, 
+                asToken, 
+                intent.userId, 
+                "POST", 
+                "/_matrix/client/v3/keys/query", 
+                { device_keys: { [targetUserId]: [] } }
+            );
+
+            const devices = response.device_keys?.[targetUserId] || {};
+            if (devices[targetDeviceId]) {
+                return true;
+            }
+        } catch (e) {
+            // Ignore query errors during polling
+        }
+
+        if (attempt < maxAttempts) {
+            const waitTime = Math.min(200 * Math.pow(2, attempt), 2000);
+            await sleep(waitTime);
+        }
+    }
+
+    return false;
+}
+
+/**
  * Dispatches a single cryptographic request to Synapse.
  */
 export async function dispatchRequest(machine: OlmMachine, intent: Intent, asToken: string, req: any) {

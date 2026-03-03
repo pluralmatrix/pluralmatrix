@@ -2,7 +2,7 @@ import { Intent } from "matrix-appservice-bridge";
 import { OlmMachineManager } from "./OlmMachineManager";
 import { RoomId, UserId, EncryptionSettings, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { PrismaClient } from "@prisma/client";
-import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest } from "./crypto-utils";
+import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest, waitForDeviceVisibility } from "./crypto-utils";
 
 /**
  * Manually dispatches to-device messages (like Megolm room keys) to Synapse.
@@ -94,8 +94,8 @@ export async function sendEncryptedEvent(
         await processCryptoRequests(machine, intent, asToken);
         
         if (isNewDevice) {
-            // New ghost identity: Wait for HS propagation
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // New ghost identity: Wait for HS propagation by polling for own visibility
+            await waitForDeviceVisibility(machine, intent, asToken, ghostUserId, machine.deviceId.toString());
         }
 
         // Pass 2: CRITICAL - Explicitly execute the KeysClaimRequest for missing sessions
@@ -111,7 +111,7 @@ export async function sendEncryptedEvent(
         const settings = new EncryptionSettings();
         settings.onlyAllowTrustedDevices = false;
         
-        const shareRequests = await (machine as any).shareRoomKey(rustRoomId, rustUserIds, settings);
+        const shareRequests = await machine.shareRoomKey(rustRoomId, rustUserIds, settings);
 
         if (shareRequests && shareRequests.length > 0) {
             // Sharing Megolm keys with recipients

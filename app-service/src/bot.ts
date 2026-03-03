@@ -433,20 +433,27 @@ export const startMatrixBot = async () => {
         }
     }
 
-    // Set Bot Avatar if it exists (lily_avatar.png)
+    // Set Bot Avatar if it exists (lily_avatar.png) and is not already set
     const avatarPath = fs.existsSync(path.join(__dirname, "../assets/images/lily_avatar.png"))
         ? path.join(__dirname, "../assets/images/lily_avatar.png")
         : path.join(__dirname, "../../assets/images/lily_avatar.png");
 
     if (fs.existsSync(avatarPath)) {
         try {
-            console.log(`[Bot] Found lily_avatar.png, uploading to MXC...`);
-            const avatarData = fs.readFileSync(avatarPath);
-            const mxcUrl = await bridge.getBot().getClient().uploadContent(avatarData, "image/png", "lily_avatar.png");
-            await bridge.getIntent().setAvatarUrl(mxcUrl);
-            console.log(`[Bot] Successfully set bot avatar to ${mxcUrl}`);
+            const botIntent = bridge.getIntent();
+            const profile = await botIntent.getProfileInfo(botUserId);
+            
+            if (!profile.avatar_url) {
+                console.log(`[Bot] Bot has no avatar. Found lily_avatar.png, uploading to MXC...`);
+                const avatarData = fs.readFileSync(avatarPath);
+                const mxcUrl = await bridge.getBot().getClient().uploadContent(avatarData, "image/png", "lily_avatar.png");
+                await botIntent.setAvatarUrl(mxcUrl);
+                console.log(`[Bot] Successfully set bot avatar to ${mxcUrl}`);
+            } else {
+                console.log(`[Bot] Bot already has an avatar set (${profile.avatar_url}). Skipping auto-upload.`);
+            }
         } catch (e: any) {
-            console.warn(`[Bot] Failed to set bot avatar: ${e.message}`);
+            console.warn(`[Bot] Failed to check/set bot avatar: ${e.message}`);
         }
     }
 

@@ -7,7 +7,7 @@ const router = Router();
 router.use(authenticateToken);
 
 // PluralKit-compatible exports/imports
-router.post('/pk/json', importController.importPluralKit);
+router.post('/pk/json', express.json({ limit: '20mb' }), importController.importPluralKit);
 router.get('/pk/json', importController.exportPluralKitJson);
 router.get('/pk/zip', importController.exportPluralKitZip);
 

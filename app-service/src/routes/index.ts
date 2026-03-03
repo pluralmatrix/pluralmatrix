@@ -5,8 +5,6 @@ import systemRoutes from './systemRoutes';
 import importRoutes from './importRoutes';
 import mediaRoutes from './mediaRoutes';
 import gatekeeperRoutes from './gatekeeperRoutes';
-import * as importController from '../controllers/importController';
-import { authenticateToken } from '../auth';
 
 const router = Router();
 

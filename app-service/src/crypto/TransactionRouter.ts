@@ -72,20 +72,36 @@ export class TransactionRouter {
 
         // --- STEP 2: Process Timeline Events (PDUs) SECOND ---
         if (transaction.events && Array.isArray(transaction.events)) {
+            const failedSenders = new Set<string>();
+            let hasEncrypted = false;
+
             for (const event of transaction.events) {
                 if (event.type === "m.room.encrypted" && event.room_id) {
-                    await this.routeTimelineEventToBot(event);
+                    hasEncrypted = true;
+                    await this.routeTimelineEventToBot(event, failedSenders);
                 }
             }
             
-            // If the bot decrypted anything, it might have new requests
-            if (transaction.events.some(e => e.type === "m.room.encrypted")) {
+            // Consolidate "nudges" for all senders we failed to decrypt from
+            if (failedSenders.size > 0) {
+                try {
+                    const machine = await this.manager.getMachine(this.botUserId);
+                    const userIds = Array.from(failedSenders).map(s => new UserId(s));
+                    await machine.updateTrackedUsers(userIds);
+                } catch (e) {
+                    console.error("[Router] Failed to perform consolidated tracking nudge:", e);
+                }
+            }
+
+            // If the bot decrypted anything OR failed to decrypt anything, 
+            // it likely has new outgoing requests (KeysQuery, etc)
+            if (hasEncrypted) {
                 await this.onRequestCallback(this.botUserId);
             }
         }
     }
 
-    private async routeTimelineEventToBot(event: MatrixEvent) {
+    private async routeTimelineEventToBot(event: MatrixEvent, failedSenders: Set<string>) {
         try {
             // Attempting decryption of room event
             const machine = await this.manager.getMachine(this.botUserId);
@@ -104,15 +120,8 @@ export class TransactionRouter {
             }
         } catch (e) {
             console.error(`[Router] DECRYPTION FAILURE for ${event.event_id}:`, e);
-            
-            // Trigger a tracking nudge for the bot to discover this sender's keys if decryption fails
-            try {
-                const machine = await this.manager.getMachine(this.botUserId);
-                await machine.updateTrackedUsers([new UserId(event.sender)]);
-                await this.onRequestCallback(this.botUserId);
-            } catch (nudgeErr) {
-                // Ignore nudge failures
-            }
+            // Collect sender for consolidated nudge at end of transaction
+            failedSenders.add(event.sender);
         }
     }
 

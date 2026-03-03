@@ -110,4 +110,37 @@ describe("TransactionRouter", () => {
         expect(mockMachine.updateTrackedUsers).toHaveBeenCalled();
         expect(onRequestCallback).toHaveBeenCalledWith(botUserId);
     });
+
+    it("should debounce decryption nudges for multiple failures from the same sender", async () => {
+        const encryptedEvent1 = {
+            type: "m.room.encrypted",
+            event_id: "$event1",
+            room_id: "!room1",
+            sender: "@alice:localhost",
+            content: { ciphertext: "..." }
+        };
+        const encryptedEvent2 = {
+            type: "m.room.encrypted",
+            event_id: "$event2",
+            room_id: "!room1",
+            sender: "@alice:localhost",
+            content: { ciphertext: "..." }
+        };
+
+        const transaction = {
+            events: [encryptedEvent1, encryptedEvent2]
+        };
+
+        mockMachine.decryptRoomEvent.mockRejectedValue(new Error("Unknown session"));
+
+        await router.processTransaction(transaction as any);
+
+        // Should only be called ONCE with Alice's ID
+        expect(mockMachine.updateTrackedUsers).toHaveBeenCalledTimes(1);
+        expect(mockMachine.updateTrackedUsers).toHaveBeenCalledWith([expect.objectContaining({ toString: expect.any(Function) })]);
+        
+        // Bot sync should only be called ONCE at the end of timeline processing
+        expect(onRequestCallback).toHaveBeenCalledTimes(1);
+        expect(onRequestCallback).toHaveBeenCalledWith(botUserId);
+    });
 });

@@ -27,6 +27,7 @@
     "@types/uuid": "^9.0.8",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
+    "async-mutex": "^0.5.0",
     "better-sqlite3": "^12.6.2",
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",

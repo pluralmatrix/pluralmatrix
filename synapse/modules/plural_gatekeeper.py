@@ -24,6 +24,7 @@ class PluralGatekeeper:
         # Port 9001 is the internal-only "Deep-Check" port on the app-service
         self.service_url = config.get("service_url", "http://pluralmatrix-app-service:9001/check")
         self.bot_id = config.get("bot_id", f"@plural_bot:{self.api.server_name}")
+        self.gatekeeper_secret = config.get("gatekeeper_secret")
         self._cache = {} # (room_id, event_id) -> is_proxy: bool
 
         # Robust Feature Detection
@@ -94,7 +95,11 @@ class PluralGatekeeper:
                 payload_dict["content"] = to_mutable(raw_content)
 
             payload = json.dumps(payload_dict).encode("utf-8")
-            req = urllib.request.Request(self.service_url, data=payload, headers={'Content-Type': 'application/json'})
+            headers = {'Content-Type': 'application/json'}
+            if self.gatekeeper_secret:
+                headers['Authorization'] = f"Bearer {self.gatekeeper_secret}"
+            
+            req = urllib.request.Request(self.service_url, data=payload, headers=headers)
             
             with urllib.request.urlopen(req, timeout=1.5) as response:
                 result = json.load(response)

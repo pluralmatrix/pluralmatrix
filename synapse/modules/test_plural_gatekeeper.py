@@ -32,7 +32,10 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         # We need to bypass the signature check for tests
         with patch('inspect.signature') as mock_sig:
             mock_sig.return_value.parameters = ["check_visibility_can_see_event"]
-            self.module = PluralGatekeeper({"service_url": "http://mock:9001/check"}, self.mock_api)
+            self.module = PluralGatekeeper({
+                "service_url": "http://mock:9001/check",
+                "gatekeeper_secret": "test_secret"
+            }, self.mock_api)
 
     @patch('urllib.request.urlopen')
     async def test_is_proxy_message_plain(self, mock_urlopen):
@@ -46,6 +49,10 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         
         is_proxy = await self.module._is_proxy_message(event)
         self.assertTrue(is_proxy)
+        
+        # Check that headers include Authorization
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.get_header("Authorization"), "Bearer test_secret")
         
         # Check cache
         self.assertTrue(self.module._cache[("!room", "$1")])

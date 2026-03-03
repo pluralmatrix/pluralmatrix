@@ -52,6 +52,7 @@ fi
 echo "🛡️ Generating secure tokens and passwords..."
 AS_TOKEN=$(gen_token)
 HS_TOKEN=$(gen_token)
+GATEKEEPER_SECRET=$(gen_token)
 JWT_SECRET=$(gen_token)
 REG_SECRET=$(gen_token)
 MACAROON_SECRET=$(gen_token)
@@ -67,6 +68,7 @@ sed -i "s/SYNAPSE_SERVER_NAME=.*/SYNAPSE_SERVER_NAME=$SERVER_NAME/" .env
 sed -i "s/SYNAPSE_DOMAIN=.*/SYNAPSE_DOMAIN=$DOMAIN/" .env
 sed -i "s|SYNAPSE_URL=.*|SYNAPSE_URL=http://${PROJECT_NAME}-synapse:8008|" .env
 sed -i "s/AS_TOKEN=.*/AS_TOKEN=$AS_TOKEN/" .env
+sed -i "s/GATEKEEPER_SECRET=.*/GATEKEEPER_SECRET=$GATEKEEPER_SECRET/" .env
 sed -i "s/JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env
 sed -i "s/CRYPTO_DEVICE_ID=.*/CRYPTO_DEVICE_ID=PLURAL_CTX_V9/" .env
 sed -i "s/APP_PORT=.*/APP_PORT=$APP_PORT/" .env
@@ -80,6 +82,7 @@ sed -i "s/server_name: \".*\"/server_name: \"$SERVER_NAME\"/" synapse/config/hom
 sed -i "s/registration_shared_secret: \"REPLACE_ME\"/registration_shared_secret: \"$REG_SECRET\"/" synapse/config/homeserver.yaml
 sed -i "s/macaroon_secret_key: \"REPLACE_ME\"/macaroon_secret_key: \"$MACAROON_SECRET\"/" synapse/config/homeserver.yaml
 sed -i "s/form_secret: \"REPLACE_ME\"/form_secret: \"$FORM_SECRET\"/" synapse/config/homeserver.yaml
+sed -i "s/gatekeeper_secret: \"REPLACE_ME\"/gatekeeper_secret: \"$GATEKEEPER_SECRET\"/" synapse/config/homeserver.yaml
 sed -i "s/as_token: \"secret_token\"/as_token: \"$AS_TOKEN\"/" synapse/config/homeserver.yaml
 sed -i "s/app-service:9000/${PROJECT_NAME}-app-service:$APP_PORT/" synapse/config/homeserver.yaml
 

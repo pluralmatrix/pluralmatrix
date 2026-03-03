@@ -32,6 +32,27 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 };
 
 /**
+ * Middleware to protect internal gatekeeper routes with a shared secret
+ */
+export const authenticateGatekeeper = (req: Request, res: Response, next: NextFunction) => {
+    const gatekeeperSecret = process.env.GATEKEEPER_SECRET;
+    if (!gatekeeperSecret) {
+        console.error('[Auth] GATEKEEPER_SECRET is not configured!');
+        return res.status(500).json({ error: 'Internal server configuration error' });
+    }
+
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token === gatekeeperSecret) {
+        return next();
+    }
+
+    console.warn(`[Auth] Gatekeeper authentication failed from ${req.ip}`);
+    res.sendStatus(401);
+};
+
+/**
  * Logic to verify Matrix credentials against Synapse
  */
 export const loginToMatrix = async (mxid: string, password: string): Promise<boolean> => {

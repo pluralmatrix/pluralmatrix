@@ -60,6 +60,7 @@ modules:
     config:
       service_url: "http://app-service:9001/check"
       as_token: "secret_token"
+      gatekeeper_secret: "REPLACE_ME"
 
 enable_registration: true
 enable_registration_without_verification: true

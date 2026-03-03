@@ -60,6 +60,7 @@ export const validateConfig = () => {
     const missing = [];
     if (!config.asToken) missing.push("AS_TOKEN");
     if (!config.jwtSecret) missing.push("JWT_SECRET");
+    if (!config.gatekeeperSecret) missing.push("GATEKEEPER_SECRET");
 
     if (missing.length > 0) {
         throw new Error(`CRITICAL CONFIGURATION MISSING: ${missing.join(", ")}. Please check your .env file.`);

@@ -4,7 +4,7 @@ import cors from 'cors';
 import path from 'path';
 import { startMatrixBot } from './bot';
 import routes from './routes';
-import * as gatekeeperController from './controllers/gatekeeperController';
+import gatekeeperRoutes from './routes/gatekeeperRoutes';
 import { config, validateConfig } from './config';
 
 const app = express();
@@ -37,9 +37,6 @@ if (process.env.NODE_ENV !== 'test') {
     validateConfig();
 }
 
-// Synapse Gatekeeper Compatibility (Module expects /check at root)
-app.post('/check', gatekeeperController.checkMessage);
-
 // All other requests will return the React app
 app.use((req, res) => {
     res.sendFile(path.join(clientPath, 'index.html'));
@@ -56,8 +53,9 @@ if (require.main === module) {
         // accessible to Synapse within the Docker network.
         const internalApp = express();
         internalApp.use(bodyParser.json({ limit: '5mb' }));
-        // Bypass the router and mount the controller function directly
-        internalApp.post('/check', gatekeeperController.checkMessage); 
+        
+        // Mount at root since gatekeeperRoutes already defines the '/check' path
+        internalApp.use('/', gatekeeperRoutes); 
         
         internalApp.listen(9001, '0.0.0.0', () => {
             console.log(`Internal Gatekeeper listening on port 9001 (Docker-only)`);

@@ -444,8 +444,13 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
             if (importedCount % 10 === 0) {
                 console.log(`[Importer] Progress: ${importedCount} members...`);
             }
-        } catch (memberError) {
+        } catch (memberError: any) {
             console.error(`[Importer] Failed to import a member:`, memberError);
+            failedAvatars.push({ 
+                slug: pkMember.finalSlug || 'unknown', 
+                name: pkMember.name || 'Unknown', 
+                error: `Database/Validation Error: ${memberError.message || 'Unknown error'}` 
+            });
         }
     }
 

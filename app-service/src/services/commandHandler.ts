@@ -588,8 +588,15 @@ export class CommandHandler {
     }
 
     private async getOrCreateSenderSystem(sender: string) {
-        const system = await proxyCache.getSystemRules(sender, this.prisma);
-        if (system) return system;
+        // Issue #4: Directly query DB instead of relying on cache which might double-query
+        const existingLink = await this.prisma.accountLink.findUnique({
+            where: { matrixId: sender },
+            include: { system: { include: { members: true } } }
+        });
+        
+        if (existingLink) {
+            return existingLink.system;
+        }
 
         const localpart = sender.split(':')[0].substring(1);
         

@@ -129,3 +129,10 @@ Run the unit tests for the custom Synapse gatekeeper module directly inside the 
 ./synapse/modules/test.sh
 ```
 
+## Support <a name="support" href="#support">#</a>
+Need help or want to provide feedback? You can reach out through the following channels:
+
+- **Matrix:** Join our support room at [#pluralmatrix-support:hypersystem.xyz](https://matrix.to/#/#pluralmatrix-support:hypersystem.xyz)
+- **Email:** Contact the developer at [chiara@pluralmatrix.org](mailto:chiara@pluralmatrix.org)
+- **GitHub:** File a bug report or feature request on our [Issues page](https://github.com/pluralmatrix/pluralmatrix/issues)
+

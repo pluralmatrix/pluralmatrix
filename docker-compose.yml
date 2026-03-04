@@ -48,6 +48,8 @@ services:
     build:
       context: .
       dockerfile: ./app-service/Dockerfile
+      args:
+        - VITE_COVERAGE=${COVERAGE:-false}
     container_name: ${PROJECT_NAME:-pluralmatrix}-app-service
     restart: unless-stopped
     env_file: ./.env

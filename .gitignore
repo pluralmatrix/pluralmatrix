@@ -30,6 +30,10 @@ Thumbs.db
 \#*#
 *.log
 app-service/coverage/
+app-service/coverage-ui/
+app-service/.nyc_output/
+app-service/test-results/
+app-service/playwright-report/
 
 # Matrix bridge stores
 app-service/data/

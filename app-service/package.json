@@ -6,6 +6,7 @@
   "scripts": {
     "test": "jest --forceExit",
     "test:ui": "playwright test",
+    "test:ui:coverage": "rm -rf .nyc_output && VITE_COVERAGE=true playwright test && node remap-coverage.js && nyc report",
     "start": "ts-node src/index.ts"
   },
   "keywords": [],
@@ -50,6 +51,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.3.1",
+    "nyc": "^18.0.0"
   }
 }

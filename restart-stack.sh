@@ -92,7 +92,7 @@ echo " Database and user verified!"
 
 # 3. Bring up the rest of the stack
 echo "📦 Building and starting services..."
-sudo docker compose up -d --build
+sudo COVERAGE=$COVERAGE docker compose up -d --build
 
 # 4. Final status
 echo "📊 Current Status:"

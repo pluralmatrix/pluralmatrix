@@ -1,0 +1,21 @@
+{
+  "all": true,
+  "include": [
+    "client/src/**/*.ts",
+    "client/src/**/*.tsx"
+  ],
+  "exclude": [
+    "**/*.d.ts",
+    "client/src/test/**/*"
+  ],
+  "extension": [
+    ".ts",
+    ".tsx"
+  ],
+  "reporter": [
+    "text",
+    "html"
+  ],
+  "report-dir": "./coverage-ui",
+  "temp-dir": "./.nyc_output"
+}

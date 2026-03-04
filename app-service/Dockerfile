@@ -27,7 +27,8 @@ WORKDIR /app/client
 COPY app-service/client/package*.json ./
 RUN npm install
 COPY app-service/client/ ./
-RUN npm run build
+ARG VITE_COVERAGE=false
+RUN VITE_COVERAGE=$VITE_COVERAGE npm run build
 
 # 2. Build Backend
 WORKDIR /app

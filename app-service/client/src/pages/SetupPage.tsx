@@ -1,17 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { systemService } from '../services/api';
 import { motion } from 'framer-motion';
-import { AlertTriangle, LogOut, Check, ArrowRight } from 'lucide-react';
+import { AlertTriangle, LogOut, Check, ArrowRight, Loader2 } from 'lucide-react';
 
 const SetupPage: React.FC = () => {
-    const { logout } = useAuth();
+    const { token, logout } = useAuth();
     const navigate = useNavigate();
     
     const [step, setStep] = useState(1);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const checkExistingSystem = async () => {
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+            try {
+                const res = await systemService.get();
+                if (res.data && res.data.slug) {
+                    // Already have a system, go to dashboard
+                    navigate(`/s/${res.data.slug}`, { replace: true });
+                }
+            } catch (e: any) {
+                // 404 is expected here if they truly don't have a system
+                if (e.response?.status !== 404) {
+                    console.error('Error checking existing system:', e);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+        checkExistingSystem();
+    }, [token, navigate]);
 
     const handleCreateSystem = async () => {
         setLoading(true);
@@ -36,6 +60,14 @@ const SetupPage: React.FC = () => {
         logout();
         navigate('/login', { replace: true });
     };
+
+    if (loading && step === 1) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-matrix-dark">
+                <Loader2 className="w-12 h-12 text-matrix-primary animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-matrix-dark text-matrix-text px-4">
@@ -88,7 +120,7 @@ const SetupPage: React.FC = () => {
                         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-5 space-y-4">
                             <h3 className="font-bold flex items-center text-yellow-500">
                                 <AlertTriangle size={18} className="mr-2" />
-                                ⚠️ Please Note ⚠️
+                                Please Note
                             </h3>
                             
                             <div className="space-y-3 text-sm text-matrix-muted">
@@ -96,7 +128,7 @@ const SetupPage: React.FC = () => {
                                     <strong className="text-white">Public Profiles:</strong> All system and member metadata is publicly accessible. Do not store private info in your profiles.
                                 </p>
                                 <p>
-                                    <strong className="text-white">Message Content:</strong> Your messages are not public, but using PluralBot in encrypted rooms allows the <strong>homeserver administrator</strong> to read them.
+                                    <strong className="text-white">Message Content:</strong> Your messages are not public, but using plural_bot in encrypted rooms allows the <strong>homeserver administrator</strong> to read them.
                                 </p>
                                 <p>
                                     <strong className="text-white">Data Control:</strong> We don't use tokens. Use the web UI to export your data regularly for backups or to move servers.

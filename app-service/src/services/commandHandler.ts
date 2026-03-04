@@ -391,17 +391,16 @@ export class CommandHandler {
 
                     const webUrl = config.publicWebUrl;
                     const successMessage = `✅ **System created!**
-    You can now manage your members and settings at:
-    ${webUrl}
+You can now manage your members and settings at:
+${webUrl}
 
-    **⚠️ Please Note ⚠️**
+**⚠️ Please Note ⚠️**
 
-    **Public Profiles:** All system/member metadata is publicly accessible. Do not store private info in profiles.
+**Public Profiles:** All system/member metadata is publicly accessible. Do not store private info in profiles.
 
-    **Message Content:** Your messages are not public, but using PluralBot in encrypted rooms allows the **homeserver administrator** to read them.
+**Message Content:** Your messages are not public, but using plural_bot in encrypted rooms allows the **homeserver administrator** to read them.
 
-    **Data Control:** We don't use tokens. Use the web UI to export your data regularly for backups or to move servers.`;
-
+**Data Control:** We don't use tokens. Use the web UI to export your data regularly for backups or to move servers.`;
                     await this.sendRichText(this.bridge.getIntent(), roomId, successMessage);
                     return true;
                 } catch (e) {

@@ -3,6 +3,13 @@
 # PluralMatrix Automated Setup Script 🚀
 set -e
 
+# Parse arguments
+CI_MODE=false
+if [ "$1" == "--ci" ]; then
+    CI_MODE=true
+    echo "🤖 Running in non-interactive CI mode..."
+fi
+
 # Helper to generate random hex strings
 gen_token() {
     openssl rand -hex 32
@@ -13,11 +20,13 @@ DIR_NAME=$(basename "$(pwd)" | tr '_' '-')
 # Fallback to 'pluralmatrix' if we are in a root-like folder
 DEFAULT_PROJECT_NAME=${DIR_NAME:-pluralmatrix}
 
-echo "🌌 Welcome to the PluralMatrix Setup Wizard!"
-echo "Note: Side-by-side installations are supported by using unique project names."
-echo ""
+if [ "$CI_MODE" = false ]; then
+    echo "🌌 Welcome to the PluralMatrix Setup Wizard!"
+    echo "Note: Side-by-side installations are supported by using unique project names."
+    echo ""
 
-read -p "Enter your Project Name [$DEFAULT_PROJECT_NAME]: " PROJECT_NAME
+    read -p "Enter your Project Name [$DEFAULT_PROJECT_NAME]: " PROJECT_NAME
+fi
 PROJECT_NAME=${PROJECT_NAME:-$DEFAULT_PROJECT_NAME}
 # Clean project name for Docker/hostname compatibility (lowercase, no underscores)
 PROJECT_NAME=$(echo "$PROJECT_NAME" | tr '_' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
@@ -27,27 +36,39 @@ echo "This script will generate secure tokens and configure your environment."
 echo ""
 
 # 1. Gather Basic Info
-echo "🌐 Let's configure your Matrix identity."
-echo "   - Server Name: The internal hostname (e.g. matrix.example.com)"
-echo "   - User Domain: The suffix for your User IDs (e.g. example.com)"
-echo ""
+if [ "$CI_MODE" = false ]; then
+    echo "🌐 Let's configure your Matrix identity."
+    echo "   - Server Name: The internal hostname (e.g. matrix.example.com)"
+    echo "   - User Domain: The suffix for your User IDs (e.g. example.com)"
+    echo ""
 
-read -p "Enter your Matrix Server Name [localhost]: " SERVER_NAME
+    read -p "Enter your Matrix Server Name [localhost]: " SERVER_NAME
+fi
 SERVER_NAME=${SERVER_NAME:-localhost}
 
-read -p "Enter your Matrix User Domain [$SERVER_NAME]: " DOMAIN
+if [ "$CI_MODE" = false ]; then
+    read -p "Enter your Matrix User Domain [$SERVER_NAME]: " DOMAIN
+fi
 DOMAIN=${DOMAIN:-$SERVER_NAME}
 
-read -p "Enter the Public Port for the Web Dashboard [9000]: " APP_PORT
+if [ "$CI_MODE" = false ]; then
+    read -p "Enter the Public Port for the Web Dashboard [9000]: " APP_PORT
+fi
 APP_PORT=${APP_PORT:-9000}
 
-read -p "Enter the Public URL for the Web Dashboard (used for bot links) [http://localhost:${APP_PORT}]: " PUBLIC_WEB_URL
+if [ "$CI_MODE" = false ]; then
+    read -p "Enter the Public URL for the Web Dashboard (used for bot links) [http://localhost:${APP_PORT}]: " PUBLIC_WEB_URL
+fi
 PUBLIC_WEB_URL=${PUBLIC_WEB_URL:-http://localhost:${APP_PORT}}
 
-read -p "Enter the Public Port for Synapse [8008]: " SYNAPSE_PORT
+if [ "$CI_MODE" = false ]; then
+    read -p "Enter the Public Port for Synapse [8008]: " SYNAPSE_PORT
+fi
 SYNAPSE_PORT=${SYNAPSE_PORT:-8008}
 
-read -p "Enter a password for the Postgres Database [random]: " PG_PASS
+if [ "$CI_MODE" = false ]; then
+    read -p "Enter a password for the Postgres Database [random]: " PG_PASS
+fi
 if [ -z "$PG_PASS" ]; then
     PG_PASS=$(gen_token)
 fi

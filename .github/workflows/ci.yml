@@ -1,0 +1,46 @@
+name: PluralMatrix CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+        cache-dependency-path: './app-service/package-lock.json'
+
+    - name: Install Dependencies
+      run: |
+        cd app-service
+        npm ci
+        cd client
+        npm ci
+
+    - name: Run Setup Wizard (Non-Interactive)
+      run: ./setup.sh --ci
+
+    - name: Boot the PluralMatrix Stack
+      run: ./restart-stack.sh
+
+    - name: Install Playwright Browsers
+      run: |
+        cd app-service
+        npx playwright install --with-deps chromium
+
+    - name: Run Full Test Battery (Jest + Playwright)
+      run: |
+        cd app-service
+        ./test.sh

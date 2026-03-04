@@ -243,12 +243,13 @@ const DashboardPage: React.FC = () => {
                     <div className="space-y-2">
                         <div className="space-y-1">
                             <div className="flex items-center gap-3 group">
-                                <h2 className="text-4xl font-bold tracking-tight text-white">
+                                <h2 data-testid="system-title" className="text-4xl font-bold tracking-tight text-white">
                                     {system?.name || "Unnamed System"}
                                 </h2>
                                 {isOwner && (
                                     <button 
                                         onClick={() => setIsSettingsOpen(true)}
+                                        data-testid="system-settings-button"
                                         className="p-2 hover:bg-white/5 rounded-full text-matrix-muted hover:text-matrix-primary transition-colors"
                                         title="Edit System Settings"
                                     >
@@ -270,6 +271,7 @@ const DashboardPage: React.FC = () => {
                         <div className="flex items-center gap-3">
                             <button 
                                 onClick={() => { setSelectedMember(null); setIsEditing(true); }}
+                                data-testid="add-member-button"
                                 className="matrix-button flex items-center shadow-lg shadow-matrix-primary/20"
                             >
                                 <Plus size={18} className="mr-2" /> Add System Member
@@ -278,6 +280,7 @@ const DashboardPage: React.FC = () => {
                             <div className="relative">
                                 <button 
                                     onClick={() => setIsDataMenuOpen(!isDataMenuOpen)}
+                                    data-testid="data-menu-button"
                                     className="matrix-button-outline flex items-center"
                                 >
                                     <Database size={18} className="mr-2" /> Data <ChevronDown size={16} className={`ml-2 transition-transform ${isDataMenuOpen ? 'rotate-180' : ''}`} />
@@ -313,6 +316,7 @@ const DashboardPage: React.FC = () => {
                                                 <div className="px-4 py-2 text-[10px] font-bold text-matrix-muted uppercase tracking-wider">Import</div>
                                                 <button 
                                                     onClick={() => { setIsImporting(true); setIsDataMenuOpen(false); }}
+                                                    data-testid="import-menu-button"
                                                     className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors group"
                                                 >
                                                     <Upload size={16} className="mr-3 text-matrix-primary group-hover:scale-110 transition-transform" /> 
@@ -323,6 +327,7 @@ const DashboardPage: React.FC = () => {
                                                 <div className="px-4 py-2 text-[10px] font-bold text-red-400 uppercase tracking-wider">Danger Zone</div>
                                                 <button 
                                                     onClick={() => { handleDeleteSystem(); setIsDataMenuOpen(false); }}
+                                                    data-testid="delete-system-menu-button"
                                                     className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-400/10 text-red-400 flex items-center transition-colors"
                                                 >
                                                     <Trash2 size={16} className="mr-3" /> Delete System

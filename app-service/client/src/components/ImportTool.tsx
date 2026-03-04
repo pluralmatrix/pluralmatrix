@@ -111,6 +111,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                             <div className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-matrix-primary/50 transition-colors relative group">
                                 <input 
                                     type="file" 
+                                    data-testid="import-file-input"
                                     accept=".json,.zip" 
                                     onChange={handleFileChange}
                                     className="absolute inset-0 opacity-0 cursor-pointer"
@@ -124,6 +125,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                             <button 
                                 disabled={!file}
                                 onClick={handleImport}
+                                data-testid="start-import-button"
                                 className="matrix-button w-full"
                             >
                                 Start Import
@@ -142,8 +144,8 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                         <div className="py-6 text-center space-y-6">
                             <div className="space-y-2">
                                 <CheckCircle2 className="mx-auto text-matrix-primary" size={60} />
-                                <h3 className="text-xl font-bold">Import Successful!</h3>
-                                <p className="text-matrix-muted">Successfully imported {count} members.</p>
+                                <h3 data-testid="import-success-header" className="text-xl font-bold">Import Successful!</h3>
+                                <p data-testid="import-success-message" className="text-matrix-muted">Successfully imported {count} members.</p>
                             </div>
 
                             {failedAvatars.length > 0 && (

@@ -54,7 +54,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                             )}
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold flex items-center gap-2">
+                            <h3 data-testid="member-card-name" className="text-xl font-bold flex items-center gap-2">
                                 {member.displayName || member.name}
                                 {isAutoproxy && <span className="bg-yellow-500/20 text-yellow-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded flex items-center gap-1"><Star size={10} fill="currentColor"/> Autoproxy</span>}
                             </h3>

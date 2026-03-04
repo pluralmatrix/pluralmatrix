@@ -173,7 +173,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                             <p className="mt-1.5 text-[10px] text-matrix-muted">Ghost ID: @_plural_<b>{formData.slug || 'slug'}</b>_member:server</p>
                         </div>
 
-                        <button type="submit" disabled={saving} className="matrix-button w-full flex items-center justify-center">
+                        <button type="submit" data-testid="save-system-settings-button" disabled={saving} className="matrix-button w-full flex items-center justify-center">
                             <Save size={18} className="mr-2" />
                             {saving ? 'Saving...' : 'Save General Settings'}
                         </button>

@@ -299,7 +299,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                             {isReadOnly ? 'Close' : 'Cancel'}
                         </button>
                         {!isReadOnly && (
-                            <button type="submit" disabled={loading} className="matrix-button flex items-center px-8">
+                            <button type="submit" data-testid="save-member-button" disabled={loading} className="matrix-button flex items-center px-8">
                                 <Save size={18} className="mr-2" />
                                 {loading ? 'Saving...' : 'Save Member'}
                             </button>

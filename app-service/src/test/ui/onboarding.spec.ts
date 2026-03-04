@@ -33,14 +33,14 @@ test.describe('Web UI Onboarding Flow', () => {
         await page.goto('/login');
         
         // Fill out login form
-        await page.fill('input[placeholder="@user:server.com"]', fullMxid);
-        await page.fill('input[placeholder="Password"]', password);
+        await page.getByTestId('login-mxid-input').fill(fullMxid);
+        await page.getByTestId('login-password-input').fill(password);
         
         const loginResponsePromise = page.waitForResponse(response => 
             response.url().includes('/api/auth/login') && response.status() === 200
         );
         
-        await page.click('button:has-text("Sign In")');
+        await page.getByTestId('login-submit-button').click();
         console.log('[UI-Test] Waiting for login response...');
         await loginResponsePromise;
 
@@ -53,7 +53,7 @@ test.describe('Web UI Onboarding Flow', () => {
             response.url().includes('/api/system') && response.request().method() === 'POST' && response.status() === 201
         );
         
-        await page.click('button:has-text("Create a System")');
+        await page.getByTestId('create-system-button').click();
         console.log('[UI-Test] Waiting for system creation API...');
         await createSystemPromise;
 
@@ -61,7 +61,7 @@ test.describe('Web UI Onboarding Flow', () => {
         await expect(page.locator('text=System Created!')).toBeVisible();
         await expect(page.locator('text=Please Note')).toBeVisible();
         
-        await page.click('button:has-text("I understand, proceed to Dashboard")');
+        await page.getByTestId('acknowledge-warning-button').click();
 
         console.log('[UI-Test] Starting Step 3: DASHBOARD & MEMBER MANAGEMENT');
         // We wait for navigation rather than just URL match to ensure the DOM has actually updated
@@ -70,8 +70,8 @@ test.describe('Web UI Onboarding Flow', () => {
         
         try {
             console.log('[UI-Test] Waiting for Add System Member button...');
-            await page.waitForSelector('text=Add System Member', { timeout: 10000 });
-            await page.click('button:has-text("Add System Member")');
+            await page.getByTestId('add-member-button').waitFor({ state: 'visible', timeout: 10000 });
+            await page.getByTestId('add-member-button').click();
             
             console.log('[UI-Test] Waiting for New System Member modal...');
             await page.waitForSelector('h2:has-text("New System Member")', { timeout: 5000 });
@@ -92,7 +92,7 @@ test.describe('Web UI Onboarding Flow', () => {
             response.url().includes('/api/members') && response.request().method() === 'POST' && response.status() === 201
         );
 
-        await page.click('button:has-text("Save Member")');
+        await page.getByTestId('save-member-button').click();
         console.log('[UI-Test] Waiting for member creation API...');
         await createMemberPromise;
 
@@ -100,7 +100,7 @@ test.describe('Web UI Onboarding Flow', () => {
         await expect(page.locator('h3:has-text("Playwright Tester")')).toBeVisible();
 
         console.log('[UI-Test] Starting Step 4: TEARDOWN VIA UI');
-        await page.click('button:has-text("Data")');
+        await page.getByTestId('data-menu-button').click();
         
         const deleteSystemPromise = page.waitForResponse(response => 
             response.url().includes('/api/system') && response.request().method() === 'DELETE' && response.status() === 200
@@ -108,7 +108,7 @@ test.describe('Web UI Onboarding Flow', () => {
 
         page.on('dialog', dialog => dialog.accept());
         
-        await page.click('button:has-text("Delete System")');
+        await page.getByTestId('delete-system-menu-button').click();
         console.log('[UI-Test] Waiting for delete system API...');
         await deleteSystemPromise;
 

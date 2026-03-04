@@ -93,6 +93,7 @@ const SetupPage: React.FC = () => {
                             <button 
                                 onClick={handleCreateSystem}
                                 disabled={loading}
+                                data-testid="create-system-button"
                                 className="matrix-button w-full flex items-center justify-center font-bold"
                             >
                                 {loading ? 'Creating...' : (
@@ -104,6 +105,7 @@ const SetupPage: React.FC = () => {
                             <button 
                                 onClick={handleLogout}
                                 disabled={loading}
+                                data-testid="logout-button"
                                 className="matrix-button-ghost w-full flex items-center justify-center text-matrix-muted hover:text-white"
                             >
                                 <LogOut size={18} className="mr-2" /> Log out
@@ -138,6 +140,7 @@ const SetupPage: React.FC = () => {
 
                         <button 
                             onClick={handleAcknowledge}
+                            data-testid="acknowledge-warning-button"
                             className="matrix-button w-full flex items-center justify-center font-bold"
                         >
                             I understand, proceed to Dashboard

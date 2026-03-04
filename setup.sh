@@ -121,7 +121,7 @@ sed -i "s|url: .*|url: http://${PROJECT_NAME}-app-service:8008|" synapse/config/
 
 # 5. Generate Signing Key
 echo "✒️ Generating Synapse signing key..."
-sudo docker run -it --rm -v "$(pwd)/synapse/config:/data" \
+sudo docker run --rm -v "$(pwd)/synapse/config:/data" \
     -e SYNAPSE_SERVER_NAME=$SERVER_NAME \
     -e SYNAPSE_REPORT_STATS=no \
     matrixdotorg/synapse:latest generate

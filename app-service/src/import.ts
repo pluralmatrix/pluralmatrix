@@ -211,9 +211,11 @@ export const syncGhostProfile = async (member: any, system: any) => {
             await intent.setAvatarUrl(member.avatarUrl);
         }
     } catch (e: any) {
-        console.error(`[Ghost] Failed to sync profile for ${member.slug}:`, e.message || e);
+        console.warn(`[Ghost] Failed to sync profile for ${member.slug}:`, e.message);
+        throw e;
     }
-};
+    }
+
 
 /**
  * Cleanup a ghost user when a member is deleted.
@@ -438,7 +440,15 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
                 }
             });
 
-            await syncGhostProfile(member, system);
+            try {
+                await syncGhostProfile(member, system);
+            } catch (syncErr: any) {
+                failedAvatars.push({ 
+                    slug: member.slug, 
+                    name: member.name, 
+                    error: `Matrix Profile Sync Failed: ${syncErr.message || 'Unknown error'}` 
+                });
+            }
 
             importedCount++;
             if (importedCount % 10 === 0) {
@@ -816,7 +826,15 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
                     where: { id: member.id },
                     data: { avatarUrl: mxcUrl }
                 });
-                await syncGhostProfile(updated, system);
+                try {
+                    await syncGhostProfile(updated, system);
+                } catch (syncErr: any) {
+                    failedAvatars.push({ 
+                        slug: member.slug, 
+                        name: member.name, 
+                        error: `Matrix Profile Sync Failed after avatar upload: ${syncErr.message || 'Unknown error'}` 
+                    });
+                }
             }
             count++;
         } catch (e: any) {

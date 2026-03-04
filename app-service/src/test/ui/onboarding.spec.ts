@@ -26,6 +26,26 @@ test.describe('Web UI Onboarding Flow', () => {
         cleanupCryptoStorage(username);
     });
 
+    test('User can log out from the setup page', async ({ page }) => {
+        console.log('[UI-Logout-Test] Starting LOGIN');
+        await page.goto('/login');
+        
+        await page.getByTestId('login-mxid-input').fill(fullMxid);
+        await page.getByTestId('login-password-input').fill(password);
+        await page.getByTestId('login-submit-button').click();
+
+        console.log('[UI-Logout-Test] Verifying setup page redirect...');
+        await expect(page).toHaveURL(/\/setup/);
+        await expect(page.locator('text=You are logged in, but you do not have a system')).toBeVisible();
+
+        console.log('[UI-Logout-Test] Clicking Log out...');
+        await page.getByTestId('logout-button').click();
+
+        console.log('[UI-Logout-Test] Verifying login page redirect...');
+        await expect(page).toHaveURL(/\/login/);
+        await expect(page.getByTestId('login-submit-button')).toBeVisible();
+    });
+
     test('User can log in, create a system, add a member, and delete the system', async ({ page }) => {
         test.setTimeout(60000); // 60 seconds
         

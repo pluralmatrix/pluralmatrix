@@ -123,7 +123,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                         </div>
                         <h2 className="text-xl font-bold">System Settings</h2>
                     </div>
-                    <button type="button" onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
+                    <button type="button" data-testid="close-settings-button" onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
                         <X size={20} />
                     </button>
                 </div>

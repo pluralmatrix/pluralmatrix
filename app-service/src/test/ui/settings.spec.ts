@@ -159,6 +159,15 @@ test.describe('System Settings and Member Management', () => {
         await page.click('button:has-text("Done")');
 
         await page.getByTestId('dlq-close-button').click();
+        
+        // Ensure the main settings modal is also closed before trying to interact with the dashboard
+        await page.getByTestId('close-settings-button').click();
+
+        // 5. Logout from Dashboard
+        console.log('[UI-Settings-Test] Starting Step 5: LOGOUT FROM DASHBOARD');
+        await page.getByTestId('dashboard-logout-button').click();
+        await expect(page).toHaveURL(/\/login/);
+        await expect(page.getByTestId('login-submit-button')).toBeVisible();
 
         console.log('[UI-Settings-Test] Success!');
     });

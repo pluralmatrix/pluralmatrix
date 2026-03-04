@@ -70,6 +70,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                     {!isReadOnly && (
                         <div className="flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
+                                data-testid={`toggle-autoproxy-${member.slug}`}
                                 onClick={() => onToggleAutoproxy?.(member.id)}
                                 className={`p-2 rounded-lg transition-colors ${isAutoproxy ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30' : 'hover:bg-white/5 text-matrix-muted hover:text-yellow-500'}`}
                                 title={isAutoproxy ? "Disable Autoproxy" : "Set as Autoproxy"}
@@ -84,6 +85,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                                 <Edit3 size={18} />
                             </button>
                             <button 
+                                data-testid={`delete-member-${member.slug}`}
                                 onClick={() => onDelete(member.id)}
                                 className="p-2 hover:bg-red-400/10 rounded-lg text-matrix-muted hover:text-red-400 transition-colors"
                             >

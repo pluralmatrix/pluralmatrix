@@ -56,6 +56,7 @@ export const getPublicSystem = async (req: Request, res: Response) => {
                 banner: true,
                 color: true,
                 createdAt: true,
+                autoproxyId: true,
                 members: {
                     select: {
                         id: true,

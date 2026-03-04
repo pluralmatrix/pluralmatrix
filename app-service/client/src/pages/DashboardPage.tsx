@@ -300,6 +300,7 @@ const DashboardPage: React.FC = () => {
                                                 <div className="px-4 py-2 text-[10px] font-bold text-matrix-muted uppercase tracking-wider">Export</div>
                                                 <button 
                                                     onClick={() => { memberService.exportBackupZip(); setIsDataMenuOpen(false); }}
+                                                    data-testid="export-zip-button"
                                                     className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors group"
                                                 >
                                                     <Archive size={16} className="mr-3 text-matrix-primary group-hover:scale-110 transition-transform" /> 
@@ -307,6 +308,7 @@ const DashboardPage: React.FC = () => {
                                                 </button>
                                                 <button 
                                                     onClick={() => { memberService.exportPkZip(); setIsDataMenuOpen(false); }}
+                                                    data-testid="export-pk-button"
                                                     className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 flex items-center transition-colors group"
                                                 >
                                                     <Download size={16} className="mr-3 text-matrix-primary group-hover:scale-110 transition-transform" /> 

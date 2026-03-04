@@ -26,6 +26,24 @@ test.describe('Web UI Onboarding Flow', () => {
         cleanupCryptoStorage(username);
     });
 
+    test('User sees error on invalid login', async ({ page }) => {
+        console.log('[UI-Error-Test] Starting Invalid Login test');
+        await page.goto('/login');
+        
+        await page.getByTestId('login-mxid-input').fill(fullMxid);
+        await page.getByTestId('login-password-input').fill('definitely_wrong_password');
+        
+        const loginResponsePromise = page.waitForResponse(response => 
+            response.url().includes('/api/auth/login') && response.status() === 401
+        );
+        
+        await page.getByTestId('login-submit-button').click();
+        await loginResponsePromise;
+
+        console.log('[UI-Error-Test] Verifying error message...');
+        await expect(page.locator('text=Invalid Matrix credentials')).toBeVisible();
+    });
+
     test('User can log out from the setup page', async ({ page }) => {
         console.log('[UI-Logout-Test] Starting LOGIN');
         await page.goto('/login');

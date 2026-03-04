@@ -142,6 +142,66 @@ test.describe('Web UI System Import and Data Flow', () => {
         // Verify the member name updated on the card
         await expect(page.getByTestId('member-card-name').filter({ hasText: 'Alicia' })).toBeVisible();
 
+        console.log('[UI-Import-Test] Starting Step 6: AUTOPROXY & DELETION');
+        
+        // Target Alice's card (slug: alice)
+        const aliceCardName = page.getByTestId('member-card-name').filter({ hasText: 'Alicia' });
+        
+        // Hover over the card to reveal the action buttons
+        console.log('[UI-Import-Test] Hovering over Alicia card...');
+        await aliceCardName.hover();
+
+        const autoproxyEnablePromise = page.waitForResponse(response => 
+            response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200
+        );
+        
+        console.log('[UI-Import-Test] Clicking autoproxy star (Enable)...');
+        await page.getByTestId('toggle-autoproxy-alice').click();
+        await autoproxyEnablePromise;
+        
+        // Verify the yellow Autoproxy badge appears
+        console.log('[UI-Import-Test] Verifying autoproxy enabled...');
+        await expect(page.locator('text=Autoproxy').first()).toBeVisible();
+
+        // Toggle autoproxy (Disable) - click the same star again
+        const autoproxyDisablePromise = page.waitForResponse(response => 
+            response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200
+        );
+        
+        console.log('[UI-Import-Test] Clicking autoproxy star (Disable)...');
+        await page.getByTestId('toggle-autoproxy-alice').click();
+        await autoproxyDisablePromise;
+
+        // Verify the yellow Autoproxy badge is gone
+        console.log('[UI-Import-Test] Verifying autoproxy disabled...');
+        await expect(page.locator('text=Autoproxy')).not.toBeVisible();
+
+        // Delete the member
+        console.log('[UI-Import-Test] Clicking delete member...');
+        page.on('dialog', dialog => dialog.accept());
+        const deleteMemberPromise = page.waitForResponse(response => 
+            response.url().includes('/api/members/') && response.request().method() === 'DELETE' && response.status() === 200
+        );
+        
+        // Re-hover because the DOM re-rendered after the autoproxy update
+        await aliceCardName.hover();
+        await page.getByTestId('delete-member-alice').click();
+        await deleteMemberPromise;
+        
+        // Verify it's gone from the DOM
+        console.log('[UI-Import-Test] Verifying member deletion...');
+        await expect(page.getByTestId('member-card-name').filter({ hasText: 'Alicia' })).not.toBeVisible();
+
+        console.log('[UI-Import-Test] Starting Step 7: DATA EXPORT');
+        await page.getByTestId('data-menu-button').click();
+        
+        // Test PK Export
+        console.log('[UI-Import-Test] Verifying PK Export download...');
+        const pkExportPromise = page.waitForEvent('download');
+        await page.getByTestId('export-pk-button').click();
+        const pkDownload = await pkExportPromise;
+        expect(pkDownload.suggestedFilename()).toContain('pluralkit_export_');
+
         console.log('[UI-Import-Test] Success!');
     });
 

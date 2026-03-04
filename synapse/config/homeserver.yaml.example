@@ -35,6 +35,11 @@ signing_key_path: "/data/localhost.signing.key"
 trusted_key_servers:
   - server_name: "matrix.org"
 
+enable_registration: true
+enable_registration_without_verification: true
+
+# vim:ft=yaml
+
 # --- PluralMatrix Configuration ---
 
 # Application Services
@@ -61,11 +66,6 @@ modules:
       service_url: "http://app-service:9001/check"
       as_token: "secret_token"
       gatekeeper_secret: "REPLACE_ME"
-
-enable_registration: true
-enable_registration_without_verification: true
-
-# vim:ft=yaml
 
 experimental_features:
   # This unlocks the /keys/upload/{userId}/{deviceId} endpoint

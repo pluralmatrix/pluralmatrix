@@ -40,6 +40,11 @@ jobs:
         cd app-service
         npx playwright install --with-deps chromium
 
+    - name: Run Synapse Module Unit Tests
+      run: |
+        cd synapse/modules
+        ./test.sh
+
     - name: Run Full Test Battery (Jest + Playwright)
       run: |
         cd app-service

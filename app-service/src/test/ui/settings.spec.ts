@@ -115,9 +115,49 @@ test.describe('System Settings and Member Management', () => {
         await expect(page.locator(`text=${linkFullMxid}`)).not.toBeVisible();
 
         // 4. Dead Letter Queue
+        // Intercept the API to return a mock dead letter instead of relying on the backend state
+        await page.route('**/api/system/dead_letters', async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify([{
+                        id: 'mock-dl-123',
+                        timestamp: Date.now(),
+                        roomId: '!mockroom:localhost',
+                        ghostUserId: '@_plural_ui_set_mock_ghost:localhost',
+                        plaintext: 'This message failed to send due to an error.',
+                        errorReason: 'Forbidden: Cannot join room'
+                    }])
+                });
+            } else if (route.request().method() === 'DELETE') {
+                await route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' });
+            } else {
+                await route.continue();
+            }
+        });
+
         await page.getByTestId('open-dlq-button').click();
         await expect(page.getByTestId('dlq-modal-title')).toBeVisible();
-        await expect(page.getByTestId('dlq-empty-state')).toBeVisible();
+        
+        // The mock dead letter should be visible in the list
+        await expect(page.locator('text=This message failed to send due to an error.')).toBeVisible();
+        await expect(page.locator('text=Forbidden')).toBeVisible();
+
+        // Click the item to view details
+        await page.getByTestId('dlq-item-mock-dl-123').click();
+        
+        // Verify details view
+        await expect(page.locator('text=Message Recovery')).toBeVisible();
+        await expect(page.locator('text=Forbidden: Cannot join room')).toBeVisible();
+        
+        // Use a more specific locator for the textarea content
+        const textarea = page.locator('textarea');
+        await expect(textarea).toHaveValue('This message failed to send due to an error.');
+
+        // Test deletion from the details view (if available) or go back
+        await page.click('button:has-text("Done")');
+
         await page.getByTestId('dlq-close-button').click();
 
         console.log('[UI-Settings-Test] Success!');

@@ -43,6 +43,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                         <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-matrix-dark border border-white/5 flex-shrink-0">
                             {member.avatarUrl && getAvatarUrl(member.avatarUrl) ? (
                                 <img 
+                                    data-testid="member-avatar"
                                     src={getAvatarUrl(member.avatarUrl)!} 
                                     alt={member.name}
                                     className="w-full h-full object-cover"

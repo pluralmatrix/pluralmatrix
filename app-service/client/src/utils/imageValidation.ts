@@ -17,11 +17,11 @@ export const validateAvatarImage = async (file: File): Promise<ImageValidationRe
     }
 
     // 2. File Size Check
-    const maxSizeInBytes = 1024 * 1024; // 1024 KB
+    const maxSizeInBytes = 8388608; // 8 MB
     if (file.size > maxSizeInBytes) {
         return {
             valid: false,
-            error: `The image must be under 1024 KB (1 MB). Your image is ${Math.round(file.size / 1024)} KB.`
+            error: `The image must be under 8 MB. Your image is ${Math.round(file.size / (1024 * 1024) * 100) / 100} MB.`
         };
     }
 
@@ -32,16 +32,6 @@ export const validateAvatarImage = async (file: File): Promise<ImageValidationRe
 
         img.onload = () => {
             URL.revokeObjectURL(objectUrl);
-
-            // Resolution Check: below 1000x1000 pixels along its smallest axis
-            const smallestAxis = Math.min(img.width, img.height);
-            if (smallestAxis >= 1000) {
-                resolve({
-                    valid: false,
-                    error: `The image must be below 1000 x 1000 pixels in resolution along its smallest axis. Your image's smallest axis is ${smallestAxis} pixels (${img.width}x${img.height}).`
-                });
-                return;
-            }
 
             // Resolution Check: max 4000 pixels along its largest axis
             const largestAxis = Math.max(img.width, img.height);

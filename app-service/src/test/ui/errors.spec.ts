@@ -29,10 +29,10 @@ test.describe('Frontend Error Resilience', () => {
         // Generate fixtures
         fs.writeFileSync(badFilePath, 'This is definitely not an image');
         
-        // Generate a 2MB file
+        // Generate a 9MB file
         const dummyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
         fs.writeFileSync(largeFilePath, Buffer.from(dummyPngBase64, 'base64'));
-        execSync(`truncate -s 2M "${largeFilePath}"`);
+        execSync(`truncate -s 9M "${largeFilePath}"`);
     });
 
     test.afterAll(async () => {
@@ -73,11 +73,11 @@ test.describe('Frontend Error Resilience', () => {
         await page.getByTestId('avatar-upload-input').setInputFiles(badFilePath);
         await expect.poll(() => alertMessage).toContain('must be in .jpg, .png, or .webp format');
 
-        // 3. Test File Too Large (>1MB)
-        console.log('[UI-Error-Test] Testing oversized file (>1MB)...');
+        // 3. Test File Too Large (>8MB)
+        console.log('[UI-Error-Test] Testing oversized file (>8MB)...');
         alertMessage = ''; // reset
         await page.getByTestId('avatar-upload-input').setInputFiles(largeFilePath);
-        await expect.poll(() => alertMessage).toContain('must be under 1024 KB');
+        await expect.poll(() => alertMessage).toContain('must be under 8 MB');
 
         console.log('[UI-Error-Test] Success!');
     });

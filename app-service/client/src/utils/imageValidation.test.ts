@@ -66,17 +66,17 @@ describe('imageValidation', () => {
             expect(result.error).toContain('Your file type is unknown.');
         });
 
-        it('should reject files over 1MB', async () => {
-            const size = 1024 * 1024 + 2048; // 1026 KB
+        it('should reject files over 8MB', async () => {
+            const size = 8388608 + 1024 * 1024; // 9 MB
             const largeBuffer = new ArrayBuffer(size);
             const file = new File([largeBuffer], 'test.jpg', { type: 'image/jpeg' });
             const result = await validateAvatarImage(file);
             expect(result.valid).toBe(false);
-            expect(result.error).toBe('The image must be under 1024 KB (1 MB). Your image is 1026 KB.');
+            expect(result.error).toBe('The image must be under 8 MB. Your image is 9 MB.');
         });
 
-        it('should accept a file exactly 1MB', async () => {
-            const size = 1024 * 1024;
+        it('should accept a file exactly 8MB', async () => {
+            const size = 8388608;
             const buffer = new ArrayBuffer(size);
             const file = new File([buffer], 'test.jpg', { type: 'image/jpeg' });
             const result = await validateAvatarImage(file);
@@ -87,24 +87,6 @@ describe('imageValidation', () => {
             const file = new File(['mock'], 'test.png', { type: 'image/png' });
             const result = await validateAvatarImage(file);
             expect(result.valid).toBe(true);
-        });
-
-        it('should reject images with smallest axis >= 1000px', async () => {
-            const file = new File(['mock'], 'test.png', { type: 'image/png' });
-            
-            // Override the global stub just for this test
-            vi.stubGlobal('Image', class {
-                width = 1000;
-                height = 1500;
-                onload: any = null;
-                set src(_v: string) {
-                    setTimeout(() => { if (this.onload) this.onload(); }, 10);
-                }
-            });
-
-            const result = await validateAvatarImage(file);
-            expect(result.valid).toBe(false);
-            expect(result.error).toBe("The image must be below 1000 x 1000 pixels in resolution along its smallest axis. Your image's smallest axis is 1000 pixels (1000x1500).");
         });
 
         it('should reject images with largest axis > 4000px', async () => {

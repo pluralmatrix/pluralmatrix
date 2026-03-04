@@ -200,6 +200,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                                             {!link.isPrimary && (
                                                 <button 
                                                     onClick={() => handleSetPrimary(link.matrixId)}
+                                                    data-testid={`set-primary-${link.matrixId}`}
                                                     className="p-2 text-matrix-muted hover:text-yellow-500 transition-colors opacity-0 group-hover:opacity-100"
                                                     title="Set as Primary Routing Account"
                                                 >
@@ -209,6 +210,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                                             {!isSelf && (
                                                 <button 
                                                     onClick={() => handleRemoveLink(link.matrixId)}
+                                                    data-testid={`remove-link-${link.matrixId}`}
                                                     className="p-2 text-matrix-muted hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                                                     title="Unlink Account"
                                                 >
@@ -226,11 +228,12 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                             <div className="flex gap-2">
                                 <input 
                                     className="matrix-input text-sm" 
+                                    data-testid="new-link-input"
                                     value={newLinkMxid} 
                                     onChange={(e) => setNewLinkMxid(e.target.value)} 
                                     placeholder="@user:server.com"
                                 />
-                                <button type="submit" disabled={linking || !newLinkMxid} className="matrix-button-outline px-3">
+                                <button type="submit" data-testid="add-link-button" disabled={linking || !newLinkMxid} className="matrix-button-outline px-3">
                                     <Plus size={20} />
                                 </button>
                             </div>
@@ -244,6 +247,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                         <div className="flex justify-end mt-4">
                             <button 
                                 onClick={() => setDlqOpen(true)}
+                                data-testid="open-dlq-button"
                                 className="flex items-center gap-4 p-3 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-amber-500/30 rounded-2xl transition-all group text-left"
                             >
                                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">

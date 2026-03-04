@@ -285,6 +285,7 @@ export const createLink = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
         let { targetMxid } = req.body;
+        console.log(`[API] createLink initiated by ${mxid} for target ${targetMxid}`);
         if (!targetMxid) return res.status(400).json({ error: 'Missing targetMxid' });
 
         targetMxid = targetMxid.toLowerCase();
@@ -293,12 +294,16 @@ export const createLink = async (req: AuthRequest, res: Response) => {
             const domain = mxid.split(':')[1];
             targetMxid = `${targetMxid}:${domain}`;
         }
+        console.log(`[API] createLink normalized target to ${targetMxid}`);
 
         const link = await prisma.accountLink.findUnique({
             where: { matrixId: mxid }
         });
 
-        if (!link) return res.status(404).json({ error: 'System not found' });
+        if (!link) {
+            console.log(`[API] createLink failed: Source system not found for ${mxid}`);
+            return res.status(404).json({ error: 'System not found' });
+        }
 
         // Safety check: target existing system
         const targetLink = await prisma.accountLink.findUnique({
@@ -307,14 +312,17 @@ export const createLink = async (req: AuthRequest, res: Response) => {
         });
 
         if (targetLink) {
+            console.log(`[API] createLink: Target ${targetMxid} already has a link to system ${targetLink.systemId}`);
             if (targetLink.systemId === link.systemId) {
                 return res.status(400).json({ error: 'Account is already linked' });
             }
             if (targetLink.system.members.length > 0) {
+                console.log(`[API] createLink failed: Target has populated system.`);
                 return res.status(400).json({ error: 'Target account already has members in its system.' });
             }
 
             // Cleanup target's empty system if they were the only link
+            console.log(`[API] createLink: Cleaning up empty system for target ${targetMxid}`);
             if (targetLink.system.accountLinks.length === 1) {
                 await prisma.system.delete({ where: { id: targetLink.systemId } });
             } else {
@@ -326,6 +334,7 @@ export const createLink = async (req: AuthRequest, res: Response) => {
             where: { systemId: link.systemId, isPrimary: true }
         });
 
+        console.log(`[API] createLink: Creating new link for ${targetMxid} to system ${link.systemId}`);
         const newLink = await prisma.accountLink.create({
             data: { 
                 matrixId: targetMxid, 
@@ -337,8 +346,10 @@ export const createLink = async (req: AuthRequest, res: Response) => {
         proxyCache.invalidate(targetMxid);
         emitSystemUpdate(targetMxid);
         emitSystemUpdate(mxid);
-        res.json(newLink);
-    } catch (e) {
+        console.log(`[API] createLink successful for ${targetMxid}`);
+        res.status(201).json(newLink);
+    } catch (e: any) {
+        console.error('[SystemController] Failed to create link:', e.message || e);
         res.status(500).json({ error: 'Failed to create link' });
     }
 };

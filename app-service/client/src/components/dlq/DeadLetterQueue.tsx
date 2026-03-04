@@ -70,7 +70,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
                     <div className="flex items-center gap-2">
                         <AlertTriangle className="text-amber-500" size={20} />
-                        <h2 className="text-lg font-bold text-slate-100">Dead Letter Vault</h2>
+                        <h2 className="text-lg font-bold text-slate-100" data-testid="dlq-modal-title">Dead Letter Vault</h2>
                         <span className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full">
                             {letters.length}
                         </span>
@@ -78,12 +78,13 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                     <div className="flex items-center gap-2">
                         <button 
                             onClick={fetchDeadLetters}
+                            data-testid="dlq-refresh-button"
                             className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
                             disabled={loading}
                         >
                             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
                         </button>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-100 transition-colors">
+                        <button onClick={onClose} data-testid="dlq-close-button" className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-100 transition-colors">
                             <X size={20} />
                         </button>
                     </div>
@@ -92,7 +93,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                 {/* List View */}
                 <div className="flex-1 overflow-y-auto p-2">
                     {letters.length === 0 ? (
-                        <div className="flex flex-col items-center py-16 text-slate-500 italic">
+                        <div className="flex flex-col items-center py-16 text-slate-500 italic" data-testid="dlq-empty-state">
                             <Info size={48} className="mb-4 opacity-10" />
                             <p>Vault is empty.</p>
                         </div>
@@ -101,6 +102,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                             {letters.map((letter) => (
                                 <button 
                                     key={letter.id}
+                                    data-testid={`dlq-item-${letter.id}`}
                                     onClick={() => setSelectedLetter(letter)}
                                     className="w-full text-left p-3 hover:bg-slate-800/50 rounded-xl transition-all flex items-center gap-4 group"
                                 >
@@ -123,6 +125,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button 
                                             onClick={(e) => handleDelete(e, letter.id)}
+                                            data-testid={`dlq-delete-${letter.id}`}
                                             className="p-2 hover:bg-red-500/20 text-slate-500 hover:text-red-400 rounded-lg transition-all"
                                         >
                                             <Trash2 size={16} />

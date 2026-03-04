@@ -199,7 +199,7 @@ describe('System Controller', () => {
 
             const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
 
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(201);
             expect(prisma.accountLink.create).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({ matrixId: '@bob:localhost', systemId: 'sys1', isPrimary: false })
             }));

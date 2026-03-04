@@ -141,7 +141,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                     {!isReadOnly && (
                                         <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-3xl">
                                             <Camera className="text-white" size={24} />
-                                            <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
+                                            <input data-testid="avatar-upload-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
                                         </label>
                                     )}
                                 </div>

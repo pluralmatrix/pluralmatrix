@@ -31,8 +31,11 @@ test.describe('System Settings and Member Management', () => {
         // Link user gets deleted natively when we delete the primary system since they're linked
     });
 
-    test('User can manage avatar uploads, account links, and view DLQ', async ({ page }) => {
+    test('User can manage avatar uploads, account links, and view DLQ', async ({ page, context }) => {
         test.setTimeout(60000);
+
+        // Grant clipboard permissions
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
         // 1. Setup Phase
         await page.goto('/login');
@@ -155,8 +158,27 @@ test.describe('System Settings and Member Management', () => {
         const textarea = page.locator('textarea');
         await expect(textarea).toHaveValue('This message failed to send due to an error.');
 
-        // Test deletion from the details view (if available) or go back
-        await page.click('button:has-text("Done")');
+        // Test copy action
+        await page.getByTestId('dlq-copy-button').click();
+        await expect(page.locator('text=Copied!')).toBeVisible();
+
+        // Verify clipboard content
+        const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+        expect(clipboardText).toBe('This message failed to send due to an error.');
+
+        // Close details view
+        await page.getByTestId('dlq-detail-done-button').click();
+
+        // Test deletion from the list view
+        const deletePromise = page.waitForResponse(response => 
+            response.url().includes('/api/system/dead_letters/mock-dl-123') && 
+            response.request().method() === 'DELETE'
+        );
+        await page.getByTestId('dlq-delete-mock-dl-123').click();
+        await deletePromise;
+        
+        // Verify it disappeared from the list
+        await expect(page.locator('text=This message failed to send due to an error.')).not.toBeVisible();
 
         await page.getByTestId('dlq-close-button').click();
         

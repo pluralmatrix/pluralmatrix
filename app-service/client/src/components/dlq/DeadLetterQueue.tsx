@@ -164,6 +164,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                                     />
                                     <button 
                                         onClick={handleCopy}
+                                        data-testid="dlq-copy-button"
                                         className="absolute top-2 right-2 p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-600 shadow-lg transition-all flex items-center gap-2 text-xs"
                                     >
                                         {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
@@ -191,6 +192,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                         <div className="p-4 bg-slate-900/50 flex justify-end">
                             <button 
                                 onClick={() => setSelectedLetter(null)}
+                                data-testid="dlq-detail-done-button"
                                 className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all"
                             >
                                 Done

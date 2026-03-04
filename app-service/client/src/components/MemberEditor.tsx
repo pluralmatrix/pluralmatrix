@@ -176,6 +176,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                             <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.name}</div>
                                         ) : (
                                             <input 
+                                                name="name"
                                                 className="matrix-input text-sm" 
                                                 value={formData.name} 
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
@@ -190,6 +191,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                             <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.displayName || 'None'}</div>
                                         ) : (
                                             <input 
+                                                name="displayName"
                                                 className="matrix-input text-sm" 
                                                 value={formData.displayName} 
                                                 onChange={(e) => setFormData({ ...formData, displayName: e.target.value })} 
@@ -206,6 +208,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                             <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm font-mono">{formData.slug}</div>
                                         ) : (
                                             <input 
+                                                name="slug"
                                                 className="matrix-input text-sm font-mono" 
                                                 value={formData.slug} 
                                                 onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })} 
@@ -220,6 +223,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                             <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.pronouns || 'None'}</div>
                                         ) : (
                                             <input 
+                                                name="pronouns"
                                                 className="matrix-input text-sm" 
                                                 value={formData.pronouns} 
                                                 onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })} 
@@ -263,6 +267,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                 {formData.proxyTags.map((tag: any, index: number) => (
                                     <div key={index} className="flex items-center gap-2 bg-matrix-dark/50 p-2 rounded-xl border border-white/5 group">
                                         <input 
+                                            name="prefix"
                                             className="bg-matrix-dark border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono w-full focus:outline-none focus:border-matrix-primary transition-colors disabled:opacity-50" 
                                             value={tag.prefix} 
                                             disabled={isReadOnly}
@@ -271,6 +276,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                         />
                                         <span className="text-matrix-muted text-xs font-mono px-1 opacity-50">...</span>
                                         <input 
+                                            name="suffix"
                                             className="bg-matrix-dark border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono w-full focus:outline-none focus:border-matrix-primary transition-colors disabled:opacity-50" 
                                             value={tag.suffix} 
                                             disabled={isReadOnly}

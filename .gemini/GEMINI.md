@@ -7,7 +7,7 @@
 
 ## Pre-Commit Checklist 🛡️
 * **ALWAYS** run `./restart-stack.sh` before committing. This ensures the frontend build (React/TSC) and backend types are valid.
-* **ALWAYS** run all tests and verify 100% pass rate: `cd app-service && npm test > test_output.log 2>&1; cat test_output.log`.
+* **ALWAYS** run all tests and verify 100% pass rate: `cd app-service && ./test.sh`. This now runs both Backend (Jest) and UI (Playwright) tests.
 * **SCHEMA CHANGES:** Any changes to the database schema MUST include updates to the Prisma migrations. Verify that the migrations are correctly applied.
 * **NEVER** amend a commit without explicit permission.
 

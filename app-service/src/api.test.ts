@@ -107,7 +107,7 @@ describe('API Endpoints', () => {
                     color: 'ff0000'
                 });
 
-            expect(response.status).toBe(200);
+            expect(response.status).toBe(201);
             expect(response.body.description).toBe('A test user');
             expect(response.body.pronouns).toBe('He/Him');
             expect(response.body.color).toBe('ff0000');
@@ -197,7 +197,7 @@ describe('API Endpoints', () => {
                     proxyTags: [{ prefix: 'm:', suffix: '' }]
                 });
 
-            expect(response.status).toBe(200);
+            expect(response.status).toBe(201);
             expect(response.body.name).toBe('Minimal');
         });
 
@@ -273,7 +273,7 @@ describe('API Endpoints', () => {
                     proxyTags: [{ prefix: 'l:', suffix: '' }]
                 });
 
-            expect(response.status).toBe(200);
+            expect(response.status).toBe(201);
             expect(response.body.name).toBe('Lily');
         });
     });

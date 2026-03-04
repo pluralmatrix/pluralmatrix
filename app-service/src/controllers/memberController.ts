@@ -61,7 +61,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
 
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
-        res.json(member);
+        res.status(201).json(member);
     } catch (e) {
         if (e instanceof z.ZodError) {
             return res.status(400).json({ error: 'Invalid input format', details: e.issues });

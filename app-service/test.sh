@@ -1,21 +1,36 @@
 #!/bin/bash
 
-# PluralMatrix App Service Test Runner
-# Use this script to run the backend and E2E tests safely.
+# PluralMatrix Full Test Runner 🚀
+# Runs both Backend (Jest) and UI (Playwright) tests.
 
-echo "🚀 Running PluralMatrix App Service Tests..."
-
-# We use --forceExit to ensure the Rust Matrix Crypto library 
-# doesn't keep the process alive indefinitely after tests complete.
-# We also use --detectOpenHandles to gracefully report any remaining handles.
-
+echo "🏗️  Starting PluralMatrix Backend Tests (Jest)..."
 npx jest --forceExit --detectOpenHandles "$@"
-EXIT_CODE=$?
+JEST_EXIT_CODE=$?
 
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "✅ All tests passed successfully!"
+if [ $JEST_EXIT_CODE -eq 0 ]; then
+    echo "✅ Backend tests passed!"
 else
-    echo "❌ Tests failed with exit code $EXIT_CODE."
+    echo "❌ Backend tests failed."
 fi
 
-exit $EXIT_CODE
+echo ""
+echo "🎭 Starting PluralMatrix UI Tests (Playwright)..."
+npx playwright test
+PW_EXIT_CODE=$?
+
+if [ $PW_EXIT_CODE -eq 0 ]; then
+    echo "✅ UI tests passed!"
+else
+    echo "❌ UI tests failed."
+fi
+
+# Final verdict
+if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ]; then
+    echo ""
+    echo "🏆 ALL TESTS PASSED SUCCESSFULLY! 🏅"
+    exit 0
+else
+    echo ""
+    echo "🛑 TEST SUITE FAILED. Please review the errors above."
+    exit 1
+fi

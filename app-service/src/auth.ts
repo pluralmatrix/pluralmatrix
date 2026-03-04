@@ -50,19 +50,55 @@ export const authenticateGatekeeper = (req: Request, res: Response, next: NextFu
 };
 
 /**
- * Logic to verify Matrix credentials against Synapse
+ * Logic to verify Matrix credentials against the user's home server
  */
 export const loginToMatrix = async (mxid: string, password: string): Promise<boolean> => {
     try {
-        // Extract localpart if full MXID provided
-        const localpart = mxid.startsWith('@') ? mxid.split(':')[0].substring(1) : mxid;
+        let domain = config.synapseDomain;
+        let fullMxid = mxid;
+        
+        // Ensure full MXID
+        if (mxid.includes(':')) {
+            domain = mxid.split(':')[1];
+            fullMxid = mxid.startsWith('@') ? mxid : `@${mxid}`;
+        } else {
+            fullMxid = `@${mxid}:${domain}`;
+        }
 
-        const response = await fetch(`${config.synapseUrl}/_matrix/client/v3/login`, {
+        // 1. Discover the correct homeserver URL via .well-known
+        let serverUrl = `https://${domain}`;
+        
+        // Skip .well-known lookup for the local server if we have an internal URL configured
+        if (domain === config.synapseDomain && config.synapseUrl) {
+             serverUrl = config.synapseUrl;
+        } else {
+            try {
+                const wellKnownRes = await fetch(`https://${domain}/.well-known/matrix/client`);
+                if (wellKnownRes.ok) {
+                    const wellKnownData = await wellKnownRes.json();
+                    if (wellKnownData['m.homeserver']?.base_url) {
+                        serverUrl = wellKnownData['m.homeserver'].base_url;
+                        // Strip trailing slash if present
+                        if (serverUrl.endsWith('/')) {
+                            serverUrl = serverUrl.slice(0, -1);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log(`[Auth] .well-known discovery failed for ${domain}, falling back to https://${domain}`);
+            }
+        }
+
+        // 2. Authenticate against the discovered server
+        const response = await fetch(`${serverUrl}/_matrix/client/v3/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 type: 'm.login.password',
-                user: localpart,
+                identifier: {
+                    type: 'm.id.user',
+                    user: fullMxid
+                },
                 password: password
             })
         });
@@ -71,11 +107,11 @@ export const loginToMatrix = async (mxid: string, password: string): Promise<boo
             return true;
         } else {
             const data = await response.json();
-            console.warn(`[Auth] Login failed for ${mxid}:`, data.error);
+            console.warn(`[Auth] Login failed for ${fullMxid} on ${serverUrl}:`, data.error);
             return false;
         }
     } catch (error) {
-        console.error('[Auth] Error connecting to Synapse:', error);
+        console.error(`[Auth] Error connecting to homeserver for ${mxid}:`, error);
         return false;
     }
 };

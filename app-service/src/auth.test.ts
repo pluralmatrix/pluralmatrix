@@ -24,7 +24,7 @@ describe('Authentication Engine', () => {
                 expect.stringContaining('/_matrix/client/v3/login'),
                 expect.objectContaining({
                     method: 'POST',
-                    body: expect.stringContaining('"user":"user"')
+                    body: expect.stringContaining('"user":"@user:localhost"')
                 })
             );
         });
@@ -40,6 +40,53 @@ describe('Authentication Engine', () => {
 
             const result = await loginToMatrix('@user:localhost', 'wrong_password');
             expect(result).toBe(false);
+        });
+
+        it('should perform .well-known discovery for federated accounts', async () => {
+            // Mock fetch to simulate the .well-known resolution and subsequent login
+            global.fetch = jest.fn().mockImplementation((url: string) => {
+                if (url === 'https://remote.org/.well-known/matrix/client') {
+                    return Promise.resolve({
+                        ok: true,
+                        json: () => Promise.resolve({ 'm.homeserver': { base_url: 'https://matrix.remote.org' } }),
+                    });
+                }
+                if (url === 'https://matrix.remote.org/_matrix/client/v3/login') {
+                    return Promise.resolve({
+                        ok: true,
+                        json: () => Promise.resolve({ access_token: 'valid_remote_token' }),
+                    });
+                }
+                return Promise.reject(new Error(`Unexpected URL: ${url}`));
+            });
+
+            const result = await loginToMatrix('@chiara:remote.org', 'password');
+            expect(result).toBe(true);
+            
+            expect(global.fetch).toHaveBeenCalledWith('https://remote.org/.well-known/matrix/client');
+            expect(global.fetch).toHaveBeenCalledWith(
+                'https://matrix.remote.org/_matrix/client/v3/login',
+                expect.objectContaining({
+                    method: 'POST',
+                    body: expect.stringContaining('"user":"@chiara:remote.org"')
+                })
+            );
+        });
+
+        it('should fallback to base domain if .well-known fails', async () => {
+            global.fetch = jest.fn().mockImplementation((url: string) => {
+                if (url.includes('.well-known')) {
+                    return Promise.resolve({ ok: false });
+                }
+                if (url === 'https://noconfig.com/_matrix/client/v3/login') {
+                    return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+                }
+                return Promise.reject(new Error(`Unexpected URL: ${url}`));
+            });
+
+            const result = await loginToMatrix('@user:noconfig.com', 'pass');
+            expect(result).toBe(true);
+            expect(global.fetch).toHaveBeenCalledWith('https://noconfig.com/_matrix/client/v3/login', expect.any(Object));
         });
     });
 

@@ -41,6 +41,9 @@ DOMAIN=${DOMAIN:-$SERVER_NAME}
 read -p "Enter the Public Port for the Web Dashboard [9000]: " APP_PORT
 APP_PORT=${APP_PORT:-9000}
 
+read -p "Enter the Public URL for the Web Dashboard (used for bot links) [http://localhost:${APP_PORT}]: " PUBLIC_WEB_URL
+PUBLIC_WEB_URL=${PUBLIC_WEB_URL:-http://localhost:${APP_PORT}}
+
 read -p "Enter the Public Port for Synapse [8008]: " SYNAPSE_PORT
 SYNAPSE_PORT=${SYNAPSE_PORT:-8008}
 
@@ -72,6 +75,7 @@ sed -i "s/GATEKEEPER_SECRET=.*/GATEKEEPER_SECRET=$GATEKEEPER_SECRET/" .env
 sed -i "s/JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env
 sed -i "s/CRYPTO_DEVICE_ID=.*/CRYPTO_DEVICE_ID=PLURAL_CTX_V9/" .env
 sed -i "s/APP_PORT=.*/APP_PORT=$APP_PORT/" .env
+sed -i "s|PUBLIC_WEB_URL=.*|PUBLIC_WEB_URL=$PUBLIC_WEB_URL|" .env
 sed -i "s/SYNAPSE_PORT=.*/SYNAPSE_PORT=$SYNAPSE_PORT/" .env
 
 # 3. Configure Synapse (homeserver.yaml)

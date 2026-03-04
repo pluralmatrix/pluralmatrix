@@ -29,7 +29,7 @@ jest.mock('../services/cache', () => ({
     }
 }));
 
-describe('AuthController - login slug retry', () => {
+describe('AuthController - login', () => {
     let mockReq: any;
     let mockRes: any;
 
@@ -44,50 +44,29 @@ describe('AuthController - login slug retry', () => {
         };
     });
 
-    it('should retry system creation if slug collision occurs', async () => {
+    it('should return token and hasSystem: true if user has a system', async () => {
         (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
-        (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-        
-        // Mock slug resolution to return the same slug twice
-        (ensureUniqueSlug as jest.Mock).mockResolvedValue('alice');
-
-        // Mock first creation attempt to fail with P2002 (Slug Collision)
-        // Then second attempt succeeds
-        (prisma.system.create as jest.Mock)
-            .mockRejectedValueOnce({
-                code: 'P2002',
-                meta: { target: ['slug'] }
-            })
-            .mockResolvedValueOnce({ id: 'sys123', slug: 'alice-2' });
+        (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: "link1" });
 
         await login(mockReq, mockRes);
 
-        // Should have called ensureUniqueSlug at least twice
-        expect(ensureUniqueSlug).toHaveBeenCalledTimes(2);
-        // Should have called prisma.system.create twice
-        expect(prisma.system.create).toHaveBeenCalledTimes(2);
-        
+        expect(prisma.system.create).not.toHaveBeenCalled();
         expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
-            token: 'mock_token'
+            token: 'mock_token',
+            hasSystem: true
         }));
     });
 
-    it('should fail after 5 attempts of slug collision', async () => {
+    it('should return token and hasSystem: false if user has no system', async () => {
         (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-        (ensureUniqueSlug as jest.Mock).mockResolvedValue('alice');
-
-        // Mock all 5 creation attempts to fail
-        const collisionError = {
-            code: 'P2002',
-            meta: { target: ['slug'] }
-        };
-        (prisma.system.create as jest.Mock).mockRejectedValue(collisionError);
 
         await login(mockReq, mockRes);
 
-        // Should have given up and returned 500
-        expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(prisma.system.create).toHaveBeenCalledTimes(5);
+        expect(prisma.system.create).not.toHaveBeenCalled();
+        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+            token: 'mock_token',
+            hasSystem: false
+        }));
     });
 });

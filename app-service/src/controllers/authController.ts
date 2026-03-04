@@ -26,44 +26,14 @@ export const login = async (req: Request, res: Response) => {
                 where: { matrixId: mxid }
             });
 
-            if (!link) {
-                const localpart = mxid.split(':')[0].substring(1);
-                
-                // Retry loop for slug race conditions
-                let attempts = 0;
-                while (attempts < 5) {
-                    try {
-                        const slug = await ensureUniqueSlug(prisma, localpart);
-                        await prisma.system.create({
-                            data: {
-                                slug,
-                                name: `${localpart}'s System`,
-                                accountLinks: {
-                                    create: { matrixId: mxid }
-                                }
-                            }
-                        });
-                        break; // Success
-                    } catch (err: any) {
-                        if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
-                            attempts++;
-                            console.warn(`[Auth] Slug race condition detected for ${localpart}, retrying (attempt ${attempts})...`);
-                            continue;
-                        }
-                        throw err; // Rethrow other errors
-                    }
-                }
-                
-                if (attempts >= 5) {
-                    throw new Error(`Failed to create system after ${attempts} slug collision retries.`);
-                }
-            }
+            // We no longer auto-create systems here.
+            // If they don't have a system, they will hit a 404 on the frontend and be prompted to create one.
 
             // Invalidate cache to ensure new system is picked up if needed
             proxyCache.invalidate(mxid);
 
             const token = generateToken(mxid);
-            return res.json({ token, mxid });
+            return res.json({ token, mxid, hasSystem: !!link });
         } else {
             return res.status(401).json({ error: 'Invalid Matrix credentials' });
         }

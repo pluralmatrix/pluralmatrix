@@ -17,6 +17,7 @@ export interface Config {
 
     // App Service Infrastructure
     appPort: number;
+    publicWebUrl: string;
     cryptoDeviceId: string;
     rustHelperPath: string;
 
@@ -45,6 +46,7 @@ export const config: Config = {
 
     // App Service Infrastructure
     appPort: parseInt(process.env.APP_PORT || "9000"),
+    publicWebUrl: process.env.PUBLIC_WEB_URL || `http://localhost:${process.env.APP_PORT || "9000"}`,
     cryptoDeviceId: process.env.CRYPTO_DEVICE_ID || "PLURAL_CTX_V10",
     rustHelperPath: process.env.RUST_HELPER_PATH || '/usr/local/bin/rust-crypto-helper',
 

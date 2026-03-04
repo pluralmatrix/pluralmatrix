@@ -41,6 +41,13 @@ describe('PluralMatrix E2E Roundtrip', () => {
         jwt = await getPluralMatrixToken(`@${username}:localhost`, password);
         console.log(`[E2E] PluralMatrix JWT obtained for @${username}:localhost.`);
 
+        console.log(`[E2E] Creating system via App Service...`);
+        await fetch(`http://localhost:9000/api/system`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}` }
+        });
+        console.log(`[E2E] System created.`);
+
         // 3. Setup a test room
         console.log(`[E2E] Creating test room...`);
         roomId = await setupTestRoom(client);

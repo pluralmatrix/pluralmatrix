@@ -62,6 +62,8 @@ const mockAuth = (mxid: string) => (req: any, res: any, next: any) => {
 
 // Route setup
 app.get('/system', mockAuth('@alice:localhost'), systemController.getSystem);
+app.post('/system', mockAuth('@alice:localhost'), systemController.createSystem);
+app.delete('/system', mockAuth('@alice:localhost'), systemController.deleteSystem);
 app.get('/links', mockAuth('@alice:localhost'), systemController.getLinks);
 app.post('/links', mockAuth('@alice:localhost'), systemController.createLink);
 app.delete('/links/:mxid', mockAuth('@alice:localhost'), systemController.deleteLink);
@@ -119,6 +121,17 @@ describe('System Controller', () => {
             expect(res.body.slug).toBe('alice');
         });
 
+        it('should return 404 if system does not exist', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+
+            const res = await request(app).get('/system');
+
+            expect(res.status).toBe(404);
+            expect(prisma.system.create).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('POST /system', () => {
         it('should auto-create system with slug retry if it does not exist', async () => {
             (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
             (ensureUniqueSlug as jest.Mock).mockResolvedValue('alice');
@@ -127,11 +140,51 @@ describe('System Controller', () => {
                 .mockRejectedValueOnce({ code: 'P2002', meta: { target: ['slug'] } })
                 .mockResolvedValueOnce({ id: 'sys1', slug: 'alice-2' });
 
-            const res = await request(app).get('/system');
+            const res = await request(app).post('/system');
 
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(201);
             expect(prisma.system.create).toHaveBeenCalledTimes(2);
             expect(res.body.id).toBe('sys1');
+        });
+        
+        it('should return 400 if system already exists', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: "link1" });
+
+            const res = await request(app).post('/system');
+
+            expect(res.status).toBe(400);
+            expect(prisma.system.create).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('DELETE /system', () => {
+        it('should delete entire system if called by a linked account', async () => {
+            const mockSystem = {
+                id: 'sys1',
+                members: [{ id: 'm1' }]
+            };
+
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ 
+                isPrimary: false, // Testing that non-primary can also delete
+                systemId: 'sys1',
+                system: mockSystem 
+            });
+
+            const res = await request(app).delete('/system');
+
+            expect(res.status).toBe(200);
+            expect(decommissionGhost).toHaveBeenCalledWith(mockSystem.members[0], mockSystem);
+            expect(prisma.system.delete).toHaveBeenCalledWith({ where: { id: 'sys1' } });
+            expect(proxyCache.invalidate).toHaveBeenCalledWith('@alice:localhost');
+        });
+
+        it('should return 403 if user is not linked to any system', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+
+            const res = await request(app).delete('/system');
+
+            expect(res.status).toBe(403);
+            expect(prisma.system.delete).not.toHaveBeenCalled();
         });
     });
 

@@ -137,14 +137,14 @@ const DashboardPage: React.FC = () => {
         }
     };
 
-    const handleDeleteAll = async () => {
+    const handleDeleteSystem = async () => {
         if (!isOwner) return;
-        if (confirm('⚠️ WARNING: This will permanently delete ALL system members in your system. This cannot be undone. Are you absolutely sure?')) {
+        if (confirm('⚠️ WARNING: This will permanently delete your ENTIRE SYSTEM, including all members, and disconnect your accounts. This cannot be undone. Are you absolutely sure?')) {
             try {
-                await memberService.deleteAll();
-                fetchData(true);
+                await systemService.delete();
+                navigate('/setup', { replace: true });
             } catch (e) {
-                alert('Bulk delete failed');
+                alert('Failed to delete system');
             }
         }
     };
@@ -322,10 +322,10 @@ const DashboardPage: React.FC = () => {
                                                 <div className="h-px bg-white/5 my-2" />
                                                 <div className="px-4 py-2 text-[10px] font-bold text-red-400 uppercase tracking-wider">Danger Zone</div>
                                                 <button 
-                                                    onClick={() => { handleDeleteAll(); setIsDataMenuOpen(false); }}
+                                                    onClick={() => { handleDeleteSystem(); setIsDataMenuOpen(false); }}
                                                     className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-400/10 text-red-400 flex items-center transition-colors"
                                                 >
-                                                    <Trash2 size={16} className="mr-3" /> Delete All System Members
+                                                    <Trash2 size={16} className="mr-3" /> Delete System
                                                 </button>
                                             </motion.div>
                                         </>

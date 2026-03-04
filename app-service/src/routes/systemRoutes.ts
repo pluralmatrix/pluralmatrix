@@ -9,12 +9,15 @@ router.get('/public/:slug', systemController.getPublicSystem);
 router.use(authenticateToken);
 
 router.get('/', systemController.getSystem);
+router.post('/', systemController.createSystem);
+router.delete('/', systemController.deleteSystem);
+router.patch('/', systemController.updateSystem);
+
 router.get('/events', systemController.streamSystemEvents);
 router.get('/links', systemController.getLinks);
 router.post('/links', systemController.createLink);
 router.post('/links/primary', systemController.setPrimaryAccount);
 router.delete('/links/:mxid', systemController.deleteLink);
-router.patch('/', systemController.updateSystem);
 
 // DLQ Routes
 router.get('/dead_letters', systemController.getDeadLetters);

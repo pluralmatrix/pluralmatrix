@@ -99,9 +99,25 @@ export const getSystem = async (req: AuthRequest, res: Response) => {
             return res.json(link.system);
         }
 
-        // Create new system and link
+        return res.status(404).json({ error: 'System not found. Please create one.' });
+    } catch (e) {
+        console.error('[SystemController] Failed to fetch system:', e);
+        res.status(500).json({ error: 'Failed to fetch system' });
+    }
+};
+
+export const createSystem = async (req: AuthRequest, res: Response) => {
+    try {
+        const mxid = req.user!.mxid;
+        const existingLink = await prisma.accountLink.findUnique({
+            where: { matrixId: mxid }
+        });
+
+        if (existingLink) {
+            return res.status(400).json({ error: 'System already exists' });
+        }
+
         const localpart = mxid.split(':')[0].substring(1);
-        
         let attempts = 0;
         while (attempts < 5) {
             try {
@@ -115,7 +131,9 @@ export const getSystem = async (req: AuthRequest, res: Response) => {
                         }
                     }
                 });
-                return res.json(system);
+                proxyCache.invalidate(mxid);
+                emitSystemUpdate(mxid);
+                return res.status(201).json(system);
             } catch (err: any) {
                 if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
                     attempts++;
@@ -128,8 +146,39 @@ export const getSystem = async (req: AuthRequest, res: Response) => {
         
         throw new Error("Failed to create system after multiple retries due to slug collisions.");
     } catch (e) {
-        console.error('[SystemController] Failed to fetch/create system:', e);
-        res.status(500).json({ error: 'Failed to fetch system' });
+        console.error('[SystemController] Failed to create system:', e);
+        res.status(500).json({ error: 'Failed to create system' });
+    }
+};
+
+export const deleteSystem = async (req: AuthRequest, res: Response) => {
+    try {
+        const mxid = req.user!.mxid;
+        const link = await prisma.accountLink.findUnique({
+            where: { matrixId: mxid },
+            include: { system: { include: { members: true } } }
+        });
+
+        if (!link) {
+            return res.status(403).json({ error: 'You are not linked to a system' });
+        }
+
+        // Decommission ghosts first
+        for (const member of link.system.members) {
+            await decommissionGhost(member, link.system);
+        }
+
+        // Delete entire system (cascades to Members and AccountLinks)
+        await prisma.system.delete({
+            where: { id: link.systemId }
+        });
+
+        proxyCache.invalidate(mxid);
+        emitSystemUpdate(mxid);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('[SystemController] Failed to delete system:', e);
+        res.status(500).json({ error: 'Failed to delete system' });
     }
 };
 

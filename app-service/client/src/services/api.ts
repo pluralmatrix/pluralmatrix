@@ -56,6 +56,8 @@ export const memberService = {
 
 export const systemService = {
     get: () => api.get('/system'),
+    create: () => api.post('/system'),
+    delete: () => api.delete('/system'),
     update: (data: any) => api.patch('/system', data),
     getLinks: () => api.get('/system/links'),
     createLink: (targetMxid: string) => api.post('/system/links', { targetMxid }),

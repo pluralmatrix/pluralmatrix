@@ -5,6 +5,12 @@
 * **Security Guard:** A local `pre-push` hook has been installed in `.git/hooks/pre-push`. It uses the `GEMINI_CLI=1` environment variable to detect my process and hard-block any `git push` attempts I make. This ensures that only the user can push code to the remote repository from a standard terminal.
 * **Reinstalling Guard:** If working in a new clone, run `./.gemini/install-hooks.sh` to reinstall this protection.
 
+## Pre-Commit Checklist 🛡️
+* **ALWAYS** run `./restart-stack.sh` before committing. This ensures the frontend build (React/TSC) and backend types are valid.
+* **ALWAYS** run all tests and verify 100% pass rate: `cd app-service && npm test > test_output.log 2>&1; cat test_output.log`.
+* **SCHEMA CHANGES:** Any changes to the database schema MUST include updates to the Prisma migrations. Verify that the migrations are correctly applied.
+* **NEVER** amend a commit without explicit permission.
+
 ## Stack Management
 
 Since `docker-compose` can be unreliable in this environment (due to `ContainerConfig` errors), use the helper script to rebuild and restart the services.

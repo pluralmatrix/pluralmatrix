@@ -9,6 +9,7 @@ import { proxyCache, lastMessageCache } from "./cache";
 import { emitSystemUpdate } from "./events";
 import { ensureUniqueSlug } from "../utils/slug";
 import { maskMxid } from "../utils/privacy";
+import { config } from "../config";
 
 export class CommandHandler {
     private permissionWarnedRooms = new Set<string>();
@@ -363,7 +364,67 @@ export class CommandHandler {
         const roomId = event.room_id;
         const sender = event.sender;
 
+        // Handle explicit system creation first
+        if (cmd === "system" || cmd === "s") {
+            const subCmd = parts[1]?.toLowerCase();
+            if (subCmd === "new") {
+                if (system) {
+                    await this.sendRichText(this.bridge.getIntent(), roomId, `You already have a system registered (\`${system.slug}\`).`);
+                    return true;
+                }
+
+                try {
+                    const localpart = sender.split(':')[0].substring(1);
+                    const newSlug = await ensureUniqueSlug(this.prisma, localpart);
+
+                    await this.prisma.system.create({
+                        data: {
+                            slug: newSlug,
+                            name: `${localpart}'s System`,
+                            accountLinks: {
+                                create: { matrixId: sender, isPrimary: true }
+                            }
+                        }
+                    });
+
+                    proxyCache.invalidate(sender);
+
+                    const webUrl = config.publicWebUrl;
+                    const successMessage = `✅ **System created!**
+    You can now manage your members and settings at:
+    ${webUrl}
+
+    **⚠️ Please Note ⚠️**
+
+    **Public Profiles:** All system/member metadata is publicly accessible. Do not store private info in profiles.
+
+    **Message Content:** Your messages are not public, but using PluralBot in encrypted rooms allows the **homeserver administrator** to read them.
+
+    **Data Control:** We don't use tokens. Use the web UI to export your data regularly for backups or to move servers.`;
+
+                    await this.sendRichText(this.bridge.getIntent(), roomId, successMessage);
+                    return true;
+                } catch (e) {
+                    console.error("Failed to create system via command:", e);
+                    await this.sendRichText(this.bridge.getIntent(), roomId, "❌ Failed to create system due to an internal error.");
+                    return true;
+                }
+            }
+        }
+
+        // For all other commands, if no system exists, prompt them to create one
+        if (!system && cmd !== "link" && cmd !== "system" && cmd !== "s") {
+            const webUrl = config.publicWebUrl;
+            await this.sendRichText(
+                this.bridge.getIntent(), 
+                roomId, 
+                `❌ You do not have a system registered with PluralMatrix. To create one, type \`pk;system new\` or log in with your Matrix account at: ${webUrl}`
+            );
+            return true;
+        }
+
         if (cmd === "list") {
+
             if (!system || system.members.length === 0) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have any system members registered yet.");
                 return true;
@@ -432,7 +493,11 @@ export class CommandHandler {
             }
 
             // Normal link logic
-            const currentSystem = system || await this.getOrCreateSenderSystem(sender);
+            // The sender MUST have a system to link someone else into it.
+            if (!system) {
+                await this.sendRichText(this.bridge.getIntent(), roomId, "You must have a system to link other accounts to it.");
+                return true;
+            }
 
             if (targetMxid === sender) {
                 await this.sendRichText(this.bridge.getIntent(), roomId, "You are already linked to this system.");
@@ -445,16 +510,17 @@ export class CommandHandler {
             });
 
             if (targetLink) {
-                if (targetLink.systemId === currentSystem.id) {
-                    await this.sendRichText(this.bridge.getIntent(), roomId, `**${targetMxid}** is already linked to this system.`);
+                if (targetLink.systemId === system.id) {
+                    await this.sendRichText(this.bridge.getIntent(), roomId, `**${targetMxid}** is already linked to your system.`);
                     return true;
                 }
 
                 if (targetLink.system.members.length > 0) {
-                    await this.sendRichText(this.bridge.getIntent(), roomId, `**${targetMxid}** already belongs to a system with members. You must unlink it or delete its members first.`);
+                    await this.sendRichText(this.bridge.getIntent(), roomId, `❌ **${targetMxid}** already belongs to an active system with members. They must delete their system before they can be linked to yours.`);
                     return true;
                 }
 
+                // If it's an empty system, we can safely delete it or unlink it to make way for the new link
                 if (targetLink.system.accountLinks.length === 1) {
                     await this.prisma.system.delete({ where: { id: targetLink.systemId } });
                 } else {
@@ -463,13 +529,13 @@ export class CommandHandler {
             }
 
             await this.prisma.accountLink.create({
-                data: { matrixId: targetMxid, systemId: currentSystem.id }
+                data: { matrixId: targetMxid, systemId: system.id }
             });
 
             proxyCache.invalidate(targetMxid);
             emitSystemUpdate(targetMxid);
             emitSystemUpdate(sender);
-            await this.sendRichText(this.bridge.getIntent(), roomId, `Successfully linked **${targetMxid}** to this system.`);
+            await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Successfully linked **${targetMxid}** to this system (\`${system.slug}\`).`);
             return true;
         }
 
@@ -498,24 +564,26 @@ export class CommandHandler {
                 return true;
             }
 
-            await this.prisma.accountLink.delete({ where: { matrixId: targetMxid } });
-            
             const remainingLinks = await this.prisma.accountLink.count({
                 where: { systemId: system.id }
             });
 
-            if (remainingLinks === 0) {
-                await this.prisma.system.delete({ where: { id: system.id } });
+            if (remainingLinks <= 1) { // 1 because we are about to delete it, so if it's 1 right now, it's the last one
+                await this.sendRichText(this.bridge.getIntent(), roomId, "You cannot unlink the last account from a system. Use the Web UI to delete the entire system instead.");
+                return true;
             }
+
+            await this.prisma.accountLink.delete({ where: { matrixId: targetMxid } });
 
             proxyCache.invalidate(targetMxid);
             emitSystemUpdate(targetMxid);
             emitSystemUpdate(sender);
-            await this.sendRichText(this.bridge.getIntent(), roomId, `Successfully unlinked **${targetMxid}** from this system.`);
+            await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Successfully unlinked **${targetMxid}** from this system.`);
             return true;
         }
 
-        if (cmd === "member" && parts[1]) {
+        if (cmd === "member" || cmd === "m") {
+
             const slug = parts[1].toLowerCase();
             const member = system?.members.find((m: any) => m.slug === slug);
             if (!member) {
@@ -587,46 +655,14 @@ export class CommandHandler {
         return false;
     }
 
-    private async getOrCreateSenderSystem(sender: string) {
+    private async getSenderSystem(sender: string) {
         // Issue #4: Directly query DB instead of relying on cache which might double-query
         const existingLink = await this.prisma.accountLink.findUnique({
             where: { matrixId: sender },
             include: { system: { include: { members: true } } }
         });
         
-        if (existingLink) {
-            return existingLink.system;
-        }
-
-        const localpart = sender.split(':')[0].substring(1);
-        
-        let attempts = 0;
-        while (attempts < 5) {
-            try {
-                const slug = await ensureUniqueSlug(this.prisma, localpart);
-                const newSystem = await this.prisma.system.create({
-                    data: {
-                        slug,
-                        name: `${localpart}'s System`,
-                        accountLinks: {
-                            create: { matrixId: sender, isPrimary: true }
-                        }
-                    },
-                    include: { members: true }
-                });
-                proxyCache.invalidate(sender);
-                return newSystem;
-            } catch (err: any) {
-                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
-                    attempts++;
-                    console.warn(`[CommandHandler] Slug race condition detected for ${localpart}, retrying (attempt ${attempts})...`);
-                    continue;
-                }
-                throw err;
-            }
-        }
-        
-        throw new Error("Failed to auto-create system after multiple slug collisions.");
+        return existingLink ? existingLink.system : null;
     }
 
     async promoteSystemPowerLevels(roomId: string, ghostUserId: string) {

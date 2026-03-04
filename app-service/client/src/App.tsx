@@ -4,6 +4,7 @@ import { AuthProvider } from './hooks/useAuth';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import SystemRedirector from './SystemRedirector';
+import SetupPage from './pages/SetupPage';
 
 const App: React.FC = () => {
     return (
@@ -11,6 +12,7 @@ const App: React.FC = () => {
             <Router>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/setup" element={<SetupPage />} />
                     <Route path="/s/:slug" element={<DashboardPage />} />
                     <Route path="/" element={<SystemRedirector />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

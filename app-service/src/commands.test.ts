@@ -105,7 +105,8 @@ describe('CommandHandler Tests', () => {
         slug: "seraphim",
         members: [
             { id: "mem1", slug: "lily", name: "Lily", matrixId: "@_plural_seraphim_lily:localhost", proxyTags: [{ prefix: "lily:", suffix: "" }] }
-        ]
+        ],
+        accountLinks: [{ matrixId: "@alice:localhost", isPrimary: true }]
     };
 
     describe('executeTargetingCommand', () => {
@@ -215,7 +216,7 @@ describe('CommandHandler Tests', () => {
             const parts = ["pk;unlink", "@bob:localhost"];
             
             mockPrisma.accountLink.findUnique.mockResolvedValue({ matrixId: "@bob:localhost", systemId: "sys123" });
-            mockPrisma.accountLink.count.mockResolvedValue(1); // One left AFTER delete (heuristic check)
+            mockPrisma.accountLink.count.mockResolvedValue(2); // Must be > 1 to allow unlinking
             
             await commandHandler.handleCommand(event, "unlink", parts, mockSystem);
 
@@ -323,28 +324,36 @@ describe('CommandHandler Tests', () => {
         });
     });
 
-    describe('getOrCreateSenderSystem', () => {
-        it('should retry system creation on slug collision', async () => {
+    describe('getSenderSystem', () => {
+        it('should return system if account link exists', async () => {
             const sender = "@newuser:localhost";
             
-            // Mock cache miss
-            const { proxyCache } = require('./services/cache');
-            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(null);
-            
-            // Mock first creation attempt to fail with P2002
-            // Then second attempt succeeds
-            mockPrisma.system.create
-                .mockRejectedValueOnce({
-                    code: 'P2002',
-                    meta: { target: ['slug'] }
-                })
-                .mockResolvedValueOnce({ id: 'sys_new', slug: 'newuser-2', members: [] });
+            // Mock DB hit
+            const mockSys = { id: 'sys_new', slug: 'newuser', members: [] };
+            mockPrisma.accountLink.findUnique.mockResolvedValue({
+                system: mockSys
+            });
 
             // We need to call the private method via any
-            const result = await (commandHandler as any).getOrCreateSenderSystem(sender);
+            const result = await (commandHandler as any).getSenderSystem(sender);
 
-            expect(mockPrisma.system.create).toHaveBeenCalledTimes(2);
-            expect(result.id).toBe('sys_new');
+            expect(mockPrisma.accountLink.findUnique).toHaveBeenCalledWith({
+                where: { matrixId: sender },
+                include: { system: { include: { members: true } } }
+            });
+            expect(result).toEqual(mockSys);
+        });
+        
+        it('should return null if no link exists', async () => {
+            const sender = "@newuser:localhost";
+            
+            // Mock DB miss
+            mockPrisma.accountLink.findUnique.mockResolvedValue(null);
+
+            // We need to call the private method via any
+            const result = await (commandHandler as any).getSenderSystem(sender);
+
+            expect(result).toBeNull();
         });
     });
 

@@ -138,6 +138,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                         <div>
                             <label className="block text-sm font-medium text-matrix-muted mb-1">System Name</label>
                             <input 
+                                name="name"
                                 className="matrix-input" 
                                 value={formData.name} 
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })} 

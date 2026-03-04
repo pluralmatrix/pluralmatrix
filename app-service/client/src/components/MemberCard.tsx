@@ -78,6 +78,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                             <button 
                                 onClick={() => onEdit(member)}
                                 className="p-2 hover:bg-white/5 rounded-lg text-matrix-muted hover:text-white transition-colors"
+                                aria-label={`Edit Member ${member.name}`}
                             >
                                 <Edit3 size={18} />
                             </button>

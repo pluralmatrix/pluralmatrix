@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "id": "abcde",
+  "uuid": "4afc75ce-cf36-4d0c-806b-b467d028dfbc",
+  "name": "Fixture System",
+  "description": "A system created via JSON import",
+  "tag": "🧪",
+  "pronouns": "they/them",
+  "avatar_url": "mxc://localhost/dummy",
+  "banner": "mxc://localhost/dummy_banner",
+  "color": "ff00ff",
+  "created": "2023-01-01T00:00:00Z",
+  "tz": "UTC",
+  "members": [
+    {
+      "id": "m1111",
+      "uuid": "569fde72-bfb7-4c12-a7e1-881c19b0ceec",
+      "name": "Alice",
+      "display_name": "Alice (Core)",
+      "color": "ff0000",
+      "avatar_url": "mxc://localhost/alice",
+      "pronouns": "she/her",
+      "proxy_tags": [
+        {
+          "prefix": "a:",
+          "suffix": null
+        }
+      ]
+    },
+    {
+      "id": "m2222",
+      "uuid": "7a3560b2-db78-4352-a50e-118e698ea457",
+      "name": "Bob",
+      "display_name": "Bobby",
+      "color": "0000ff",
+      "proxy_tags": [
+        {
+          "prefix": "b:",
+          "suffix": null
+        }
+      ]
+    }
+  ]
+}

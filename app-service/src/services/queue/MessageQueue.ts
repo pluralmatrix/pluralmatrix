@@ -12,6 +12,8 @@ export interface QueueItem {
     senderId: string;
     ghostIntent: Intent;
     plaintext: string;
+    format?: string;
+    formattedBody?: string;
     attempts: number;
     relatesTo?: any; // For replies/edits
     prisma?: PrismaClient;
@@ -56,7 +58,9 @@ class MessageQueueService {
         plaintext: string,
         relatesTo?: any,
         prisma?: PrismaClient,
-        systemSlug?: string
+        systemSlug?: string,
+        format?: string,
+        formattedBody?: string
     ) {
         const queue = this.RoomQueues.get(roomId) || [];
         queue.push({
@@ -65,6 +69,8 @@ class MessageQueueService {
             senderId,
             ghostIntent,
             plaintext,
+            format,
+            formattedBody,
             attempts: 0,
             relatesTo,
             prisma,
@@ -110,6 +116,10 @@ class MessageQueueService {
                 try {
                     // Try to send the event
                     const payload: any = { msgtype: "m.text", body: item.plaintext };
+                    if (item.format && item.formattedBody) {
+                        payload.format = item.format;
+                        payload.formatted_body = item.formattedBody;
+                    }
                     if (item.relatesTo) {
                         payload["m.relates_to"] = item.relatesTo;
                     }

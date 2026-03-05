@@ -4,13 +4,14 @@ import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
 import { parseCommand } from '../utils/commandParser';
+import { parseProxyMatch } from '../utils/proxyParser';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 
 export const checkMessage = async (req: Request, res: Response) => {
     try {
         const validated = GatekeeperCheckSchema.parse(req.body);
         const { event_id, sender, room_id, bot_id, type, encrypted_payload, origin_server_ts } = validated;
-        let content = validated.content;
+        let content = validated.content as any;
         const isEncryptedSource = type === "m.room.encrypted";
 
         // --- DECRYPTION SUPPORT (E2EE) ---
@@ -90,37 +91,11 @@ export const checkMessage = async (req: Request, res: Response) => {
         }
 
         // --- PROXY CHECK ---
-        let matchFound = false;
-        let targetMember: any = null;
-        let cleanContent = "";
+        const proxyMatch = parseProxyMatch(content, system);
 
-        for (const member of system.members) {
-            const tags = member.proxyTags as any[];
-            for (const tag of tags) {
-                if (body.startsWith(tag.prefix) && (tag.suffix ? body.endsWith(tag.suffix) : true)) {
-                    cleanContent = body.slice(tag.prefix.length, body.length - (tag.suffix?.length || 0)).trim();
-                    if (cleanContent) {
-                        matchFound = true;
-                        targetMember = member;
-                        break;
-                    }
-                }
-            }
-            if (matchFound) break;
-        }
-
-        if (!matchFound && system.autoproxyId) {
-            const autoMember = system.members.find(m => m.id === system.autoproxyId);
-            if (autoMember) {
-                cleanContent = body.trim();
-                if (cleanContent) {
-                    matchFound = true;
-                    targetMember = autoMember;
-                }
-            }
-        }
-
-        if (matchFound && targetMember) {
+        if (proxyMatch) {
+            const { targetMember, cleanBody, cleanFormattedBody } = proxyMatch;
+            
             // --- CONDITIONAL PROXYING ---
             // We ONLY trigger the ghost message and redaction here for UNENCRYPTED messages.
             // Encrypted messages will be handled by the bot's standard sync loop (bot.ts).
@@ -128,7 +103,10 @@ export const checkMessage = async (req: Request, res: Response) => {
                 console.log(`[Gatekeeper] Triggering proxy for unencrypted ${event_id} for member ${targetMember.slug}`);
                 sendGhostMessage({
                     roomId: room_id,
-                    cleanContent,
+                    cleanContent: cleanBody,
+                    format: cleanFormattedBody ? "org.matrix.custom.html" : undefined,
+                    formattedBody: cleanFormattedBody,
+                    relatesTo: content["m.relates_to"],
                     system,
                     member: {
                         slug: targetMember.slug,

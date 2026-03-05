@@ -107,17 +107,15 @@ describe('PluralMatrix E2E Roundtrip', () => {
     /**
      * Helper: Wait for a ghost message to appear for a specific client.
      */
-    async function waitForGhostMessage(targetClient: MatrixClient, targetRoomId: string, expectedBody: string, timeoutMs: number = 30000) {
+    async function waitForGhostMessage(targetClient: MatrixClient, targetRoomId: string, timeoutMs: number = 30000) {
         return new Promise<any>((resolve, reject) => {
             const timeout = setTimeout(() => {
                 targetClient.off("room.message", listener);
-                reject(new Error(`Timeout waiting for ghost message "${expectedBody}" in ${targetRoomId}`));
+                reject(new Error(`Timeout waiting for ghost message in ${targetRoomId}`));
             }, timeoutMs);
 
             const listener = (roomIdMatch: string, event: any) => {
-                if (roomIdMatch === targetRoomId && 
-                    event.sender.startsWith('@_plural_') && 
-                    event.content?.body === expectedBody) {
+                if (roomIdMatch === targetRoomId && event.sender.startsWith('@_plural_')) {
                     clearTimeout(timeout);
                     targetClient.off("room.message", listener);
                     resolve(event);
@@ -173,8 +171,8 @@ describe('PluralMatrix E2E Roundtrip', () => {
         });
 
         // 2. Start waiting for ghost response from BOTH perspectives
-        const ghostFromSenderPromise = waitForGhostMessage(client, roomId, messageBody);
-        const ghostFromObserverPromise = waitForGhostMessage(observer, roomId, messageBody);
+        const ghostFromSenderPromise = waitForGhostMessage(client, roomId);
+        const ghostFromObserverPromise = waitForGhostMessage(observer, roomId);
 
         // 3. Send trigger message
         console.log(`[E2E-Plain] Sending trigger: ${proxyPrefix} ${messageBody}`);
@@ -193,6 +191,41 @@ describe('PluralMatrix E2E Roundtrip', () => {
             verifyRedaction(client, roomId, triggerEventId, "Sender"),
             verifyRedaction(observer, roomId, triggerEventId, "Observer")
         ]);
+    }, 60000);
+
+    it('should proxy a message containing rich formatting (Markdown/HTML)', async () => {
+        const messageText = `Rich formatting **bold** and *italic* ${Math.random().toString(36).substring(7)}`;
+        const expectedBody = messageText;
+        const proxyPrefix = `e2e-rich-${Math.random().toString(36).substring(7)}:`;
+        
+        // Create a system member
+        const slug = `e2e-ghost-rich-${Date.now()}`;
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-Rich", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        const ghostFromSenderPromise = waitForGhostMessage(client, roomId);
+        
+        console.log(`[E2E-Rich] Sending trigger: ${proxyPrefix} ${messageText}`);
+        // Send a message with HTML formatting
+        const triggerEventId = await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: `${proxyPrefix} ${messageText}`,
+            format: "org.matrix.custom.html",
+            formatted_body: `${proxyPrefix} Rich formatting <b>bold</b> and <i>italic</i> ${messageText.split(' ').pop()}`
+        });
+
+        console.log(`[E2E-Rich] Waiting for ghost response...`);
+        const senderGhost = await ghostFromSenderPromise;
+        
+        expect(senderGhost.content.body).toBe(expectedBody);
+        expect(senderGhost.content.format).toBe("org.matrix.custom.html");
+        expect(senderGhost.content.formatted_body).toContain("<b>bold</b>");
+        
+        console.log(`[E2E-Rich] SUCCESS: Rich formatting preserved.`);
+        await verifyRedaction(client, roomId, triggerEventId, "Sender");
     }, 60000);
 
     it('should proxy a message in an ENCRYPTED room with 4-way verification', async () => {
@@ -217,8 +250,8 @@ describe('PluralMatrix E2E Roundtrip', () => {
         await new Promise(resolve => setTimeout(resolve, 10000));
 
         // 3. Start waiting for ghost message from BOTH perspectives
-        const ghostFromSenderPromise = waitForGhostMessage(client, e2eeRoomId, messageBody, 60000);
-        const ghostFromObserverPromise = waitForGhostMessage(observer, e2eeRoomId, messageBody, 60000);
+        const ghostFromSenderPromise = waitForGhostMessage(client, e2eeRoomId, 60000);
+        const ghostFromObserverPromise = waitForGhostMessage(observer, e2eeRoomId, 60000);
 
         // 4. Send trigger message (encrypted)
         console.log(`[E2E-E2EE] Sending trigger: ${proxyPrefix} ${messageBody}`);

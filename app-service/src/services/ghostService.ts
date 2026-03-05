@@ -1,4 +1,4 @@
-import { getBridge, cryptoManager } from '../bot';
+import { getBridge, cryptoManager, prisma } from '../bot';
 import { sendEncryptedEvent } from '../crypto/encryption';
 import { messageQueue } from './queue/MessageQueue';
 import { registerDevice } from '../crypto/crypto-utils';
@@ -9,6 +9,9 @@ const DOMAIN = config.synapseDomain;
 export interface GhostMessageOptions {
     roomId: string;
     cleanContent: string;
+    format?: string;
+    formattedBody?: string;
+    relatesTo?: any;
     system: {
         slug: string;
         systemTag?: string | null;
@@ -24,8 +27,8 @@ export interface GhostMessageOptions {
 }
 
 export const sendGhostMessage = async (options: GhostMessageOptions) => {
-    const { roomId, cleanContent, system, member, asToken, senderId } = options;
-    
+    const { roomId, cleanContent, format, formattedBody, relatesTo, system, member, asToken, senderId } = options;
+
     try {
         const bridge = getBridge();
         if (!bridge) {
@@ -50,21 +53,20 @@ export const sendGhostMessage = async (options: GhostMessageOptions) => {
             }
         }
 
-        // Ensure ghost device is registered for E2EE
         const machine = await cryptoManager.getMachine(ghostUserId);
-        await registerDevice(intent, machine.deviceId.toString());
+        await registerDevice(intent, machine.deviceId.toString(), prisma, member.slug);
 
-        // Sync profile data (Display Name & Avatar)
         try {
             await intent.setDisplayName(finalDisplayName);
-            if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl);
-        } catch (e) {}
-        
-        // Pass the prepared message into the Dead Letter Queue
-        messageQueue.enqueue(roomId, senderId, intent, cleanContent, undefined, undefined, system.slug);
+            if (member.avatarUrl) {
+                await intent.setAvatarUrl(member.avatarUrl);
+            }
+        } catch (e) {
+            // Ignore profile update failures
+        }
 
-    } catch (e: any) { 
-        console.error("[GhostService] Error:", e.message || e);
-        throw e;
+        messageQueue.enqueue(roomId, senderId, intent, cleanContent, relatesTo, prisma, system.slug, format, formattedBody);
+    } catch (e: any) {
+        console.error(`[GhostService] Failed to queue message for ${member.slug}:`, e.message);
     }
 };

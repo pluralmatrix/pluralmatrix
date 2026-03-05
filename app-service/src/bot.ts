@@ -13,6 +13,7 @@ import { processCryptoRequests, registerDevice } from "./crypto/crypto-utils";
 import { messageQueue } from "./services/queue/MessageQueue";
 import { CommandHandler } from "./services/commandHandler";
 import { parseCommand } from "./utils/commandParser";
+import { parseProxyMatch } from "./utils/proxyParser";
 
 // Configuration
 const REGISTRATION_PATH = "/data/app-service-registration.yaml";
@@ -265,85 +266,42 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     // Escape hatch for autoproxy/proxying
     if (body.startsWith("\\")) return;
 
-    for (const member of system.members) {
-        const tags = member.proxyTags as any[];
-        for (const tag of tags) {
-            if (body.startsWith(tag.prefix) && (tag.suffix ? body.endsWith(tag.suffix) : true)) {
-                const cleanContent = body.slice(tag.prefix.length, body.length - (tag.suffix?.length || 0)).trim();
-                if (!cleanContent) return;
+    const proxyMatch = parseProxyMatch(content, system);
+    
+    if (proxyMatch) {
+        const { targetMember, cleanBody, cleanFormattedBody } = proxyMatch;
+        const format = cleanFormattedBody ? "org.matrix.custom.html" : undefined;
 
-                await commandHandler.safeRedact(roomId, eventId, "PluralProxy");
-                if (isEdit && originalEventId !== eventId) {
-                    await commandHandler.safeRedact(roomId, originalEventId, "PluralProxyOriginal");
-                }
-                
-                try {
-                    const ghostUserId = `@_plural_${system.slug}_${member.slug}:${DOMAIN}`;
-                    const intent = bridgeInstance.getIntent(ghostUserId);
-                    const finalDisplayName = system.systemTag ? `${member.displayName || member.name} ${system.systemTag}` : (member.displayName || member.name);
-
-                    await intent.ensureRegistered();
-                    try { await intent.join(roomId); } catch (e) {
-                        try { await bridgeInstance.getIntent().invite(roomId, ghostUserId); await intent.join(roomId); } catch (e2) {}
-                    }
-
-                    const machine = await cryptoManager.getMachine(ghostUserId);
-                    await registerDevice(intent, machine.deviceId.toString(), prismaClient, member.id);
-
-                    try { await intent.setDisplayName(finalDisplayName); if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl); } catch (e) {}
-
-                    let relatesTo: any = undefined;
-                    if (event.content["m.relates_to"]) {
-                        relatesTo = { ...event.content["m.relates_to"] } as any;
-                        if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
-                        if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
-                    }
-
-                    messageQueue.enqueue(roomId, sender, intent, cleanContent, relatesTo, prismaClient);
-                } catch (e) {}
-                return;
-            }
+        await commandHandler.safeRedact(roomId, eventId, "PluralProxy");
+        if (isEdit && originalEventId !== eventId) {
+            await commandHandler.safeRedact(roomId, originalEventId, "PluralProxyOriginal");
         }
-    }
+        
+        try {
+            const ghostUserId = `@_plural_${system.slug}_${targetMember.slug}:${DOMAIN}`;
+            const intent = bridgeInstance.getIntent(ghostUserId);
+            const finalDisplayName = system.systemTag ? `${targetMember.displayName || targetMember.name} ${system.systemTag}` : (targetMember.displayName || targetMember.name);
 
-    // --- Autoproxy Fallback ---
-    if (system.autoproxyId) {
-        const autoMember = system.members.find(m => m.id === system.autoproxyId);
-        if (autoMember) {
-            const cleanContent = body.trim();
-            if (!cleanContent) return;
-
-            await commandHandler.safeRedact(roomId, eventId, "PluralAutoproxy");
-            if (isEdit && originalEventId !== eventId) {
-                await commandHandler.safeRedact(roomId, originalEventId, "PluralAutoproxyOriginal");
+            await intent.ensureRegistered();
+            try { await intent.join(roomId); } catch (e) {
+                try { await bridgeInstance.getIntent().invite(roomId, ghostUserId); await intent.join(roomId); } catch (e2) {}
             }
-            
-            try {
-                const ghostUserId = `@_plural_${system.slug}_${autoMember.slug}:${DOMAIN}`;
-                const intent = bridgeInstance.getIntent(ghostUserId);
-                const finalDisplayName = system.systemTag ? `${autoMember.displayName || autoMember.name} ${system.systemTag}` : (autoMember.displayName || autoMember.name);
 
-                await intent.ensureRegistered();
-                try { await intent.join(roomId); } catch (e) {
-                    try { await bridgeInstance.getIntent().invite(roomId, ghostUserId); await intent.join(roomId); } catch (e2) {}
-                }
+            const machine = await cryptoManager.getMachine(ghostUserId);
+            await registerDevice(intent, machine.deviceId.toString(), prismaClient, targetMember.id);
 
-                const machine = await cryptoManager.getMachine(ghostUserId);
-                await registerDevice(intent, machine.deviceId.toString(), prismaClient, autoMember.id);
+            try { await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch (e) {}
 
-                try { await intent.setDisplayName(finalDisplayName); if (autoMember.avatarUrl) await intent.setAvatarUrl(autoMember.avatarUrl); } catch (e) {}
+            let relatesTo: any = undefined;
+            if (event.content["m.relates_to"]) {
+                relatesTo = { ...event.content["m.relates_to"] } as any;
+                if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
+                if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
+            }
 
-                let relatesTo: any = undefined;
-                if (event.content["m.relates_to"]) {
-                    relatesTo = { ...event.content["m.relates_to"] } as any;
-                    if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
-                    if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
-                }
-
-                messageQueue.enqueue(roomId, sender, intent, cleanContent, relatesTo, prismaClient);
-            } catch (e) {}
-            return;
-        }
+            messageQueue.enqueue(roomId, sender, intent, cleanBody, relatesTo, prismaClient, system.slug, format, cleanFormattedBody);
+        } catch (e) {}
+        return;
     }
 };
 

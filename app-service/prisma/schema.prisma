@@ -19,6 +19,7 @@ model System {
   banner      String?
   color       String?
   systemTag   String?  // The suffix tag (e.g. ⛩️ Seraphim ⛩️)
+  autoproxyMode String @default("off") // "off", "latch", "member"
   autoproxyId String?
   autoproxy   Member?  @relation("Autoproxy", fields: [autoproxyId], references: [id])
   members     Member[] @relation("SystemMembers")

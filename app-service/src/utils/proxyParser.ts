@@ -2,6 +2,7 @@ export interface ProxyMatchResult {
     targetMember: any;
     cleanBody: string;
     cleanFormattedBody?: string;
+    wasAutoproxied: boolean;
 }
 
 export function parseProxyMatch(content: any, system: any, originalEventContent?: any): ProxyMatchResult | null {
@@ -65,6 +66,7 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
     }
 
     // 3. Autoproxy Fallback
+    let wasAutoproxied = false;
     if (!matchFound && system.autoproxyId && !rawBody.startsWith("\\")) {
         const autoMember = system.members.find((m: any) => m.id === system.autoproxyId);
         if (autoMember) {
@@ -72,6 +74,7 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
             targetMember = autoMember;
             matchedPrefixLength = 0;
             matchedSuffixLength = 0;
+            wasAutoproxied = true;
         }
     }
 
@@ -101,6 +104,7 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
     return {
         targetMember,
         cleanBody: finalBody,
-        cleanFormattedBody: finalFormattedBody
+        cleanFormattedBody: finalFormattedBody,
+        wasAutoproxied
     };
 }

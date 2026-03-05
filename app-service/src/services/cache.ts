@@ -7,6 +7,7 @@ interface CachedSystem {
     name: string | null;
     systemTag: string | null;
     autoproxyId: string | null;
+    autoproxyMode: string;
     members: Member[];
 }
 

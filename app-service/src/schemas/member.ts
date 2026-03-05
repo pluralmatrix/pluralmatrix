@@ -25,5 +25,6 @@ export const SystemSchema = z.object({
     name: z.string().max(100).optional().nullable(),
     systemTag: z.string().max(50).optional().nullable(),
     slug: z.string().regex(/^[a-z0-9-]+$/).max(50).optional(),
-    autoproxyId: z.string().uuid().optional().nullable()
+    autoproxyId: z.string().uuid().optional().nullable(),
+    autoproxyMode: z.enum(["off", "latch", "member"]).optional()
 });

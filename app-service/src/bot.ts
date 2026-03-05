@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { config } from "./config";
 import { proxyCache } from "./services/cache";
+import { emitSystemUpdate } from "./services/events";
 import { maskMxid } from "./utils/privacy";
 import { OlmMachineManager } from "./crypto/OlmMachineManager";
 import { TransactionRouter } from "./crypto/TransactionRouter";
@@ -270,8 +271,25 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     const proxyMatch = parseProxyMatch(content, system, isEdit ? originalEvent?.content : undefined);
     
     if (proxyMatch) {
-        const { targetMember, cleanBody, cleanFormattedBody } = proxyMatch;
+        const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = proxyMatch as any;
         const format = cleanFormattedBody ? "org.matrix.custom.html" : undefined;
+
+        // If latch mode is enabled and this was NOT an autoproxy (i.e. they explicitly used a tag), latch them
+        if (system.autoproxyMode === "latch" && !wasAutoproxied) {
+            // Only update if it's actually a change to avoid unnecessary DB writes
+            if (system.autoproxyId !== targetMember.id) {
+                try {
+                    await prismaClient.system.update({
+                        where: { id: system.id },
+                        data: { autoproxyId: targetMember.id }
+                    });
+                    proxyCache.invalidate(sender);
+                    emitSystemUpdate(sender);
+                } catch (e) {
+                    console.error("[Bot] Failed to latch autoproxy:", e);
+                }
+            }
+        }
 
         // If it's an edit, redact the original root event (Matrix server will cascade redact all associated m.replace edits)
         // If it's a new message, redact the event itself

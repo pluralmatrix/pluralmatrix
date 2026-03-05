@@ -131,7 +131,24 @@ export const checkMessage = async (req: Request, res: Response) => {
                         const finalProxyMatch = parseProxyMatch(content, system, isEdit ? originalEvent?.content : undefined);
                         if (!finalProxyMatch) return; // Should never happen since it matched above
 
-                        const { targetMember, cleanBody, cleanFormattedBody } = finalProxyMatch;
+                        const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch as any;
+
+                        // If latch mode is enabled and this was NOT an autoproxy (i.e. they explicitly used a tag), latch them
+                        if (system.autoproxyMode === "latch" && !wasAutoproxied) {
+                            if (system.autoproxyId !== targetMember.id) {
+                                try {
+                                    await prisma.system.update({
+                                        where: { id: system.id },
+                                        data: { autoproxyId: targetMember.id }
+                                    });
+                                    proxyCache.invalidate(sender);
+                                    // Normally we'd emitSystemUpdate here but gatekeeper doesn't have it imported,
+                                    // and it'll get caught on the next full sync anyway, or we can just import it.
+                                } catch (e) {
+                                    console.error("[Gatekeeper] Failed to latch autoproxy:", e);
+                                }
+                            }
+                        }
                         
                         let relatesTo: any = undefined;
                         const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : content;

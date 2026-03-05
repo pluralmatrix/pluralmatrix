@@ -641,11 +641,22 @@ ${webUrl}
             if (!targetSlug || targetSlug === "off") {
                 await this.prisma.system.update({
                     where: { id: system.id },
-                    data: { autoproxyId: null }
+                    data: { autoproxyId: null, autoproxyMode: "off" }
                 });
                 proxyCache.invalidate(sender);
                 emitSystemUpdate(sender);
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Autoproxy disabled.");
+                return true;
+            }
+
+            if (targetSlug === "latch") {
+                await this.prisma.system.update({
+                    where: { id: system.id },
+                    data: { autoproxyMode: "latch" }
+                });
+                proxyCache.invalidate(sender);
+                emitSystemUpdate(sender);
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Autoproxy latch mode enabled. The last proxied member will be automatically locked in.");
                 return true;
             }
 
@@ -657,7 +668,7 @@ ${webUrl}
 
             await this.prisma.system.update({
                 where: { id: system.id },
-                data: { autoproxyId: member.id }
+                data: { autoproxyId: member.id, autoproxyMode: "member" }
             });
             proxyCache.invalidate(sender);
             emitSystemUpdate(sender);

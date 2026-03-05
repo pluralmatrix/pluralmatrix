@@ -57,6 +57,7 @@ export const getPublicSystem = async (req: Request, res: Response) => {
                 color: true,
                 createdAt: true,
                 autoproxyId: true,
+                autoproxyMode: true,
                 members: {
                     select: {
                         id: true,
@@ -186,7 +187,7 @@ export const deleteSystem = async (req: AuthRequest, res: Response) => {
 export const updateSystem = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        const { name, systemTag, slug: requestedSlug, autoproxyId } = SystemSchema.parse(req.body);
+        const { name, systemTag, slug: requestedSlug, autoproxyId, autoproxyMode } = SystemSchema.parse(req.body);
 
         const link = await prisma.accountLink.findUnique({
             where: { matrixId: mxid }
@@ -240,7 +241,8 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
                 name, 
                 systemTag, 
                 slug: finalSlug, 
-                autoproxyId 
+                autoproxyId,
+                autoproxyMode
             }
         });
 

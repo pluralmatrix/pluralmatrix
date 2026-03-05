@@ -126,6 +126,27 @@ describe('PluralMatrix E2E Roundtrip', () => {
     }
 
     /**
+     * Helper: Wait for a message from the main bot.
+     */
+    async function waitForBotMessage(targetClient: MatrixClient, targetRoomId: string, timeoutMs: number = 10000) {
+        return new Promise<any>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                targetClient.off("room.message", listener);
+                reject(new Error(`Timeout waiting for bot message in ${targetRoomId}`));
+            }, timeoutMs);
+
+            const listener = (roomIdMatch: string, event: any) => {
+                if (roomIdMatch === targetRoomId && event.sender.startsWith('@plural_bot:')) {
+                    clearTimeout(timeout);
+                    targetClient.off("room.message", listener);
+                    resolve(event);
+                }
+            };
+            targetClient.on("room.message", listener);
+        });
+    }
+
+    /**
      * Helper: Verify that an event is hidden (redacted or body-cleared) for a specific client.
      */
     async function verifyRedaction(targetClient: MatrixClient, targetRoomId: string, eventId: string, label: string) {
@@ -383,6 +404,71 @@ describe('PluralMatrix E2E Roundtrip', () => {
         expect(reproxyGhostMsg.content.formatted_body).toContain("<mx-reply>");
         
         console.log(`[E2E-Reproxy] SUCCESS: Reproxy correctly preserved reply relations and fallbacks.`);
+    }, 60000);
+
+    it('should correctly support latch mode autoproxying', async () => {
+        const proxyPrefix1 = `latch1-${Date.now()}:`;
+        const proxyPrefix2 = `latch2-${Date.now()}:`;
+        const slug1 = `ghost-latch-1`;
+        const slug2 = `ghost-latch-2`;
+
+        // 1. Create two members
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "Latch 1", slug: slug1, proxyTags: [{ prefix: proxyPrefix1, suffix: "" }] })
+        });
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "Latch 2", slug: slug2, proxyTags: [{ prefix: proxyPrefix2, suffix: "" }] })
+        });
+
+        // 2. Enable latch mode via command
+        const latchModePromise = waitForBotMessage(client, roomId);
+        await client.sendText(roomId, "pk;autoproxy latch");
+        const botResponse1 = await latchModePromise;
+        expect(botResponse1.content.body).toContain("latch mode enabled");
+
+        // 3. Proxy as Latch 1 (should set autoproxy to Latch 1)
+        const ghost1Promise = waitForGhostMessage(client, roomId);
+        await client.sendText(roomId, `${proxyPrefix1} First message`);
+        const ghost1 = await ghost1Promise;
+        expect(ghost1.sender).toContain(slug1);
+
+        // Allow cache/DB to update
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 4. Send a message with NO prefix. It should autoproxy as Latch 1!
+        const auto1Promise = waitForGhostMessage(client, roomId);
+        await client.sendText(roomId, "Second message, no tags");
+        const auto1 = await auto1Promise;
+        expect(auto1.sender).toContain(slug1);
+        expect(auto1.content.body).toBe("Second message, no tags");
+
+        // 5. Proxy as Latch 2 (should update the latch to Latch 2)
+        const ghost2Promise = waitForGhostMessage(client, roomId);
+        await client.sendText(roomId, `${proxyPrefix2} Third message`);
+        const ghost2 = await ghost2Promise;
+        expect(ghost2.sender).toContain(slug2);
+
+        // Allow cache/DB to update
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 6. Send a message with NO prefix. It should now autoproxy as Latch 2!
+        const auto2Promise = waitForGhostMessage(client, roomId);
+        await client.sendText(roomId, "Fourth message, no tags either");
+        const auto2 = await auto2Promise;
+        expect(auto2.sender).toContain(slug2);
+        expect(auto2.content.body).toBe("Fourth message, no tags either");
+        
+        // 7. Disable autoproxy
+        const disablePromise = waitForBotMessage(client, roomId);
+        await client.sendText(roomId, "pk;autoproxy off");
+        const botResponse2 = await disablePromise;
+        expect(botResponse2.content.body).toContain("Autoproxy disabled");
+
+        console.log(`[E2E-Latch] SUCCESS: Latch mode perfectly matches PluralKit behavior.`);
     }, 60000);
 
     it('should proxy a message in an ENCRYPTED room with 4-way verification', async () => {

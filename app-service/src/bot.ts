@@ -12,6 +12,7 @@ import { DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { processCryptoRequests, registerDevice } from "./crypto/crypto-utils";
 import { messageQueue } from "./services/queue/MessageQueue";
 import { CommandHandler } from "./services/commandHandler";
+import { parseCommand } from "./utils/commandParser";
 
 // Configuration
 const REGISTRATION_PATH = "/data/app-service-registration.yaml";
@@ -248,9 +249,9 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     }
 
     // --- Command handling ---
-    if (body.startsWith("pk;")) {
-        const parts = body.split(" ");
-        const cmd = parts[0].substring(3).toLowerCase();
+    const parsedCommand = parseCommand(body);
+    if (parsedCommand) {
+        const { cmd, parts } = parsedCommand;
         const system = await proxyCache.getSystemRules(sender, prismaClient);
 
         const handled = await commandHandler.handleCommand(event, cmd, parts, system);

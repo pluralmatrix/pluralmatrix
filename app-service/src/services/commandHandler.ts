@@ -10,6 +10,7 @@ import { emitSystemUpdate } from "./events";
 import { ensureUniqueSlug } from "../utils/slug";
 import { maskMxid } from "../utils/privacy";
 import { config } from "../config";
+import { parseCommand } from "../utils/commandParser";
 
 export class CommandHandler {
     private permissionWarnedRooms = new Set<string>();
@@ -271,8 +272,10 @@ export class CommandHandler {
      */
     async executeTargetingCommand(event: any, body: string, system: any) {
         const roomId = event.room_id;
-        const parts = body.split(" ");
-        const cmd = parts[0].substring(3).toLowerCase();
+        const parsed = parseCommand(body);
+        if (!parsed) return false;
+        
+        const { cmd, parts } = parsed;
 
         if (!["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) return false;
 

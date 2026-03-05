@@ -3,6 +3,7 @@ import { prisma, asToken, cryptoManager, getBridge, commandHandler } from '../bo
 import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
+import { parseCommand } from '../utils/commandParser';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 
 export const checkMessage = async (req: Request, res: Response) => {
@@ -64,9 +65,9 @@ export const checkMessage = async (req: Request, res: Response) => {
         }
 
         // --- ZERO-FLASH FOR COMMANDS ---
-        if (body.toLowerCase().startsWith("pk;")) {
-            const parts = body.split(" ");
-            const cmd = parts[0].substring(3).toLowerCase();
+        const parsedCommand = parseCommand(body);
+        if (parsedCommand) {
+            const { cmd } = parsedCommand;
             if (["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) {
                 if (!isEncryptedSource) {
                     console.log(`[Gatekeeper] Executing Zero-Flash command ${cmd} for ${event_id}`);

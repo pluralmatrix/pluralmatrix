@@ -307,6 +307,18 @@ export class CommandHandler {
         await registerDevice(this.bridge.getIntent(targetSender), (await this.cryptoManager.getMachine(targetSender)).deviceId.toString(), this.prisma, memberId, systemId);
 
         const latestText = targetContent["m.new_content"]?.body || targetContent.body;
+        const latestFormat = targetContent["m.new_content"]?.format || targetContent.format;
+        const latestFormattedBody = targetContent["m.new_content"]?.formatted_body || targetContent.formatted_body;
+        
+        let relatesToForReproxy: any = undefined;
+        if (targetContent["m.relates_to"]) {
+            relatesToForReproxy = { ...targetContent["m.relates_to"] } as any;
+            if (relatesToForReproxy.rel_type === "m.replace") { 
+                delete relatesToForReproxy.rel_type; 
+                delete relatesToForReproxy.event_id; 
+            }
+            if (Object.keys(relatesToForReproxy).length === 0) relatesToForReproxy = undefined;
+        }
 
         if (cmd === "edit" || cmd === "e") {
             const newText = parts.slice(1).join(" ");
@@ -343,7 +355,16 @@ export class CommandHandler {
                 await intent.setDisplayName(finalDisplayName);
                 if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl);
                 
-                await sendEncryptedEvent(intent, roomId, "m.room.message", { msgtype: "m.text", body: latestText }, this.cryptoManager, this.asToken, this.prisma);
+                const reproxyPayload: any = { msgtype: "m.text", body: latestText };
+                if (latestFormat && latestFormattedBody) {
+                    reproxyPayload.format = latestFormat;
+                    reproxyPayload.formatted_body = latestFormattedBody;
+                }
+                if (relatesToForReproxy) {
+                    reproxyPayload["m.relates_to"] = relatesToForReproxy;
+                }
+                
+                await sendEncryptedEvent(intent, roomId, "m.room.message", reproxyPayload, this.cryptoManager, this.asToken, this.prisma);
             } else {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${memberSlug}`);
             }

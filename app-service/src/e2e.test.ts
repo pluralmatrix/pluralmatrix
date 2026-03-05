@@ -308,6 +308,83 @@ describe('PluralMatrix E2E Roundtrip', () => {
         ]);
     }, 60000);
 
+    it('should correctly reproxy a reply and preserve its quotation', async () => {
+        const proxyPrefix = `e2e-rp-${Math.random().toString(36).substring(7)}:`;
+        const slug1 = `e2e-ghost-rp1-${Date.now()}`;
+        const slug2 = `e2e-ghost-rp2-${Date.now()}`;
+        
+        // 1. Create two system members
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-RP1", slug: slug1, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-RP2", slug: slug2, proxyTags: [{ prefix: "rp2:", suffix: "" }] })
+        });
+
+        // 2. Send an original message to reply to
+        console.log(`[E2E-Reproxy] Sending original message A...`);
+        const msgAId = await client.sendText(roomId, "Original Message to Reply To");
+
+        // 3. Send a proxy reply
+        console.log(`[E2E-Reproxy] Sending proxy reply B...`);
+        const replyHtml = `<mx-reply><blockquote><a href="https://matrix.to/#/${roomId}/${msgAId}">In reply to</a> <a href="https://matrix.to/#/@pm_test:localhost">@pm_test:localhost</a><br>Original Message to Reply To</blockquote></mx-reply>${proxyPrefix} My proxy reply`;
+        const replyText = `> <@pm_test:localhost> Original Message to Reply To\n\n${proxyPrefix} My proxy reply`;
+        
+        const firstProxyPromise = waitForGhostMessage(client, roomId);
+        
+        await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: replyText,
+            format: "org.matrix.custom.html",
+            formatted_body: replyHtml,
+            "m.relates_to": {
+                "m.in_reply_to": { event_id: msgAId }
+            }
+        });
+
+        const firstGhostMsg = await firstProxyPromise;
+        const ghostMsgId = firstGhostMsg.event_id;
+        
+        // Let the cache catch up
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 4. Send the reproxy command
+        console.log(`[E2E-Reproxy] Sending reproxy command...`);
+        const reproxyPromise = waitForGhostMessage(client, roomId);
+        
+        // In Matrix, replies to ghost messages also contain the m.in_reply_to relation pointing at the ghost message.
+        // The reproxy command looks up the message it replied to.
+        await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: `pk;rp ${slug2}`,
+            "m.relates_to": {
+                "m.in_reply_to": { event_id: ghostMsgId }
+            }
+        });
+
+        console.log(`[E2E-Reproxy] Waiting for reproxy ghost response...`);
+        const reproxyGhostMsg = await reproxyPromise;
+        
+        // Assertions
+        expect(reproxyGhostMsg.sender).toContain(slug2);
+        
+        expect(reproxyGhostMsg.content["m.relates_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]["m.in_reply_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]["m.in_reply_to"].event_id).toBe(msgAId);
+        
+        expect(reproxyGhostMsg.content.body).toContain("> <@pm_test:localhost> Original Message to Reply To");
+        expect(reproxyGhostMsg.content.body).toContain("My proxy reply");
+        
+        expect(reproxyGhostMsg.content.format).toBe("org.matrix.custom.html");
+        expect(reproxyGhostMsg.content.formatted_body).toContain("<mx-reply>");
+        
+        console.log(`[E2E-Reproxy] SUCCESS: Reproxy correctly preserved reply relations and fallbacks.`);
+    }, 60000);
+
     it('should proxy a message in an ENCRYPTED room with 4-way verification', async () => {
         const messageBody = `Secure E2E ${Math.random().toString(36).substring(7)}`;
         const proxyPrefix = `e2e-sec-${Math.random().toString(36).substring(7)}:`;

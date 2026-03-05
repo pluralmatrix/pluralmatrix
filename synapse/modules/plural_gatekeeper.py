@@ -165,14 +165,25 @@ class PluralGatekeeper:
         if await self._is_proxy_message(event):
             event_id = getattr(event, "event_id", None)
             room_id = getattr(event, "room_id", None)
+            
             if event_id and room_id:
                 try:
+                    # If this is an edit, we only need to redact the original root message.
+                    # The Matrix homeserver will automatically cascade the redaction to all 
+                    # related m.replace events (including this one).
+                    content = getattr(event, "content", {})
+                    relates_to = content.get("m.relates_to", {})
+                    
+                    target_redaction_id = event_id
+                    if relates_to.get("rel_type") == "m.replace" and relates_to.get("event_id"):
+                        target_redaction_id = relates_to.get("event_id")
+
                     await self.api.create_and_send_event_into_room({
                         "type": "m.room.redaction",
                         "room_id": room_id,
                         "sender": self.bot_id,
                         "content": { "reason": "PluralMatrix Proxying" },
-                        "redacts": event_id
+                        "redacts": target_redaction_id
                     })
                 except Exception:
                     pass

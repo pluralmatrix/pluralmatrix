@@ -4,7 +4,7 @@ export interface ProxyMatchResult {
     cleanFormattedBody?: string;
 }
 
-export function parseProxyMatch(content: any, system: any): ProxyMatchResult | null {
+export function parseProxyMatch(content: any, system: any, originalEventContent?: any): ProxyMatchResult | null {
     if (!content || !content.body) return null;
 
     let rawBody = content["m.new_content"]?.body || content.body;
@@ -14,17 +14,33 @@ export function parseProxyMatch(content: any, system: any): ProxyMatchResult | n
     let bodyFallback = "";
     let formattedFallback = "";
 
-    const bodyFallbackMatch = rawBody.match(/^(> [^\n]*\n)*\n/);
+    // If this is an edit, the fallback might only exist on the original message content
+    const sourceBodyForFallback = originalEventContent?.body || rawBody;
+    const sourceFormattedForFallback = originalEventContent?.formatted_body || rawFormattedBody;
+
+    const bodyFallbackMatch = sourceBodyForFallback.match(/^(> [^\n]*\n)*\n/);
     if (bodyFallbackMatch) {
         bodyFallback = bodyFallbackMatch[0];
-        rawBody = rawBody.slice(bodyFallback.length);
+    }
+    
+    // Also try to strip fallback from rawBody if it happens to be there
+    const inlineBodyFallbackMatch = rawBody.match(/^(> [^\n]*\n)*\n/);
+    if (inlineBodyFallbackMatch) {
+        rawBody = rawBody.slice(inlineBodyFallbackMatch[0].length);
     }
 
-    if (rawFormattedBody) {
-        const fFallbackMatch = rawFormattedBody.match(/^<mx-reply>[\s\S]*?<\/mx-reply>/);
+    if (sourceFormattedForFallback) {
+        const fFallbackMatch = sourceFormattedForFallback.match(/^<mx-reply>[\s\S]*?<\/mx-reply>/);
         if (fFallbackMatch) {
             formattedFallback = fFallbackMatch[0];
-            rawFormattedBody = rawFormattedBody.slice(formattedFallback.length);
+        }
+    }
+    
+    // Also try to strip fallback from rawFormattedBody if it happens to be there
+    if (rawFormattedBody) {
+        const inlineFFallbackMatch = rawFormattedBody.match(/^<mx-reply>[\s\S]*?<\/mx-reply>/);
+        if (inlineFFallbackMatch) {
+            rawFormattedBody = rawFormattedBody.slice(inlineFFallbackMatch[0].length);
         }
     }
 

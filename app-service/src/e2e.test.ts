@@ -228,6 +228,86 @@ describe('PluralMatrix E2E Roundtrip', () => {
         await verifyRedaction(client, roomId, triggerEventId, "Sender");
     }, 60000);
 
+    it('should correctly proxy an edited reply, preserving the reply relation and fallback', async () => {
+        const proxyPrefix = `e2e-edit-reply-${Math.random().toString(36).substring(7)}:`;
+        const slug = `e2e-ghost-reply-${Date.now()}`;
+        
+        // 1. Create a system member
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-EditReply", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        // 2. Send an original message to reply to
+        console.log(`[E2E-EditReply] Sending original message A...`);
+        const msgAId = await client.sendText(roomId, "Message A");
+
+        // 3. Send a normal reply to A (no proxy prefix)
+        console.log(`[E2E-EditReply] Sending reply B...`);
+        const replyHtml = `<mx-reply><blockquote><a href="https://matrix.to/#/${roomId}/${msgAId}">In reply to</a> <a href="https://matrix.to/#/@pm_test:localhost">@pm_test:localhost</a><br>Message A</blockquote></mx-reply>Reply B`;
+        const replyText = `> <@pm_test:localhost> Message A\n\nReply B`;
+        const msgBId = await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: replyText,
+            format: "org.matrix.custom.html",
+            formatted_body: replyHtml,
+            "m.relates_to": {
+                "m.in_reply_to": { event_id: msgAId }
+            }
+        });
+
+        // 4. Wait for the ghost message
+        const ghostPromise = waitForGhostMessage(client, roomId);
+
+        // 5. Edit B to add the proxy prefix
+        console.log(`[E2E-EditReply] Editing reply B to add proxy prefix...`);
+        const editedText = `${proxyPrefix} Edited Reply B with **bold**`;
+        const editedHtml = `${proxyPrefix} Edited Reply B with <b>bold</b>`;
+        
+        const editId = await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: `* ${editedText}`,
+            format: "org.matrix.custom.html",
+            formatted_body: `* ${editedHtml}`,
+            "m.new_content": {
+                msgtype: "m.text",
+                body: editedText,
+                format: "org.matrix.custom.html",
+                formatted_body: editedHtml
+            },
+            "m.relates_to": {
+                rel_type: "m.replace",
+                event_id: msgBId
+            }
+        });
+
+        console.log(`[E2E-EditReply] Waiting for ghost response...`);
+        const ghostMsg = await ghostPromise;
+        
+        console.log(`[E2E-EditReply] Ghost message content:`, JSON.stringify(ghostMsg.content, null, 2));
+
+        // Assertions
+        expect(ghostMsg.content["m.relates_to"]).toBeDefined();
+        expect(ghostMsg.content["m.relates_to"]["m.in_reply_to"]).toBeDefined();
+        expect(ghostMsg.content["m.relates_to"]["m.in_reply_to"].event_id).toBe(msgAId);
+        
+        expect(ghostMsg.content.body).toContain("> <@pm_test:localhost> Message A");
+        expect(ghostMsg.content.body).toContain("Edited Reply B with **bold**");
+        
+        expect(ghostMsg.content.format).toBe("org.matrix.custom.html");
+        expect(ghostMsg.content.formatted_body).toContain("<mx-reply>");
+        expect(ghostMsg.content.formatted_body).toContain("<b>bold</b>");
+
+        console.log(`[E2E-EditReply] SUCCESS: Reply correctly proxied after edit.`);
+        
+        // Both the original event and the edit event should be hidden
+        await Promise.all([
+            verifyRedaction(client, roomId, msgBId, "Sender (Original)"),
+            verifyRedaction(client, roomId, editId, "Sender (Edit)")
+        ]);
+    }, 60000);
+
     it('should proxy a message in an ENCRYPTED room with 4-way verification', async () => {
         const messageBody = `Secure E2E ${Math.random().toString(36).substring(7)}`;
         const proxyPrefix = `e2e-sec-${Math.random().toString(36).substring(7)}:`;

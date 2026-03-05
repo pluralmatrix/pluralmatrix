@@ -65,6 +65,16 @@ export const checkMessage = async (req: Request, res: Response) => {
             return res.json({ action: "ALLOW" });
         }
 
+        let isEdit = false;
+        let originalEventId: string | undefined = undefined;
+
+        console.log(`[Gatekeeper] Analyzing event ${event_id} - has m.new_content: ${!!content["m.new_content"]}, rel_type: ${content["m.relates_to"]?.rel_type}`);
+
+        if (content["m.new_content"] && content["m.relates_to"]?.rel_type === "m.replace") {
+            isEdit = true;
+            originalEventId = content["m.relates_to"].event_id;
+        }
+
         // --- ZERO-FLASH FOR COMMANDS ---
         const parsedCommand = parseCommand(body);
         if (parsedCommand) {
@@ -79,6 +89,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                         sender: sender,
                         content: content
                     };
+                    // Execute in background
                     commandHandler.executeTargetingCommand(mockEvent, body, system).catch(e => {
                         console.error("[Gatekeeper] Failed to execute targeting command:", e.message);
                     });
@@ -91,38 +102,73 @@ export const checkMessage = async (req: Request, res: Response) => {
         }
 
         // --- PROXY CHECK ---
-        const proxyMatch = parseProxyMatch(content, system);
+        // For the immediate proxy check to decide BLOCK/ALLOW quickly, we just use the current content.
+        // If it's a match, we'll fetch the original event in the background before sending the ghost message.
+        const proxyMatch = parseProxyMatch(content, system, undefined);
 
         if (proxyMatch) {
-            const { targetMember, cleanBody, cleanFormattedBody } = proxyMatch;
-            
-            // --- CONDITIONAL PROXYING ---
-            // We ONLY trigger the ghost message and redaction here for UNENCRYPTED messages.
-            // Encrypted messages will be handled by the bot's standard sync loop (bot.ts).
+            // We matched! Return BLOCK immediately to Synapse so it can cache the result quickly 
+            // and avoid blocking the Twisted reactor or triggering retry loops.
+            res.json({ action: "BLOCK" });
+
             if (!isEncryptedSource) {
-                console.log(`[Gatekeeper] Triggering proxy for unencrypted ${event_id} for member ${targetMember.slug}`);
-                sendGhostMessage({
-                    roomId: room_id,
-                    cleanContent: cleanBody,
-                    format: cleanFormattedBody ? "org.matrix.custom.html" : undefined,
-                    formattedBody: cleanFormattedBody,
-                    relatesTo: content["m.relates_to"],
-                    system,
-                    member: {
-                        slug: targetMember.slug,
-                        name: targetMember.name,
-                        displayName: targetMember.displayName,
-                        avatarUrl: targetMember.avatarUrl
-                    },
-                    asToken: asToken,
-                    senderId: sender
-                    }).catch(e => {                    console.error("[Gatekeeper] Failed to send ghost message:", e.message);
-                });
+                console.log(`[Gatekeeper] Triggering background proxy for unencrypted ${event_id} for member ${proxyMatch.targetMember.slug}`);
+                
+                // Fire and forget background processor
+                (async () => {
+                    try {
+                        let originalEvent: any = null;
+                        if (isEdit && originalEventId) {
+                            try {
+                                originalEvent = await (getBridge()?.getBot().getClient() as any).getEvent(room_id, originalEventId);
+                                console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
+                            } catch (e) {
+                                console.warn(`[Gatekeeper] Could not fetch original event ${originalEventId} for edit proxying.`);
+                            }
+                        }
+
+                        // Re-parse with the original event to get the rich fallbacks
+                        const finalProxyMatch = parseProxyMatch(content, system, isEdit ? originalEvent?.content : undefined);
+                        if (!finalProxyMatch) return; // Should never happen since it matched above
+
+                        const { targetMember, cleanBody, cleanFormattedBody } = finalProxyMatch;
+                        
+                        let relatesTo: any = undefined;
+                        const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : content;
+                        if (sourceContent["m.relates_to"]) {
+                            relatesTo = { ...sourceContent["m.relates_to"] } as any;
+                            console.log(`[Gatekeeper] Extracted initial relatesTo:`, JSON.stringify(relatesTo));
+                            if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
+                            if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
+                        }
+                        
+                        console.log(`[Gatekeeper] Final relatesTo sent to queue:`, relatesTo ? JSON.stringify(relatesTo) : 'undefined');
+
+                        await sendGhostMessage({
+                            roomId: room_id,
+                            cleanContent: cleanBody,
+                            format: cleanFormattedBody ? "org.matrix.custom.html" : undefined,
+                            formattedBody: cleanFormattedBody,
+                            relatesTo: relatesTo,
+                            system,
+                            member: {
+                                slug: targetMember.slug,
+                                name: targetMember.name,
+                                displayName: targetMember.displayName,
+                                avatarUrl: targetMember.avatarUrl
+                            },
+                            asToken: asToken,
+                            senderId: sender
+                        });
+                    } catch (err: any) {
+                        console.error("[Gatekeeper] Background proxy task failed:", err.message);
+                    }
+                })();
             } else {
                 console.log(`[Gatekeeper] E2EE Match for ${event_id} - Visibility BLOCKED, but letting bot.ts handle proxying.`);
             }
 
-            return res.json({ action: "BLOCK" });
+            return; // We already called res.json()
         }
 
         return res.json({ action: "ALLOW" });

@@ -221,6 +221,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     let body = content.body as string; 
     let isEdit = false;
     let originalEventId = eventId;
+    let originalEvent: any = null;
 
     if (content["m.new_content"] && content["m.relates_to"]?.rel_type === "m.replace") {
         body = content["m.new_content"].body;
@@ -236,7 +237,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     // Edit Loop Prevention
     if (isEdit) {
         try {
-            const originalEvent = await (bridgeInstance.getBot().getClient() as any).getEvent(roomId, originalEventId);
+            originalEvent = await (bridgeInstance.getBot().getClient() as any).getEvent(roomId, originalEventId);
             const redactedBy = originalEvent?.unsigned?.redacted_by;
             if (redactedBy === botUserId || redactedBy?.startsWith("@_plural_")) return;
         } catch (e) { }
@@ -266,16 +267,16 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     // Escape hatch for autoproxy/proxying
     if (body.startsWith("\\")) return;
 
-    const proxyMatch = parseProxyMatch(content, system);
+    const proxyMatch = parseProxyMatch(content, system, isEdit ? originalEvent?.content : undefined);
     
     if (proxyMatch) {
         const { targetMember, cleanBody, cleanFormattedBody } = proxyMatch;
         const format = cleanFormattedBody ? "org.matrix.custom.html" : undefined;
 
-        await commandHandler.safeRedact(roomId, eventId, "PluralProxy");
-        if (isEdit && originalEventId !== eventId) {
-            await commandHandler.safeRedact(roomId, originalEventId, "PluralProxyOriginal");
-        }
+        // If it's an edit, redact the original root event (Matrix server will cascade redact all associated m.replace edits)
+        // If it's a new message, redact the event itself
+        const targetRedactionId = isEdit ? originalEventId : eventId;
+        await commandHandler.safeRedact(roomId, targetRedactionId, "PluralProxy");
         
         try {
             const ghostUserId = `@_plural_${system.slug}_${targetMember.slug}:${DOMAIN}`;
@@ -293,8 +294,12 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             try { await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch (e) {}
 
             let relatesTo: any = undefined;
-            if (event.content["m.relates_to"]) {
-                relatesTo = { ...event.content["m.relates_to"] } as any;
+            // If it's an edit, we want the *original* event's relations (e.g. what it was replying to)
+            // since the edit event itself only contains the m.replace relation.
+            const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : event.content;
+            
+            if (sourceContent["m.relates_to"]) {
+                relatesTo = { ...sourceContent["m.relates_to"] } as any;
                 if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
                 if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
             }

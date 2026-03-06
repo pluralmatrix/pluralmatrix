@@ -329,6 +329,65 @@ describe('PluralMatrix E2E Roundtrip', () => {
         ]);
     }, 60000);
 
+    it('should properly process the pk;e command and preserve rich formatting', async () => {
+        const proxyPrefix = `e2e-cmd-e-${Math.random().toString(36).substring(7)}:`;
+        const slug = `e2e-ghost-cmd-e-${Date.now()}`;
+        
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-CmdE", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        // 1. Send initial proxy message
+        const ghost1Promise = waitForGhostMessage(client, roomId);
+        const originalText = `${proxyPrefix} This is the original text`;
+        const msgId = await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: originalText,
+        });
+
+        const ghost1 = await ghost1Promise;
+        const ghostMsgId = ghost1.event_id;
+        
+        // Allow cache to sync
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 2. Reply to the ghost message with `pk;e` and markdown formatting
+        const editCmdPromise = waitForGhostMessage(client, roomId);
+        const cmdText = `pk;e **new bold text**`;
+        const cmdHtml = `pk;e <b>new bold text</b>`;
+        
+        // Simulate a Matrix reply fallback
+        const replyHtml = `<mx-reply><blockquote>Ghost text</blockquote></mx-reply>${cmdHtml}`;
+        const replyText = `> <@ghost> Ghost text\n\n${cmdText}`;
+
+        const cmdEventId = await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: replyText,
+            format: "org.matrix.custom.html",
+            formatted_body: replyHtml,
+            "m.relates_to": {
+                "m.in_reply_to": { event_id: ghostMsgId }
+            }
+        });
+
+        // 3. Wait for the ghost edit event
+        // The ghost edit event should have an m.replace relation pointing to ghostMsgId
+        const ghostEditMsg = await editCmdPromise;
+        
+        expect(ghostEditMsg.content["m.new_content"]).toBeDefined();
+        expect(ghostEditMsg.content["m.new_content"].body).toBe("**new bold text**");
+        expect(ghostEditMsg.content["m.new_content"].format).toBe("org.matrix.custom.html");
+        expect(ghostEditMsg.content["m.new_content"].formatted_body).toBe("<b>new bold text</b>");
+        
+        expect(ghostEditMsg.content["m.relates_to"]).toBeDefined();
+        expect(ghostEditMsg.content["m.relates_to"].rel_type).toBe("m.replace");
+        expect(ghostEditMsg.content["m.relates_to"].event_id).toBe(ghostMsgId);
+
+        console.log(`[E2E-CmdE] SUCCESS: pk;e preserved rich formatting.`);
+    }, 60000);
+
     it('should correctly proxy an m.image event containing attached text (like Fluffychat)', async () => {
         const proxyPrefix = `e2e-img-${Math.random().toString(36).substring(7)}:`;
         const slug = `e2e-ghost-img-${Date.now()}`;

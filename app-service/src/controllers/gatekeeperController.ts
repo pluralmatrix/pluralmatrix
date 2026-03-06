@@ -76,7 +76,7 @@ export const checkMessage = async (req: Request, res: Response) => {
         }
 
         // --- ZERO-FLASH FOR COMMANDS ---
-        const parsedCommand = parseCommand(body);
+        const parsedCommand = parseCommand(body, content?.formatted_body);
         if (parsedCommand) {
             const { cmd } = parsedCommand;
             if (["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) {

@@ -252,7 +252,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
     }
 
     // --- Command handling ---
-    const parsedCommand = parseCommand(body);
+    const parsedCommand = parseCommand(body, content?.formatted_body);
     if (parsedCommand) {
         const { cmd, parts } = parsedCommand;
         const system = await proxyCache.getSystemRules(sender, prismaClient);

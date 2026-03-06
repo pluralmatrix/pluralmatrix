@@ -18,6 +18,7 @@ export interface QueueItem {
     relatesTo?: any; // For replies/edits
     prisma?: PrismaClient;
     systemSlug?: string; // Added to update LastMessageCache on success
+    fullContent?: any; // Added to preserve non-text events (images, audio)
 }
 
 export interface DeadLetter {
@@ -60,7 +61,8 @@ class MessageQueueService {
         prisma?: PrismaClient,
         systemSlug?: string,
         format?: string,
-        formattedBody?: string
+        formattedBody?: string,
+        fullContent?: any
     ) {
         const queue = this.RoomQueues.get(roomId) || [];
         queue.push({
@@ -74,7 +76,8 @@ class MessageQueueService {
             attempts: 0,
             relatesTo,
             prisma,
-            systemSlug
+            systemSlug,
+            fullContent
         });
         this.RoomQueues.set(roomId, queue);
 
@@ -115,7 +118,15 @@ class MessageQueueService {
 
                 try {
                     // Try to send the event
-                    const payload: any = { msgtype: "m.text", body: item.plaintext };
+                    // Use the original full content payload if available to preserve file/image metadata
+                    const payload: any = item.fullContent ? { ...item.fullContent } : { msgtype: "m.text", body: item.plaintext };
+                    console.log(`[MQ] Building payload. item.fullContent present? ${!!item.fullContent}`);
+                    
+                    // Always ensure body is correctly stripped of proxy tags
+                    if (item.fullContent && item.plaintext) {
+                        payload.body = item.plaintext;
+                    }
+
                     if (item.format && item.formattedBody) {
                         payload.format = item.format;
                         payload.formatted_body = item.formattedBody;
@@ -123,6 +134,8 @@ class MessageQueueService {
                     if (item.relatesTo) {
                         payload["m.relates_to"] = item.relatesTo;
                     }
+                    
+                    console.log(`[MQ] Sending payload to Matrix:`, JSON.stringify(payload, null, 2));
 
                     const result: any = await sendEncryptedEvent(
                         item.ghostIntent,

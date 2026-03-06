@@ -329,6 +329,53 @@ describe('PluralMatrix E2E Roundtrip', () => {
         ]);
     }, 60000);
 
+    it('should correctly proxy an m.image event containing attached text (like Fluffychat)', async () => {
+        const proxyPrefix = `e2e-img-${Math.random().toString(36).substring(7)}:`;
+        const slug = `e2e-ghost-img-${Date.now()}`;
+        
+        // 1. Create a system member
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-Image", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        // 2. Send a mock Fluffychat image payload with a proxy prefix in the body
+        const imageText = `${proxyPrefix} Look at this cool image!`;
+        const mockImagePayload = {
+            "body": imageText,
+            "info": {
+                "h": 1600,
+                "mimetype": "image/jpeg",
+                "size": 1357434,
+                "w": 1200
+            },
+            "msgtype": "m.image",
+            "url": "mxc://localhost/dummy_image_id"
+        };
+
+        const ghostPromise = waitForGhostMessage(client, roomId);
+        
+        console.log(`[E2E-Image] Sending trigger image: ${imageText}`);
+        const triggerEventId = await client.sendMessage(roomId, mockImagePayload);
+
+        console.log(`[E2E-Image] Waiting for ghost response...`);
+        const ghostMsg = await ghostPromise;
+        console.log(`[E2E-Image] Ghost response:`, JSON.stringify(ghostMsg.content, null, 2));
+        
+        // Assertions
+        expect(ghostMsg.sender).toContain(slug);
+        
+        expect(ghostMsg.content.msgtype).toBe("m.image");
+        expect(ghostMsg.content.url).toBe("mxc://localhost/dummy_image_id");
+        expect(ghostMsg.content.info).toBeDefined();
+        expect(ghostMsg.content.info.h).toBe(1600);
+        expect(ghostMsg.content.body).toBe("Look at this cool image!");
+
+        console.log(`[E2E-Image] SUCCESS: Image and attached text successfully proxied.`);
+        await verifyRedaction(client, roomId, triggerEventId, "Sender");
+    }, 60000);
+
     it('should correctly reproxy a reply and preserve its quotation', async () => {
         const proxyPrefix = `e2e-rp-${Math.random().toString(36).substring(7)}:`;
         const slug1 = `e2e-ghost-rp1-${Date.now()}`;

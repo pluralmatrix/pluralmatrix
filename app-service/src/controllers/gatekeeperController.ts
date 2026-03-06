@@ -167,6 +167,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                             format: cleanFormattedBody ? "org.matrix.custom.html" : undefined,
                             formattedBody: cleanFormattedBody,
                             relatesTo: relatesTo,
+                            fullContent: finalProxyMatch.fullContent,
                             system,
                             member: {
                                 slug: targetMember.slug,

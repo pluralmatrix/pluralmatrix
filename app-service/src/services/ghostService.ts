@@ -12,6 +12,7 @@ export interface GhostMessageOptions {
     format?: string;
     formattedBody?: string;
     relatesTo?: any;
+    fullContent?: any;
     system: {
         slug: string;
         systemTag?: string | null;
@@ -27,7 +28,7 @@ export interface GhostMessageOptions {
 }
 
 export const sendGhostMessage = async (options: GhostMessageOptions) => {
-    const { roomId, cleanContent, format, formattedBody, relatesTo, system, member, asToken, senderId } = options;
+    const { roomId, cleanContent, format, formattedBody, relatesTo, fullContent, system, member, asToken, senderId } = options;
 
     try {
         const bridge = getBridge();
@@ -65,7 +66,7 @@ export const sendGhostMessage = async (options: GhostMessageOptions) => {
             // Ignore profile update failures
         }
 
-        messageQueue.enqueue(roomId, senderId, intent, cleanContent, relatesTo, prisma, system.slug, format, formattedBody);
+        messageQueue.enqueue(roomId, senderId, intent, cleanContent, relatesTo, prisma, system.slug, format, formattedBody, fullContent);
     } catch (e: any) {
         console.error(`[GhostService] Failed to queue message for ${member.slug}:`, e.message);
     }

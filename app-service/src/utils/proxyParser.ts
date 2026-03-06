@@ -3,6 +3,7 @@ export interface ProxyMatchResult {
     cleanBody: string;
     cleanFormattedBody?: string;
     wasAutoproxied: boolean;
+    fullContent: any;
 }
 
 export function parseProxyMatch(content: any, system: any, originalEventContent?: any): ProxyMatchResult | null {
@@ -82,18 +83,17 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
 
     // 4. Strip prefix and suffix from the real content
     let finalBody = rawBody.slice(matchedPrefixLength, rawBody.length - matchedSuffixLength).trim();
-    if (!finalBody) return null; // Ignore empty messages
+    
+    // For images, it's totally okay to proxy an image with NO text after stripping the tag! 
+    // However, if it's strictly a text message and it's completely empty after stripping, we should drop it.
+    if (!finalBody && content.msgtype === "m.text") return null;
 
     let finalFormattedBody: string | undefined = undefined;
     if (rawFormattedBody) {
-        // Formatted body might have HTML tags around the prefix if the user styled it, 
-        // but typically clients send the exact prefix plaintext at the start.
-        // If it starts exactly with the prefix, we strip it. Otherwise, we leave it (it might be styled).
         if (matchedPrefixLength > 0 && rawFormattedBody.startsWith(rawBody.substring(0, matchedPrefixLength))) {
             let stripped = rawFormattedBody.slice(matchedPrefixLength, rawFormattedBody.length - matchedSuffixLength).trim();
             finalFormattedBody = formattedFallback + stripped;
         } else {
-            // Couldn't cleanly strip HTML, fallback to just passing it as is (minus the mx-reply which we re-attach)
             finalFormattedBody = formattedFallback + rawFormattedBody;
         }
     }
@@ -101,10 +101,32 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
     // Re-attach body fallback
     finalBody = bodyFallback + finalBody;
 
+    // Build the final content object preserving all other keys (file, info, url, etc)
+    const fullContent = { ...content };
+    
+    // When a proxy is triggered via an edit, the ghost sends a BRAND NEW message, not an edit.
+    // We must scrub the edit metadata (m.new_content and m.replace relations) from the payload.
+    if (fullContent["m.new_content"]) {
+        delete fullContent["m.new_content"];
+    }
+    
+    // Scrub edit relation if it exists, otherwise we'd try to edit a non-existent message
+    if (fullContent["m.relates_to"]?.rel_type === "m.replace") {
+        delete fullContent["m.relates_to"].rel_type;
+        delete fullContent["m.relates_to"].event_id;
+        if (Object.keys(fullContent["m.relates_to"]).length === 0) {
+            delete fullContent["m.relates_to"];
+        }
+    }
+
+    fullContent.body = finalBody;
+    if (finalFormattedBody) fullContent.formatted_body = finalFormattedBody;
+
     return {
         targetMember,
         cleanBody: finalBody,
         cleanFormattedBody: finalFormattedBody,
-        wasAutoproxied
+        wasAutoproxied,
+        fullContent
     };
 }

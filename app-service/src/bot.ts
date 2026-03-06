@@ -322,7 +322,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
                 if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
             }
 
-            messageQueue.enqueue(roomId, sender, intent, cleanBody, relatesTo, prismaClient, system.slug, format, cleanFormattedBody);
+            messageQueue.enqueue(roomId, sender, intent, cleanBody, relatesTo, prismaClient, system.slug, format, cleanFormattedBody, proxyMatch.fullContent);
         } catch (e) {}
         return;
     }

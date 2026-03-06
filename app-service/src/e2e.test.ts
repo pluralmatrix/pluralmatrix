@@ -589,6 +589,63 @@ describe('PluralMatrix E2E Roundtrip', () => {
         console.log(`[E2E-Reproxy] SUCCESS: Reproxy correctly preserved reply relations and fallbacks.`);
     }, 60000);
 
+    it('should correctly reproxy an edited message, preserving the latest edit text', async () => {
+        const proxyPrefix = `e2e-rpe-${Math.random().toString(36).substring(7)}:`;
+        const slug1 = `e2e-ghost-rpe1-${Date.now()}`;
+        const slug2 = `e2e-ghost-rpe2-${Date.now()}`;
+        
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-RPE1", slug: slug1, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-RPE2", slug: slug2, proxyTags: [{ prefix: "rpe2:", suffix: "" }] })
+        });
+
+        // 1. Send initial proxy message
+        console.log(`[E2E-ReproxyEdit] Sending initial proxy message...`);
+        const firstProxyPromise = waitForGhostMessage(client, roomId);
+        await client.sendText(roomId, `${proxyPrefix} Original unedited text`);
+        const firstGhostMsg = await firstProxyPromise;
+        const ghostMsgId = firstGhostMsg.event_id;
+
+        // Allow cache to sync
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 2. Edit the ghost message via pk;e
+        console.log(`[E2E-ReproxyEdit] Sending pk;e edit...`);
+        const editCmdPromise = waitForGhostMessage(client, roomId);
+        await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: "pk;e This text is heavily modified!",
+            "m.relates_to": { "m.in_reply_to": { event_id: ghostMsgId } }
+        });
+        await editCmdPromise;
+
+        // Allow cache to sync the edit
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 3. Reproxy the edited message without explicitly replying
+        console.log(`[E2E-ReproxyEdit] Sending bare pk;rp command...`);
+        const reproxyPromise = waitForGhostMessage(client, roomId);
+        await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: `pk;rp ${slug2}`
+        });
+        
+        console.log(`[E2E-ReproxyEdit] Waiting for reproxy ghost response...`);
+        const reproxyGhostMsg = await reproxyPromise;
+
+        expect(reproxyGhostMsg.sender).toContain(slug2);
+        
+        // Assert that the new reproxied message contains the EDITED text, not the ORIGINAL text
+        expect(reproxyGhostMsg.content.body).toBe("This text is heavily modified!");
+        console.log(`[E2E-ReproxyEdit] SUCCESS: Reproxy correctly grabbed the latest edited text.`);
+    }, 60000);
+
     it('should correctly support latch mode autoproxying', async () => {
         const proxyPrefix1 = `latch1-${Date.now()}:`;
         const proxyPrefix2 = `latch2-${Date.now()}:`;

@@ -313,8 +313,12 @@ export class CommandHandler {
         const latestFormattedBody = targetContent["m.new_content"]?.formatted_body || targetContent.formatted_body;
         
         let relatesToForReproxy: any = undefined;
-        if (targetContent["m.relates_to"]) {
-            relatesToForReproxy = { ...targetContent["m.relates_to"] } as any;
+        // The original root event contains the m.in_reply_to block, not necessarily the latest edit
+        const originalContent = resolution?.event?.content || (resolution?.event as any)?.content || {};
+        const sourceForRelatesTo = originalContent["m.relates_to"] ? originalContent : targetContent;
+
+        if (sourceForRelatesTo["m.relates_to"]) {
+            relatesToForReproxy = { ...sourceForRelatesTo["m.relates_to"] } as any;
             if (relatesToForReproxy.rel_type === "m.replace") { 
                 delete relatesToForReproxy.rel_type; 
                 delete relatesToForReproxy.event_id; 
@@ -356,10 +360,30 @@ export class CommandHandler {
             editPayload["m.new_content"] = newContent;
             editPayload["m.relates_to"] = { rel_type: "m.replace", event_id: originalId };
 
-            await sendEncryptedEvent(this.bridge.getIntent(targetSender), roomId, "m.room.message", editPayload, this.cryptoManager, this.asToken, this.prisma);
+            const editResultId = await sendEncryptedEvent(this.bridge.getIntent(targetSender), roomId, "m.room.message", editPayload, this.cryptoManager, this.asToken, this.prisma);
+            
+            // Critical: If the user used `pk;e` on the "last message", we must update the cache 
+            // so subsequent bare commands (like `pk;rp`) don't grab the old unedited text!
+            const newEventIdStr = typeof editResultId === 'string' ? editResultId : editResultId?.event_id;
+            console.log(`[CommandHandler] pk;e resulted in event ID: ${newEventIdStr}, originalId: ${originalId}`);
+            
+            if (newEventIdStr) {
+                const cached = lastMessageCache.get(roomId, system.slug);
+                console.log(`[CommandHandler] Found cache to update:`, !!cached, cached?.rootEventId === originalId);
+                if (cached && cached.rootEventId === originalId) {
+                    lastMessageCache.set(roomId, system.slug, {
+                        ...cached,
+                        latestEventId: newEventIdStr,
+                        latestContent: editPayload
+                    });
+                    console.log(`[CommandHandler] Successfully updated lastMessageCache for pk;e.`);
+                }
+            }
+
         } else if (cmd === "reproxy" || cmd === "rp") {
             const memberSlug = parts[1]?.toLowerCase();
             const member = system.members.find((m: any) => m.slug === memberSlug);
+            console.log(`[CommandHandler] Reproxy targetContent:`, JSON.stringify(targetContent));
             if (member) {
                 if (!latestText) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Could not extract the message text to reproxy. This usually happens if the bot can't decrypt the original message.");

@@ -156,10 +156,12 @@ class MessageQueueService {
                         
                         // ONLY update if it's a brand new message OR if it's an edit to the message we currently think is 'last'
                         if (!isReplacement || (currentLast && currentLast.rootEventId === rootId)) {
+                            const newRootContent = !isReplacement ? payload : (currentLast ? currentLast.rootContent : payload);
                             lastMessageCache.set(item.roomId, item.systemSlug, {
                                 rootEventId: rootId,
                                 latestEventId: result.event_id,
                                 latestContent: payload,
+                                rootContent: newRootContent,
                                 sender: item.ghostIntent.userId
                             });
                         }

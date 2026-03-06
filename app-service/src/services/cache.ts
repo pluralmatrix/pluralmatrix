@@ -73,6 +73,7 @@ interface LastMessage {
     rootEventId: string;
     latestEventId: string;
     latestContent: any;
+    rootContent: any;
     sender: string;
 }
 

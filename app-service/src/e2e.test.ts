@@ -605,10 +605,23 @@ describe('PluralMatrix E2E Roundtrip', () => {
             body: JSON.stringify({ name: "E2E-RPE2", slug: slug2, proxyTags: [{ prefix: "rpe2:", suffix: "" }] })
         });
 
-        // 1. Send initial proxy message
-        console.log(`[E2E-ReproxyEdit] Sending initial proxy message...`);
+        // 0. Send a dummy message to reply to
+        console.log(`[E2E-ReproxyEdit] Sending dummy parent message...`);
+        const parentMsgId = await client.sendText(roomId, "This is the parent message");
+
+        // 1. Send initial proxy message AS A REPLY
+        console.log(`[E2E-ReproxyEdit] Sending initial proxy message as a reply...`);
         const firstProxyPromise = waitForGhostMessage(client, roomId);
-        await client.sendText(roomId, `${proxyPrefix} Original unedited text`);
+        
+        const replyHtml = `<mx-reply><blockquote>Parent</blockquote></mx-reply>${proxyPrefix} Original unedited text`;
+        await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: `> Parent\n\n${proxyPrefix} Original unedited text`,
+            format: "org.matrix.custom.html",
+            formatted_body: replyHtml,
+            "m.relates_to": { "m.in_reply_to": { event_id: parentMsgId } }
+        });
+        
         const firstGhostMsg = await firstProxyPromise;
         const ghostMsgId = firstGhostMsg.event_id;
 
@@ -642,8 +655,14 @@ describe('PluralMatrix E2E Roundtrip', () => {
         expect(reproxyGhostMsg.sender).toContain(slug2);
         
         // Assert that the new reproxied message contains the EDITED text, not the ORIGINAL text
-        expect(reproxyGhostMsg.content.body).toBe("This text is heavily modified!");
-        console.log(`[E2E-ReproxyEdit] SUCCESS: Reproxy correctly grabbed the latest edited text.`);
+        expect(reproxyGhostMsg.content.body).toContain("This text is heavily modified!");
+        
+        // Assert that the reproxy preserved the original reply relation
+        expect(reproxyGhostMsg.content["m.relates_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]["m.in_reply_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]["m.in_reply_to"].event_id).toBe(parentMsgId);
+        
+        console.log(`[E2E-ReproxyEdit] SUCCESS: Reproxy correctly grabbed the latest edited text and preserved reply.`);
     }, 60000);
 
     it('should correctly support latch mode autoproxying', async () => {

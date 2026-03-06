@@ -154,7 +154,7 @@ export class CommandHandler {
             if (cached) {
                 console.log(`[Janitor] Cache hit for system ${systemSlug} in ${roomId}`);
                 return {
-                    event: { sender: cached.sender, event_id: cached.latestEventId },
+                    event: { sender: cached.sender, event_id: cached.latestEventId, content: cached.rootContent },
                     latestContent: cached.latestContent,
                     originalId: cached.rootEventId
                 };
@@ -315,6 +315,7 @@ export class CommandHandler {
         let relatesToForReproxy: any = undefined;
         // The original root event contains the m.in_reply_to block, not necessarily the latest edit
         const originalContent = resolution?.event?.content || (resolution?.event as any)?.content || {};
+        console.log(`[CommandHandler] originalContent extracted from resolution:`, JSON.stringify(originalContent));
         const sourceForRelatesTo = originalContent["m.relates_to"] ? originalContent : targetContent;
 
         if (sourceForRelatesTo["m.relates_to"]) {
@@ -325,6 +326,7 @@ export class CommandHandler {
             }
             if (Object.keys(relatesToForReproxy).length === 0) relatesToForReproxy = undefined;
         }
+        console.log(`[CommandHandler] Final relatesToForReproxy:`, JSON.stringify(relatesToForReproxy));
 
         if (cmd === "edit" || cmd === "e") {
             const newText = parts.slice(1).join(" ");

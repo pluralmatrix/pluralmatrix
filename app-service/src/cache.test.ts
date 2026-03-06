@@ -87,6 +87,7 @@ describe('LastMessageCacheService', () => {
         rootEventId: '$root',
         latestEventId: '$edit2',
         latestContent: { body: 'final text' },
+        rootContent: { body: 'initial text' },
         sender: '@_plural_seraphim_lily:localhost'
     };
 

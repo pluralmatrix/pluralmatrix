@@ -40,7 +40,7 @@ describe('Media Controller', () => {
         const { uploadMedia, downloadMedia } = require('./mediaController');
         
         app = express();
-        app.post('/upload', express.raw({ type: 'image/*', limit: '2mb' }), uploadMedia);
+        app.post('/upload', express.raw({ type: 'image/*', limit: '10mb' }), uploadMedia);
         app.get('/download/:server/:mediaId', downloadMedia);
     });
 

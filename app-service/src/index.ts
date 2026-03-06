@@ -11,7 +11,7 @@ const app = express();
 const PORT = config.appPort;
 
 app.use(cors());
-app.use(bodyParser.json({ limit: '2mb' }));
+app.use(bodyParser.json({ limit: '10mb' }));
 
 // Request Logger
 app.use((req, res, next) => {
@@ -52,7 +52,7 @@ if (require.main === module) {
         // This port is NOT exposed in docker-compose.yml and is only 
         // accessible to Synapse within the Docker network.
         const internalApp = express();
-        internalApp.use(bodyParser.json({ limit: '5mb' }));
+        internalApp.use(bodyParser.json({ limit: '10mb' }));
         
         // Mount at root since gatekeeperRoutes already defines the '/check' path
         internalApp.use('/', gatekeeperRoutes); 

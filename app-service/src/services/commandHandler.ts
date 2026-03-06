@@ -372,13 +372,30 @@ export class CommandHandler {
                 await intent.setDisplayName(finalDisplayName);
                 if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl);
                 
-                const reproxyPayload: any = { msgtype: "m.text", body: latestText };
+                // Base the payload on the actual content to preserve msgtype (like m.image), URLs, info, and hashes
+                const reproxyPayload: any = { ...targetContent };
+                
+                // If it was an edit, we want to reproxy the LATEST text/html, not the original
+                // We've already extracted latestText, latestFormat, and latestFormattedBody
+                if (reproxyPayload["m.new_content"]) {
+                    delete reproxyPayload["m.new_content"];
+                }
+                
+                reproxyPayload.body = latestText;
+                
                 if (latestFormat && latestFormattedBody) {
                     reproxyPayload.format = latestFormat;
                     reproxyPayload.formatted_body = latestFormattedBody;
+                } else {
+                    // Ensure we don't accidentally carry over old formatting if the edit stripped it
+                    delete reproxyPayload.format;
+                    delete reproxyPayload.formatted_body;
                 }
+
                 if (relatesToForReproxy) {
                     reproxyPayload["m.relates_to"] = relatesToForReproxy;
+                } else {
+                    delete reproxyPayload["m.relates_to"];
                 }
                 
                 await sendEncryptedEvent(intent, roomId, "m.room.message", reproxyPayload, this.cryptoManager, this.asToken, this.prisma);

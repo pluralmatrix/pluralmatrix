@@ -326,26 +326,37 @@ export class CommandHandler {
             const newText = parts.slice(1).join(" ");
             if (!newText) return true;
             
-            const editPayload: any = {
-                msgtype: "m.text", body: ` * ${newText}`,
-                "m.new_content": { msgtype: "m.text", body: newText },
-                "m.relates_to": { rel_type: "m.replace", event_id: originalId }
-            };
+            // Base the edit payload on the original target content to preserve attachments
+            const editPayload: any = { ...targetContent };
+            if (editPayload["m.new_content"]) {
+                delete editPayload["m.new_content"];
+            }
 
+            editPayload.body = ` * ${newText}`;
+            
             if (cleanFormattedBody) {
                 editPayload.format = "org.matrix.custom.html";
                 editPayload.formatted_body = ` * ${cleanFormattedBody}`;
-                editPayload["m.new_content"].format = "org.matrix.custom.html";
-                editPayload["m.new_content"].formatted_body = cleanFormattedBody;
+            } else {
+                delete editPayload.format;
+                delete editPayload.formatted_body;
             }
 
-            console.log(`[CommandHandler] Sending edit payload:`, JSON.stringify(editPayload, null, 2));
-            try {
-                const resultId = await sendEncryptedEvent(this.bridge.getIntent(targetSender), roomId, "m.room.message", editPayload, this.cryptoManager, this.asToken, this.prisma);
-                console.log(`[CommandHandler] Edit successfully sent with ID: ${resultId}`);
-            } catch (e: any) {
-                console.error(`[CommandHandler] Failed to send edit:`, e.message || e);
+            // The new_content object must also preserve the attachment metadata
+            const newContent = { ...editPayload };
+            delete newContent["m.relates_to"];
+            newContent.body = newText;
+            if (cleanFormattedBody) {
+                newContent.formatted_body = cleanFormattedBody;
+            } else {
+                delete newContent.format;
+                delete newContent.formatted_body;
             }
+
+            editPayload["m.new_content"] = newContent;
+            editPayload["m.relates_to"] = { rel_type: "m.replace", event_id: originalId };
+
+            await sendEncryptedEvent(this.bridge.getIntent(targetSender), roomId, "m.room.message", editPayload, this.cryptoManager, this.asToken, this.prisma);
         } else if (cmd === "reproxy" || cmd === "rp") {
             const memberSlug = parts[1]?.toLowerCase();
             const member = system.members.find((m: any) => m.slug === memberSlug);

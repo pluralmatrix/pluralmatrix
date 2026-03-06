@@ -435,6 +435,83 @@ describe('PluralMatrix E2E Roundtrip', () => {
         await verifyRedaction(client, roomId, triggerEventId, "Sender");
     }, 60000);
 
+    it('should correctly proxy an edited m.image event and preserve image attachments', async () => {
+        const proxyPrefix = `e2e-edit-img-${Math.random().toString(36).substring(7)}:`;
+        const slug = `e2e-ghost-edit-img-${Date.now()}`;
+        
+        // 1. Create a system member
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-EditImage", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        // 2. Send a mock image payload without a prefix (unproxied original message)
+        const imageText = `Look at this cool image without a prefix!`;
+        const mockImagePayload = {
+            "body": imageText,
+            "info": {
+                "h": 1600,
+                "mimetype": "image/jpeg",
+                "size": 1357434,
+                "w": 1200
+            },
+            "msgtype": "m.image",
+            "url": "mxc://localhost/dummy_image_id_to_edit"
+        };
+
+        console.log(`[E2E-EditImage] Sending original unproxied image...`);
+        const originalEventId = await client.sendMessage(roomId, mockImagePayload);
+
+        // Allow Synapse to fully process and index the original event before editing it
+        // Otherwise, Gatekeeper's getEvent(originalEventId) might return M_NOT_FOUND
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 3. Edit the image to add the proxy prefix
+        console.log(`[E2E-EditImage] Editing image to add proxy prefix...`);
+        const editedText = `${proxyPrefix} Edited caption with prefix!`;
+        const ghostPromise = waitForGhostMessage(client, roomId);
+        
+        const editId = await client.sendMessage(roomId, {
+            msgtype: "m.image", // Client normally sends the same msgtype
+            body: `* ${editedText}`,
+            "m.new_content": {
+                msgtype: "m.image", // Matrix spec says edit should maintain the type
+                body: editedText,
+                url: "mxc://localhost/dummy_image_id_to_edit"
+            },
+            "m.relates_to": {
+                rel_type: "m.replace",
+                event_id: originalEventId
+            }
+        });
+
+        console.log(`[E2E-EditImage] Waiting for ghost response...`);
+        const ghostMsg = await ghostPromise;
+        
+        // Assertions
+        expect(ghostMsg.sender).toContain(slug);
+        
+        // The ghost should send a brand new m.image event, NOT an edit event
+        expect(ghostMsg.content.msgtype).toBe("m.image");
+        expect(ghostMsg.content.url).toBe("mxc://localhost/dummy_image_id_to_edit");
+        expect(ghostMsg.content.info).toBeDefined();
+        expect(ghostMsg.content.info.h).toBe(1600);
+        
+        // The body should be correctly stripped
+        expect(ghostMsg.content.body).toBe("Edited caption with prefix!");
+        
+        // Edit relation should be scrubbed because it's a new proxy message
+        expect(ghostMsg.content["m.new_content"]).toBeUndefined();
+        expect(ghostMsg.content["m.relates_to"]).toBeUndefined();
+
+        console.log(`[E2E-EditImage] SUCCESS: Edited image successfully proxied with preserved attachments.`);
+        await Promise.all([
+            verifyRedaction(client, roomId, originalEventId, "Sender (Original)"),
+            verifyRedaction(client, roomId, editId, "Sender (Edit)")
+        ]);
+    }, 60000);
+
     it('should correctly reproxy a reply and preserve its quotation', async () => {
         const proxyPrefix = `e2e-rp-${Math.random().toString(36).substring(7)}:`;
         const slug1 = `e2e-ghost-rp1-${Date.now()}`;

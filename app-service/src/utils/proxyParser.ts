@@ -102,7 +102,9 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
     finalBody = bodyFallback + finalBody;
 
     // Build the final content object preserving all other keys (file, info, url, etc)
-    const fullContent = { ...content };
+    // If this is an edit, we MUST base the ghost message on the original event's content 
+    // to preserve attachments, because Matrix clients often omit them from the m.replace payload.
+    const fullContent = originalEventContent ? { ...originalEventContent } : { ...content };
     
     // When a proxy is triggered via an edit, the ghost sends a BRAND NEW message, not an edit.
     // We must scrub the edit metadata (m.new_content and m.replace relations) from the payload.

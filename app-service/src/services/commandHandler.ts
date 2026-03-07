@@ -541,7 +541,8 @@ export class CommandHandler {
             const accountMxid = primaryLink ? primaryLink.matrixId : "Unknown Account";
 
             const messageLink = `https://matrix.to/#/${roomId}/${targetEventId}`;
-            const systemUrl = `${config.publicWebUrl}/s/${system.slug}`;
+            const baseUrl = config.publicWebUrl.endsWith('/') ? config.publicWebUrl.slice(0, -1) : config.publicWebUrl;
+            const systemUrl = `${baseUrl}/s/${system.slug}`;
             
             const accountSplit = accountMxid !== "Unknown Account" ? accountMxid.split(':')[0] : "Unknown Account";
             const senderPillUrl = accountMxid !== "Unknown Account" ? `https://matrix.to/#/${accountMxid}` : "#";

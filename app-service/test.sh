@@ -46,6 +46,7 @@ EOF
 fi
 
 npm install --save-dev jest
+
 echo "🏗️  Starting PluralMatrix Backend Tests (Jest)..."
 npx jest --forceExit --detectOpenHandles "$@"
 JEST_EXIT_CODE=$?
@@ -57,8 +58,8 @@ else
 fi
 
 echo ""
-echo "🎭 Starting PluralMatrix UI Tests (Playwright)..."
-npx playwright test
+echo "🎭 Starting PluralMatrix UI Tests (Playwright) via Docker..."
+sudo docker run --rm --network host --ipc=host -v "$(pwd)/..:/app" -w /app/app-service mcr.microsoft.com/playwright:v1.58.2-jammy npx playwright test
 PW_EXIT_CODE=$?
 
 if [ $PW_EXIT_CODE -eq 0 ]; then

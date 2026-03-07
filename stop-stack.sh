@@ -14,6 +14,6 @@ cd "$PROJECT_ROOT"
 echo "🌌 Stopping $PROJECT_NAME Stack via Docker Compose..."
 
 # Gracefully stop the containers and networks managed by compose
-sudo docker-compose down
+sudo docker compose down
 
 echo "✅ All services stopped. Data remains safe in Docker volumes."

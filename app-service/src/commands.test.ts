@@ -239,7 +239,14 @@ describe('CommandHandler Tests', () => {
                 rootEventId: rootId, 
                 latestEventId: rootId, 
                 sender: ghostUserId, 
-                latestContent: { body: "del me" } 
+                latestContent: { body: "del me" },
+                rootContent: { body: "del me" }
+            });
+
+            jest.spyOn(commandHandler, 'getRoomMessages').mockResolvedValue({
+                chunk: [
+                    { event_id: rootId, sender: ghostUserId, type: "m.room.message", content: { body: "del me" } }
+                ]
             });
 
             await commandHandler.executeTargetingCommand(event, "pk;message -delete", mockSystem);
@@ -247,7 +254,7 @@ describe('CommandHandler Tests', () => {
             expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
             // Should invalidate cache
             expect(lastMessageCache.delete).toHaveBeenCalledWith(roomId, "seraphim");
-        });
+            });
 
         it('pk;reproxy should invalidate cache', async () => {
             const roomId = "!room:localhost";

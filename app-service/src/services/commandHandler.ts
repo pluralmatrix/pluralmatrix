@@ -189,6 +189,9 @@ export class CommandHandler {
                 explicitEvent = scrollback.chunk.find((e: any) => e.event_id === rootId || e.id === rootId);
                 if (!explicitEvent) {
                     explicitEvent = await botClient.getEvent(roomId, rootId);
+                    if (explicitEvent && !explicitEvent.event_id) {
+                        explicitEvent.event_id = rootId;
+                    }
                 }
 
                 if (!explicitEvent) return null;
@@ -304,7 +307,12 @@ export class CommandHandler {
             explicitId = parts[1];
         }
 
-        const resolution = await this.resolveGhostMessage(roomId, system?.slug, explicitId);
+        let resolutionSystemSlug = system?.slug;
+        if (cmd === "message" || cmd === "msg") {
+            resolutionSystemSlug = undefined; // Allow finding ANY proxied message
+        }
+
+        const resolution = await this.resolveGhostMessage(roomId, resolutionSystemSlug, explicitId);
         
         let targetId: string | undefined;
         let targetSender: string | undefined;

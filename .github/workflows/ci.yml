@@ -33,13 +33,11 @@ jobs:
       run: ./setup.sh --ci
 
     - name: Expose GitHub Runtime for sccache
-      uses: crazy-max/ghaction-github-runtime@v3
+      uses: crazy-max/ghaction-github-runtime@v4
 
     - name: Boot the PluralMatrix Stack
       env:
-        ACTIONS_CACHE_URL: ${{ env.ACTIONS_CACHE_URL }}
-        ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
-        SCCACHE_GHA_ENABLED: "true"
+        SCCACHE_GHA_ENABLED: "on"
       run: ./restart-stack.sh
 
     - name: Run Synapse Module Unit Tests

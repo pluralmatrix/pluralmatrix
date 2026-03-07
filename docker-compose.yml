@@ -50,7 +50,7 @@ services:
       dockerfile: ./app-service/Dockerfile
       args:
         - VITE_COVERAGE=${COVERAGE:-false}
-        - ACTIONS_CACHE_URL=${ACTIONS_CACHE_URL:-}
+        - ACTIONS_RESULTS_URL=${ACTIONS_RESULTS_URL:-}
         - ACTIONS_RUNTIME_TOKEN=${ACTIONS_RUNTIME_TOKEN:-}
         - SCCACHE_GHA_ENABLED=${SCCACHE_GHA_ENABLED:-}
     container_name: ${PROJECT_NAME:-pluralmatrix}-app-service

@@ -2,6 +2,21 @@
 FROM rust:latest AS rust-builder
 WORKDIR /usr/src/helper
 
+# Install sccache for faster builds
+ARG SCCACHE_VERSION=v0.8.1
+RUN curl -L https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz \
+    | tar xz -C /usr/local/bin --strip-components=1 sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl/sccache && \
+    chmod +x /usr/local/bin/sccache
+
+# Enable GitHub Actions cache if the arguments are provided
+ARG ACTIONS_CACHE_URL
+ARG ACTIONS_RUNTIME_TOKEN
+ARG SCCACHE_GHA_ENABLED
+ENV ACTIONS_CACHE_URL=$ACTIONS_CACHE_URL
+ENV ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN
+ENV SCCACHE_GHA_ENABLED=$SCCACHE_GHA_ENABLED
+ENV RUSTC_WRAPPER=sccache
+
 # 1a. Copy only manifests
 COPY rust-crypto-helper/Cargo.toml rust-crypto-helper/Cargo.lock* ./
 

@@ -32,7 +32,14 @@ jobs:
     - name: Run Setup Wizard (Non-Interactive)
       run: ./setup.sh --ci
 
+    - name: Expose GitHub Runtime for sccache
+      uses: crazy-max/ghaction-github-runtime@v3
+
     - name: Boot the PluralMatrix Stack
+      env:
+        ACTIONS_CACHE_URL: ${{ env.ACTIONS_CACHE_URL }}
+        ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
+        SCCACHE_GHA_ENABLED: "true"
       run: ./restart-stack.sh
 
     - name: Run Synapse Module Unit Tests

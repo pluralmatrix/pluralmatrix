@@ -173,6 +173,70 @@ describe('Bot Event Handler', () => {
         });
     });
 
+    describe('Reaction Handling', () => {
+        beforeEach(() => {
+            (proxyCache.getSystemRules as jest.Mock).mockResolvedValue({
+                slug: "seraphim",
+                id: "sys123",
+                members: []
+            });
+        });
+
+        it('should trigger handleMessageInfoRequest on question mark reaction and redact the reaction', async () => {
+            const event = {
+                type: "m.reaction",
+                room_id: "!room:localhost",
+                sender: "@alice:localhost",
+                event_id: "$react1",
+                content: {
+                    "m.relates_to": {
+                        rel_type: "m.annotation",
+                        event_id: "$target1",
+                        key: "❓"
+                    }
+                }
+            };
+
+            const infoSpy = jest.spyOn(require('./bot').commandHandler, 'handleMessageInfoRequest').mockResolvedValue(undefined);
+            const redactSpy = jest.spyOn(require('./bot').commandHandler, 'safeRedact').mockResolvedValue(undefined);
+
+            await handleEvent(createMockRequest(event), undefined, mockBridge as any, prisma);
+
+            expect(infoSpy).toHaveBeenCalledWith("!room:localhost", "@alice:localhost", "$target1", false);
+            expect(redactSpy).toHaveBeenCalledWith("!room:localhost", "$react1", "Cleanup");
+            
+            infoSpy.mockRestore();
+            redactSpy.mockRestore();
+        });
+
+        it('should trigger handleMessagePingRequest on bell reaction and redact the reaction', async () => {
+            const event = {
+                type: "m.reaction",
+                room_id: "!room:localhost",
+                sender: "@alice:localhost",
+                event_id: "$react2",
+                content: {
+                    "m.relates_to": {
+                        rel_type: "m.annotation",
+                        event_id: "$target2",
+                        key: "🔔"
+                    }
+                }
+            };
+
+            const pingSpy = jest.spyOn(require('./bot').commandHandler, 'handleMessagePingRequest').mockResolvedValue(undefined);
+            const redactSpy = jest.spyOn(require('./bot').commandHandler, 'safeRedact').mockResolvedValue(undefined);
+
+            await handleEvent(createMockRequest(event), undefined, mockBridge as any, prisma);
+
+            expect(pingSpy).toHaveBeenCalledWith("!room:localhost", "@alice:localhost", "$target2");
+            expect(redactSpy).toHaveBeenCalledWith("!room:localhost", "$react2", "Cleanup");
+
+            pingSpy.mockRestore();
+            redactSpy.mockRestore();
+        });
+    });
+
     describe('Power Level Synchronization', () => {
         const botUserId = "@plural_bot:localhost";
         const ownerUserId = "@chiara:localhost";

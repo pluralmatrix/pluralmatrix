@@ -188,7 +188,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
         }
     }
 
-    // Reaction deletion logic
+    // Reaction handling logic
     if (event.type === "m.reaction") {
         const relatesTo = event.content?.["m.relates_to"] as any;
         if (relatesTo?.rel_type === "m.annotation") {
@@ -208,6 +208,14 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
                 } catch (e: any) {
                     console.error(`[Janitor] Error handling reaction deletion:`, e.message);
                 }
+            } else if (reaction?.includes("❓") || reaction?.includes("❔") || reaction?.includes("ℹ️")) {
+                const targetEventId = relatesTo.event_id;
+                await commandHandler.handleMessageInfoRequest(roomId, sender, targetEventId, false);
+                await commandHandler.safeRedact(roomId, eventId, "Cleanup");
+            } else if (reaction?.includes("🔔") || reaction?.includes("🛎") || reaction?.includes("❗️") || reaction?.includes("🏓")) {
+                const targetEventId = relatesTo.event_id;
+                await commandHandler.handleMessagePingRequest(roomId, sender, targetEventId);
+                await commandHandler.safeRedact(roomId, eventId, "Cleanup");
             }
         }
         return;

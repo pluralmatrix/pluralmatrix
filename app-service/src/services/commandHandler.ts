@@ -109,6 +109,21 @@ export class CommandHandler {
         }, this.cryptoManager, this.asToken, this.prisma);
     }
 
+    async sendEncryptedCustomText(intent: Intent, roomId: string, body: string, formattedBody: string, mentions?: any) {
+        const userId = intent.userId;
+        const machine = await this.cryptoManager.getMachine(userId);
+        const { memberId, systemId } = await this.resolveIdentity(userId);
+        await registerDevice(intent, machine.deviceId.toString(), this.prisma, memberId, systemId);
+
+        return sendEncryptedEvent(intent, roomId, "m.room.message", {
+            msgtype: "m.text",
+            body: body,
+            format: "org.matrix.custom.html",
+            formatted_body: formattedBody,
+            "m.mentions": mentions || {}
+        }, this.cryptoManager, this.asToken, this.prisma);
+    }
+
     async safeRedact(roomId: string, eventId: string, reason: string, preferredIntent?: Intent) {
         const intent = preferredIntent || this.bridge.getIntent();
         try {
@@ -143,13 +158,13 @@ export class CommandHandler {
         });
     }
 
-    async resolveGhostMessage(roomId: string, systemSlug: string, explicitTargetId?: string) {
+    async resolveGhostMessage(roomId: string, systemSlug: string | undefined, explicitTargetId?: string) {
         const botClient = this.bridge.getBot().getClient();
         const rustRoomId = new RoomId(roomId);
-        const ghostPrefix = `@_plural_${systemSlug}_`;
+        const ghostPrefix = systemSlug ? `@_plural_${systemSlug}_` : `@_plural_`;
 
         // 1. Fast Path: Cache Lookup
-        if (!explicitTargetId) {
+        if (!explicitTargetId && systemSlug) {
             const cached = lastMessageCache.get(roomId, systemSlug);
             if (cached) {
                 console.log(`[Janitor] Cache hit for system ${systemSlug} in ${roomId}`);
@@ -279,12 +294,17 @@ export class CommandHandler {
         
         const { cmd, parts, cleanFormattedBody } = parsed;
 
-        if (!["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) return false;
+        if (!["edit", "e", "reproxy", "rp", "message", "msg"].includes(cmd)) return false;
 
         const relatesTo = (event.content as any)?.["m.relates_to"];
         const replyTo = relatesTo?.["m.in_reply_to"]?.event_id;
 
-        const resolution = await this.resolveGhostMessage(roomId, system.slug, replyTo);
+        let explicitId = replyTo;
+        if ((cmd === "message" || cmd === "msg") && parts[1] && !parts[1].startsWith("-")) {
+            explicitId = parts[1];
+        }
+
+        const resolution = await this.resolveGhostMessage(roomId, system?.slug, explicitId);
         
         let targetId: string | undefined;
         let targetSender: string | undefined;
@@ -299,8 +319,29 @@ export class CommandHandler {
         }
 
         if (!targetId || !targetSender || !targetContent || !originalId) {
-            if (cmd !== "message" && cmd !== "msg" && cmd !== "m") {
+            if (cmd !== "message" && cmd !== "msg") {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Could not find a proxied message to modify.");
+            } else {
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Could not find that proxied message.");
+            }
+            return true;
+        }
+
+        if (cmd === "message" || cmd === "msg") {
+            const subCmd = parts[1]?.toLowerCase();
+            if (subCmd === "-delete" || subCmd === "-d") {
+                if (system?.slug && targetSender.startsWith(`@_plural_${system.slug}_`)) {
+                    await this.safeRedact(roomId, originalId, "UserRequest", this.bridge.getIntent(targetSender));
+                    
+                    const cached = lastMessageCache.get(roomId, system.slug);
+                    if (cached && (cached.rootEventId === originalId || cached.latestEventId === originalId)) {
+                        lastMessageCache.delete(roomId, system.slug);
+                    }
+                } else {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You can only delete your own proxied messages.");
+                }
+            } else {
+                await this.handleMessageInfoRequest(roomId, event.sender, originalId, true);
             }
             return true;
         }
@@ -439,20 +480,137 @@ export class CommandHandler {
             } else {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${memberSlug}`);
             }
-        } else {
-            const subCmd = parts[1]?.toLowerCase();
-            if (subCmd === "-delete" || subCmd === "-d") {
-                await this.safeRedact(roomId, originalId, "UserRequest", this.bridge.getIntent(targetSender));
-                
-                // Invalidate cache if we just deleted the 'last message'
-                const cached = lastMessageCache.get(roomId, system.slug);
-                if (cached && (cached.rootEventId === originalId || cached.latestEventId === originalId)) {
-                    lastMessageCache.delete(roomId, system.slug);
-                }
-            }
         }
 
         return true;
+    }
+
+    async getOrAutoCreateDMRoom(userId: string): Promise<string | null> {
+        try {
+            const botClient = this.bridge.getBot().getClient();
+            const joinedRooms = await botClient.getJoinedRooms();
+            for (const roomId of joinedRooms) {
+                const members = await botClient.getJoinedRoomMembers(roomId);
+                if (members.length === 2 && members.includes(userId)) {
+                    return roomId;
+                }
+            }
+            
+            const res = await botClient.createRoom({
+                is_direct: true,
+                invite: [userId],
+                preset: "trusted_private_chat",
+                visibility: "private"
+            });
+            return (res as any).room_id || (typeof res === "string" ? res : null);
+        } catch (e) {
+            console.error("Failed to find or create DM room for", userId, e);
+            return null;
+        }
+    }
+
+    async handleMessageInfoRequest(roomId: string, requestingUserId: string, targetEventId: string, replyInRoom: boolean = false) {
+        try {
+            const botClient = this.bridge.getBot().getClient();
+            const targetEvent = await botClient.getEvent(roomId, targetEventId);
+            if (!targetEvent || !targetEvent.sender.startsWith("@_plural_")) {
+                if (replyInRoom) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, "That message does not appear to be a proxied message.");
+                }
+                return;
+            }
+
+            const sender = targetEvent.sender;
+            const match = sender.match(/^@_plural_([^_]+)_(.+):/);
+            if (!match) return;
+
+            const systemSlug = match[1];
+            const memberSlug = match[2];
+
+            const system = await this.prisma.system.findUnique({
+                where: { slug: systemSlug },
+                include: { accountLinks: true, members: true }
+            });
+            if (!system) return;
+
+            const member = system.members.find(m => m.slug === memberSlug);
+            const primaryLink = system.accountLinks.find(l => l.isPrimary) || system.accountLinks[0];
+            
+            const systemName = system.name || "Unknown System";
+            const memberName = member ? (member.displayName || member.name) : "Unknown Member";
+            const accountMxid = primaryLink ? primaryLink.matrixId : "Unknown Account";
+
+            const messageLink = `https://matrix.to/#/${roomId}/${targetEventId}`;
+            const systemUrl = `${config.publicWebUrl}/s/${system.slug}`;
+            
+            const accountSplit = accountMxid !== "Unknown Account" ? accountMxid.split(':')[0] : "Unknown Account";
+            const senderPillUrl = accountMxid !== "Unknown Account" ? `https://matrix.to/#/${accountMxid}` : "#";
+            
+            const body = `**Message Information**\n` +
+                         `* **System:** ${systemName} (\`${system.slug}\`) - [View on Web](${systemUrl})\n` +
+                         `* **Member:** ${memberName} (\`${member?.slug || memberSlug}\`)\n` +
+                         `* **Sender:** <${accountMxid}>\n` +
+                         `* **Message Link:** [Click Here](${messageLink})`;
+                         
+            const formattedBody = `<strong>Message Information</strong><br>` +
+                                  `<ul>` +
+                                  `<li><strong>System:</strong> ${systemName} (<code>${system.slug}</code>) - <a href="${systemUrl}">View on Web</a></li>` +
+                                  `<li><strong>Member:</strong> ${memberName} (<code>${member?.slug || memberSlug}</code>)</li>` +
+                                  `<li><strong>Sender:</strong> <a href="${senderPillUrl}">${accountSplit}</a></li>` +
+                                  `<li><strong>Message Link:</strong> <a href="${messageLink}">Click Here</a></li>` +
+                                  `</ul>`;
+
+            const mentions = {}; // Empty mentions object prevents accidental pinging of the sender
+
+            if (replyInRoom) {
+                await this.sendEncryptedCustomText(this.bridge.getIntent(), roomId, body, formattedBody, mentions);
+            } else {
+                const dmRoomId = await this.getOrAutoCreateDMRoom(requestingUserId);
+                if (dmRoomId) {
+                    await this.sendEncryptedCustomText(this.bridge.getIntent(), dmRoomId, body, formattedBody, mentions);
+                }
+            }
+        } catch (e) {
+            console.error("[CommandHandler] Error fetching message info:", e);
+        }
+    }
+
+    async handleMessagePingRequest(roomId: string, requestingUserId: string, targetEventId: string) {
+        try {
+            const botClient = this.bridge.getBot().getClient();
+            const targetEvent = await botClient.getEvent(roomId, targetEventId);
+            if (!targetEvent || !targetEvent.sender.startsWith("@_plural_")) return;
+
+            const sender = targetEvent.sender;
+            const match = sender.match(/^@_plural_([^_]+)_(.+):/);
+            if (!match) return;
+
+            const systemSlug = match[1];
+
+            const system = await this.prisma.system.findUnique({
+                where: { slug: systemSlug },
+                include: { accountLinks: true }
+            });
+            if (!system) return;
+
+            const primaryLink = system.accountLinks.find(l => l.isPrimary) || system.accountLinks[0];
+            if (!primaryLink) return;
+            
+            const accountMxid = primaryLink.matrixId;
+            const messageLink = `https://matrix.to/#/${roomId}/${targetEventId}`;
+            
+            const reqUserSplit = requestingUserId.split(':')[0];
+            const accountSplit = accountMxid.split(':')[0];
+
+            const body = `🔔 <${requestingUserId}> pinged ${accountMxid} regarding [this message](${messageLink}).`;
+            const formattedBody = `🔔 &lt;<a href="https://matrix.to/#/${requestingUserId}">${reqUserSplit}</a>&gt; pinged <a href="https://matrix.to/#/${accountMxid}">${accountSplit}</a> regarding <a href="${messageLink}">this message</a>.`;
+
+            const mentions = { user_ids: [accountMxid, requestingUserId] };
+
+            await this.sendEncryptedCustomText(this.bridge.getIntent(), roomId, body, formattedBody, mentions);
+        } catch (e) {
+            console.error("[CommandHandler] Error handling message ping:", e);
+        }
     }
 
     async handleCommand(event: any, cmd: string, parts: string[], system: any) {
@@ -507,7 +665,7 @@ ${webUrl}
         }
 
         // For all other commands, if no system exists, prompt them to create one
-        if (!system && cmd !== "link" && cmd !== "system" && cmd !== "s") {
+        if (!system && cmd !== "link" && cmd !== "system" && cmd !== "s" && cmd !== "message" && cmd !== "msg") {
             const webUrl = config.publicWebUrl;
             await this.sendRichText(
                 this.bridge.getIntent(), 
@@ -748,8 +906,8 @@ ${webUrl}
         }
 
         // Targeting Logic
-        if (["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) {
-            if (!system) return true;
+        if (["edit", "e", "reproxy", "rp", "message", "msg"].includes(cmd)) {
+            if (!system && cmd !== "message" && cmd !== "msg") return true;
             const handled = await this.executeTargetingCommand(event, `pk;${cmd} ${parts.slice(1).join(" ")}`, system);
             if (handled) {
                 await this.safeRedact(roomId, event.event_id, "PluralCommand");

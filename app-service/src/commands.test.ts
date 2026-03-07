@@ -285,7 +285,7 @@ describe('CommandHandler Tests', () => {
 
             expect(mockPrisma.system.update).toHaveBeenCalledWith({
                 where: { id: "sys123" },
-                data: { autoproxyId: "mem1" }
+                data: { autoproxyId: "mem1", autoproxyMode: "member" }
             });
         });
     });
@@ -426,6 +426,56 @@ describe('CommandHandler Tests', () => {
 
             expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to pre-emptively promote"), "API Error");
             consoleSpy.mockRestore();
+        });
+    });
+
+    describe('Message Queries', () => {
+        const roomId = "!room:localhost";
+        const senderId = "@alice:localhost";
+        const targetEventId = "$target_event";
+        const systemSlug = "testsys";
+        const memberSlug = "testmem";
+        const ghostId = `@_plural_${systemSlug}_${memberSlug}:localhost`;
+
+        beforeEach(() => {
+            mockBotClient.getEvent.mockResolvedValue({
+                sender: ghostId,
+                type: "m.room.message",
+                content: { body: "hello" }
+            });
+            mockPrisma.system.findUnique.mockResolvedValue({
+                slug: systemSlug,
+                name: "Test System",
+                members: [{ slug: memberSlug, name: "Test Member" }],
+                accountLinks: [{ matrixId: "@owner:localhost", isPrimary: true }]
+            });
+        });
+
+        it('handleMessageInfoRequest should DM the user with info', async () => {
+            const getOrAutoCreateSpy = jest.spyOn(commandHandler, 'getOrAutoCreateDMRoom').mockResolvedValue("!dmroom:localhost");
+            const sendCustomTextSpy = jest.spyOn(commandHandler, 'sendEncryptedCustomText').mockResolvedValue({ event_id: "$new_event" });
+
+            await commandHandler.handleMessageInfoRequest(roomId, senderId, targetEventId, false);
+
+            expect(getOrAutoCreateSpy).toHaveBeenCalledWith(senderId);
+            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), "!dmroom:localhost", expect.stringContaining("Test System"), expect.stringContaining("Test Member"), expect.anything());
+            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), "!dmroom:localhost", expect.stringContaining("Test System"), expect.stringContaining("@owner:localhost"), expect.anything());
+        });
+
+        it('handleMessageInfoRequest should reply in-room if requested', async () => {
+            const sendCustomTextSpy = jest.spyOn(commandHandler, 'sendEncryptedCustomText').mockResolvedValue({ event_id: "$new_event" });
+
+            await commandHandler.handleMessageInfoRequest(roomId, senderId, targetEventId, true);
+
+            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Test System"), expect.stringContaining("Test Member"), expect.anything());
+        });
+
+        it('handleMessagePingRequest should ping the sender in-room', async () => {
+            const sendCustomTextSpy = jest.spyOn(commandHandler, 'sendEncryptedCustomText').mockResolvedValue({ event_id: "$new_event" });
+
+            await commandHandler.handleMessagePingRequest(roomId, senderId, targetEventId);
+
+            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("pinged @owner:localhost regarding"), expect.stringContaining("href=\"https://matrix.to/#/@owner:localhost\""), expect.anything());
         });
     });
 });

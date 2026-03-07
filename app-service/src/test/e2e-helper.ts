@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { MatrixClient, RustSdkCryptoStorageProvider, MemoryStorageProvider } from '@vector-im/matrix-bot-sdk';
+import { MatrixClient, RustSdkCryptoStorageProvider, MemoryStorageProvider, AutojoinRoomsMixin } from '@vector-im/matrix-bot-sdk';
 import * as path from 'path';
 import * as fs from 'fs';
 import { config } from '../config';
@@ -87,7 +87,9 @@ export const getMatrixClient = async (username: string, password: string): Promi
     const baseStorage = new MemoryStorageProvider();
     const crypto = new RustSdkCryptoStorageProvider(storagePath, 0); // 0 = Sqlite (usually)
     
-    return new MatrixClient(hsUrl, data.access_token, baseStorage, crypto);
+    const client = new MatrixClient(hsUrl, data.access_token, baseStorage, crypto);
+    AutojoinRoomsMixin.setupOnClient(client);
+    return client;
 };
 
 export const getPluralMatrixToken = async (mxid: string, password: string): Promise<string> => {

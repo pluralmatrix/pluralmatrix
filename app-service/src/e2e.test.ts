@@ -388,6 +388,67 @@ describe('PluralMatrix E2E Roundtrip', () => {
         console.log(`[E2E-CmdE] SUCCESS: pk;e preserved rich formatting.`);
     }, 60000);
 
+    it('should correctly process the pk;message command and DM the user', async () => {
+        const proxyPrefix = `e2e-cmd-msg-${Math.random().toString(36).substring(7)}:`;
+        const slug = `e2e-ghost-cmd-msg-${Date.now()}`;
+        
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-CmdMsg", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        // 1. Send initial proxy message
+        const ghost1Promise = waitForGhostMessage(client, roomId);
+        const originalText = `${proxyPrefix} This is the original text`;
+        const msgId = await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: originalText,
+        });
+
+        const ghost1 = await ghost1Promise;
+        const ghostMsgId = ghost1.event_id;
+        
+        // Allow cache to sync
+        await new Promise(r => setTimeout(r, 1000));
+
+        // 2. Reply to the ghost message with `pk;message`
+        const cmdText = `pk;message`;
+        
+        // We expect a DM from the bot, not a ghost message in the current room
+        const botDMPromise = new Promise<any>((resolve) => {
+            const onEvent = (roomId: string, event: any) => {
+                if (event.type === "m.room.message" && event.sender === "@plural_bot:localhost") {
+                    if (event.content?.body?.includes("Message Information")) {
+                        client.removeListener("room.message", onEvent);
+                        resolve(event);
+                    }
+                }
+            };
+            // Listen for any message across all rooms the client is in
+            client.on("room.message", onEvent);
+        });
+
+        const cmdEventId = await client.sendMessage(roomId, {
+            msgtype: "m.text",
+            body: cmdText,
+            "m.relates_to": {
+                "m.in_reply_to": { event_id: ghostMsgId }
+            }
+        });
+
+        // Ensure the client processes the invite/join to the new DM room
+        await new Promise(r => setTimeout(r, 2000));
+
+        // 3. Wait for the DM
+        const dmMsg = await botDMPromise;
+        
+        expect(dmMsg.content.body).toContain("Message Information");
+        expect(dmMsg.content.body).toContain("E2E-CmdMsg"); // Member name
+        
+        console.log(`[E2E-CmdMsg] SUCCESS: pk;message successfully DM'd the user.`);
+    }, 60000);
+
     it('should correctly proxy an m.image event containing attached text (like Fluffychat)', async () => {
         const proxyPrefix = `e2e-img-${Math.random().toString(36).substring(7)}:`;
         const slug = `e2e-ghost-img-${Date.now()}`;

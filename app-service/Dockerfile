@@ -19,22 +19,31 @@ ENV RUSTC_WRAPPER=sccache
 
 # Optional but nice for CI reproducibility
 ENV CARGO_INCREMENTAL=0
+ENV SCCACHE_NO_DAEMON=1
+ENV SCCACHE_LOG=debug
+ENV SCCACHE_ERROR_LOG=/tmp/sccache.log
 
 # 1a. Copy only manifests
 COPY rust-crypto-helper/Cargo.toml rust-crypto-helper/Cargo.lock* ./
 
 # 1b. Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release && \
-    sccache --show-stats && \
-    sccache --stop-server || true
+RUN set -eux; \
+    cargo build --release || rc=$?; \
+    sccache --show-stats || true; \
+    echo "==== sccache log ===="; \
+    cat /tmp/sccache.log || true; \
+    exit ${rc:-0}
 RUN rm -f target/release/deps/rust_crypto_helper*
 
 # 1c. Now copy the real source and build
 COPY rust-crypto-helper/src ./src
-RUN cargo build --release && \
-    sccache --show-stats && \
-    sccache --stop-server || true
+RUN set -eux; \
+    cargo build --release || rc=$?; \
+    sccache --show-stats || true; \
+    echo "==== sccache log ===="; \
+    cat /tmp/sccache.log || true; \
+    exit ${rc:-0}
 
 # Stage 2: Node App
 FROM node:22-slim

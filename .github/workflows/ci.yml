@@ -7,6 +7,10 @@ on:
     branches: [ "main" ]
   workflow_dispatch: # Allows manual triggering from the GitHub UI
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

@@ -302,14 +302,15 @@ export class CommandHandler {
         const relatesTo = (event.content as any)?.["m.relates_to"];
         const replyTo = relatesTo?.["m.in_reply_to"]?.event_id;
 
+        const subCmd = parts[1]?.toLowerCase();
         let explicitId = replyTo;
         if ((cmd === "message" || cmd === "msg") && parts[1] && !parts[1].startsWith("-")) {
             explicitId = parts[1];
         }
 
         let resolutionSystemSlug = system?.slug;
-        if (cmd === "message" || cmd === "msg") {
-            resolutionSystemSlug = undefined; // Allow finding ANY proxied message
+        if ((cmd === "message" || cmd === "msg") && subCmd !== "-delete" && subCmd !== "-d") {
+            resolutionSystemSlug = undefined; // Allow finding ANY proxied message for info queries
         }
 
         const resolution = await this.resolveGhostMessage(roomId, resolutionSystemSlug, explicitId);

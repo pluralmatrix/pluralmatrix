@@ -92,7 +92,7 @@ echo " Database and user verified!"
 
 # 3. Bring up the rest of the stack
 echo "📦 Building and starting services..."
-sudo ACTIONS_RESULTS_URL="${ACTIONS_RESULTS_URL:-}" ACTIONS_RUNTIME_TOKEN="${ACTIONS_RUNTIME_TOKEN:-}" SCCACHE_GHA_ENABLED="${SCCACHE_GHA_ENABLED:-}" COVERAGE=$COVERAGE docker compose up -d --build
+sudo ACTIONS_RESULTS_URL="${ACTIONS_RESULTS_URL:-}" ACTIONS_RUNTIME_TOKEN="${ACTIONS_RUNTIME_TOKEN:-}" ACTIONS_CACHE_SERVICE_V2="${ACTIONS_CACHE_SERVICE_V2:-}" SCCACHE_GHA_ENABLED="${SCCACHE_GHA_ENABLED:-}" COVERAGE=$COVERAGE docker compose up -d --build
 
 # 4. Final status
 echo "📊 Current Status:"

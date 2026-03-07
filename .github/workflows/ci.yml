@@ -41,6 +41,9 @@ jobs:
 
     - name: Boot the PluralMatrix Stack
       env:
+        ACTIONS_RESULTS_URL: ${{ env.ACTIONS_RESULTS_URL }}
+        ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
+        ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
         SCCACHE_GHA_ENABLED: "on"
       run: ./restart-stack.sh
 

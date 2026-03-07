@@ -17,17 +17,24 @@ ENV ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN
 ENV SCCACHE_GHA_ENABLED=$SCCACHE_GHA_ENABLED
 ENV RUSTC_WRAPPER=sccache
 
+# Optional but nice for CI reproducibility
+ENV CARGO_INCREMENTAL=0
+
 # 1a. Copy only manifests
 COPY rust-crypto-helper/Cargo.toml rust-crypto-helper/Cargo.lock* ./
 
 # 1b. Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
+RUN cargo build --release && \
+    sccache --show-stats && \
+    sccache --stop-server || true
 RUN rm -f target/release/deps/rust_crypto_helper*
 
 # 1c. Now copy the real source and build
 COPY rust-crypto-helper/src ./src
-RUN cargo build --release
+RUN cargo build --release && \
+    sccache --show-stats && \
+    sccache --stop-server || true
 
 # Stage 2: Node App
 FROM node:22-slim

@@ -98,4 +98,8 @@ sudo COVERAGE=$COVERAGE docker compose up -d --build
 echo "📊 Current Status:"
 sudo docker compose ps
 
-echo "✅ Done! Services are initializing. App service will auto-sync DB schema."
+echo ""
+echo "✅ Done!"
+echo "You can now log in to the Synapse homeserver using any Matrix client at: http://localhost:${SYNAPSE_PORT}"
+echo "Create a room and invite the bot: @plural_bot:${SYNAPSE_DOMAIN}"
+echo "Web UI: ${PUBLIC_WEB_URL}"

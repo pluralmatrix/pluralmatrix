@@ -171,6 +171,91 @@ describe('CommandHandler Tests', () => {
             // Verify crypto getMachine was called for the ghost to send the edit
             expect(mockCryptoManager.getMachine).toHaveBeenCalledWith("@_plural_seraphim_lily:localhost");
         });
+
+        it('should not allow editing another system\'s message', async () => {
+            const roomId = "!room:localhost";
+            const eventId = "$target_event";
+            const foreignGhostId = "@_plural_othersys_member:localhost";
+            
+            mockBotClient.getEvent.mockResolvedValue({
+                event_id: eventId,
+                sender: foreignGhostId,
+                type: "m.room.message",
+                content: { body: "hello from other sys" }
+            });
+
+            const event = { 
+                room_id: roomId, 
+                sender: "@alice:localhost",
+                content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
+            };
+
+            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue(undefined as any);
+
+            await commandHandler.executeTargetingCommand(event, "pk;edit hack", mockSystem);
+
+            expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
+            expect(sendSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Could not find a proxied message to modify"));
+            
+            sendSpy.mockRestore();
+        });
+
+        it('should not allow reproxying another system\'s message', async () => {
+            const roomId = "!room:localhost";
+            const eventId = "$target_event";
+            const foreignGhostId = "@_plural_othersys_member:localhost";
+            
+            mockBotClient.getEvent.mockResolvedValue({
+                event_id: eventId,
+                sender: foreignGhostId,
+                type: "m.room.message",
+                content: { body: "hello from other sys" }
+            });
+
+            const event = { 
+                room_id: roomId, 
+                sender: "@alice:localhost",
+                content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
+            };
+
+            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue(undefined as any);
+
+            await commandHandler.executeTargetingCommand(event, "pk;rp lily", mockSystem);
+
+            expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
+            expect(sendSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Could not find a proxied message to modify"));
+
+            sendSpy.mockRestore();
+        });
+
+        it('should not allow deleting another system\'s message', async () => {
+            const roomId = "!room:localhost";
+            const eventId = "$target_event";
+            const foreignGhostId = "@_plural_othersys_member:localhost";
+            
+            mockBotClient.getEvent.mockResolvedValue({
+                event_id: eventId,
+                sender: foreignGhostId,
+                type: "m.room.message",
+                content: { body: "hello from other sys" }
+            });
+
+            const event = { 
+                room_id: roomId, 
+                sender: "@alice:localhost",
+                content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
+            };
+
+            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue(undefined as any);
+
+            await commandHandler.executeTargetingCommand(event, "pk;message -delete", mockSystem);
+
+            expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
+            // Since resolution is strictly scoped to the user's system for -delete, it fails to find it entirely
+            expect(sendSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Could not find that proxied message"));
+
+            sendSpy.mockRestore();
+        });
     });
 
     describe('handleCommand', () => {

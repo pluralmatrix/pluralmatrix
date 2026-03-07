@@ -235,6 +235,38 @@ describe('Bot Event Handler', () => {
             pingSpy.mockRestore();
             redactSpy.mockRestore();
         });
+
+        it('should not delete another system\'s message on cross reaction', async () => {
+            const event = {
+                type: "m.reaction",
+                room_id: "!room:localhost",
+                sender: "@alice:localhost",
+                event_id: "$react3",
+                content: {
+                    "m.relates_to": {
+                        rel_type: "m.annotation",
+                        event_id: "$target3",
+                        key: "❌"
+                    }
+                }
+            };
+
+            // Mock the target event as belonging to a different system
+            (mockBotClient as any).getEvent.mockResolvedValue({
+                sender: "@_plural_othersys_bob:localhost",
+                event_id: "$target3",
+                type: "m.room.message"
+            });
+
+            const redactSpy = jest.spyOn(require('./bot').commandHandler, 'safeRedact').mockResolvedValue(undefined);
+
+            await handleEvent(createMockRequest(event), undefined, mockBridge as any, prisma);
+
+            // Should not redact the target event or the reaction
+            expect(redactSpy).not.toHaveBeenCalled();
+
+            redactSpy.mockRestore();
+        });
     });
 
     describe('Power Level Synchronization', () => {

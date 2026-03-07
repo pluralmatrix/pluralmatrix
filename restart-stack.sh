@@ -92,7 +92,16 @@ echo " Database and user verified!"
 
 # 3. Bring up the rest of the stack
 echo "📦 Building and starting services..."
-sudo ACTIONS_RESULTS_URL="${ACTIONS_RESULTS_URL:-}" ACTIONS_RUNTIME_TOKEN="${ACTIONS_RUNTIME_TOKEN:-}" ACTIONS_CACHE_SERVICE_V2="${ACTIONS_CACHE_SERVICE_V2:-}" SCCACHE_GHA_ENABLED="${SCCACHE_GHA_ENABLED:-}" COVERAGE=$COVERAGE docker compose up -d --build
+
+# Automatically enable GHA caching if the runtime URLs are injected by GitHub Actions
+# Note: We explicitly exclude ACT=true to prevent breaking local 'act' runs, which inject fake URLs that sccache rejects.
+if [ "$GITHUB_ACTIONS" = "true" ] && [ "$ACT" != "true" ] && { [ -n "$ACTIONS_RESULTS_URL" ] || [ -n "$ACTIONS_CACHE_URL" ]; }; then
+    export SCCACHE_GHA_ENABLED="on"
+else
+    export SCCACHE_GHA_ENABLED="false"
+fi
+
+sudo ACTIONS_RESULTS_URL="${ACTIONS_RESULTS_URL:-}" ACTIONS_RUNTIME_TOKEN="${ACTIONS_RUNTIME_TOKEN:-}" ACTIONS_CACHE_SERVICE_V2="${ACTIONS_CACHE_SERVICE_V2:-}" SCCACHE_GHA_ENABLED="${SCCACHE_GHA_ENABLED:-false}" COVERAGE=$COVERAGE docker compose up -d --build
 
 # 4. Final status
 echo "📊 Current Status:"

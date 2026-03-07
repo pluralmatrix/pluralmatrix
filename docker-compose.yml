@@ -53,7 +53,7 @@ services:
         - ACTIONS_RESULTS_URL=${ACTIONS_RESULTS_URL:-}
         - ACTIONS_RUNTIME_TOKEN=${ACTIONS_RUNTIME_TOKEN:-}
         - ACTIONS_CACHE_SERVICE_V2=${ACTIONS_CACHE_SERVICE_V2:-}
-        - SCCACHE_GHA_ENABLED=${SCCACHE_GHA_ENABLED:-}
+        - SCCACHE_GHA_ENABLED=${SCCACHE_GHA_ENABLED:-false}
     container_name: ${PROJECT_NAME:-pluralmatrix}-app-service
     restart: unless-stopped
     env_file: ./.env

@@ -12,12 +12,14 @@ RUN curl -L https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSI
 ARG ACTIONS_RESULTS_URL
 ARG ACTIONS_RUNTIME_TOKEN
 ARG ACTIONS_CACHE_SERVICE_V2
-ARG SCCACHE_GHA_ENABLED
+ARG SCCACHE_GHA_ENABLED=false
 ENV ACTIONS_RESULTS_URL=$ACTIONS_RESULTS_URL
 ENV ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN
 ENV ACTIONS_CACHE_SERVICE_V2=$ACTIONS_CACHE_SERVICE_V2
 ENV SCCACHE_GHA_ENABLED=$SCCACHE_GHA_ENABLED
 ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/sccache
+ENV SCCACHE_CACHE_SIZE=20G
 
 # Optional but nice for CI reproducibility
 ENV CARGO_INCREMENTAL=0
@@ -27,16 +29,20 @@ COPY rust-crypto-helper/Cargo.toml rust-crypto-helper/Cargo.lock* ./
 
 # 1b. Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release && \
-    sccache --show-stats && \
-    sccache --stop-server || true
+RUN --mount=type=cache,id=pluralmatrix-sccache,target=/sccache \
+    --mount=type=cache,id=pluralmatrix-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=pluralmatrix-cargo-git,target=/usr/local/cargo/git \
+    cargo build --release && \
+    (sccache --show-stats || true)
 RUN rm -f target/release/deps/rust_crypto_helper*
 
 # 1c. Now copy the real source and build
 COPY rust-crypto-helper/src ./src
-RUN cargo build --release && \
-    sccache --show-stats && \
-    sccache --stop-server || true
+RUN --mount=type=cache,id=pluralmatrix-sccache,target=/sccache \
+    --mount=type=cache,id=pluralmatrix-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=pluralmatrix-cargo-git,target=/usr/local/cargo/git \
+    cargo build --release && \
+    (sccache --show-stats || true)
 
 # Stage 2: Node App
 FROM node:22-slim

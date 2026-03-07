@@ -33,21 +33,34 @@ Your Synapse server is rate-limiting the E2E tests. To fix this:
 
 export const registerUser = async (username: string, password: string): Promise<string> => {
     console.log(`[E2E] Registering user ${username} with password ${password}...`);
-    const projectName = config.projectName;
     const domain = config.synapseDomain;
+    const hsUrl = getSynapseUrl();
     try {
-        const cmd = `sudo docker exec ${projectName}-synapse register_new_matrix_user -c /data/homeserver.yaml -u ${username} -p ${password} --admin http://localhost:8008`;
-        execSync(cmd, { stdio: 'pipe' });
+        const response = await fetch(`${hsUrl}/_matrix/client/v3/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: username,
+                password: password,
+                auth: { type: "m.login.dummy" }
+            })
+        });
+
+        const data = await response.json() as any;
+        if (!response.ok) {
+            if (data.errcode === 'M_USER_IN_USE') {
+                console.log(`[E2E] User ${username} already exists.`);
+                return `@${username}:${domain}`;
+            }
+            if (data.errcode === 'M_LIMIT_EXCEEDED') {
+                printRateLimitHelp();
+            }
+            throw new Error(`Registration failed: ${JSON.stringify(data)}`);
+        }
+
         console.log(`[E2E] User ${username} registered successfully.`);
         return `@${username}:${domain}`;
     } catch (e: any) {
-        if (e.message.includes('User ID already taken')) {
-            console.log(`[E2E] User ${username} already exists.`);
-            return `@${username}:${domain}`;
-        }
-        if (e.message.includes('M_LIMIT_EXCEEDED')) {
-            printRateLimitHelp();
-        }
         console.error(`[E2E] Registration failed for ${username}:`, e.message);
         throw e;
     }

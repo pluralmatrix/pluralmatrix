@@ -35,11 +35,6 @@ jobs:
     - name: Boot the PluralMatrix Stack
       run: ./restart-stack.sh
 
-    - name: Install Playwright Browsers
-      run: |
-        cd app-service
-        npx playwright install --with-deps chromium
-
     - name: Run Synapse Module Unit Tests
       run: |
         cd synapse/modules

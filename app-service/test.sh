@@ -17,10 +17,14 @@ else
     echo "⚠️ Relaxing rate limits in homeserver.yaml for tests..."
     if grep -q "^# rc_registration:" "$HOMESERVER_YAML"; then
         sudo sed -i "s/^# rc_registration:/rc_registration:/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#   per_second: 500/  per_second: 500/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#   burst_count: 1000/  burst_count: 1000/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^#   address:/  address:/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^#     per_second: 500/    per_second: 500/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^#     burst_count: 1000/    burst_count: 1000/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^# rc_login:/rc_login:/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#   account:/  account:/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#   failed_attempts:/  failed_attempts:/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^# rc_message:/rc_message:/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^#   per_second: 1000/  per_second: 1000/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^#   burst_count: 10000/  burst_count: 10000/g" "$HOMESERVER_YAML"
@@ -28,11 +32,19 @@ else
         cat <<EOF | sudo tee -a "$HOMESERVER_YAML" > /dev/null
 
 rc_registration:
+  per_second: 500
+  burst_count: 1000
   address:
     per_second: 500
     burst_count: 1000
 rc_login:
   address:
+    per_second: 500
+    burst_count: 1000
+  account:
+    per_second: 500
+    burst_count: 1000
+  failed_attempts:
     per_second: 500
     burst_count: 1000
 rc_message:
@@ -71,10 +83,14 @@ fi
 if [ "$RATE_LIMITS_RELAXED" = false ]; then
     echo "♻️ Restoring rate limits in homeserver.yaml..."
     sudo sed -i "s/^rc_registration:/# rc_registration:/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^  per_second: 500/#   per_second: 500/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^  burst_count: 1000/#   burst_count: 1000/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^  address:/#   address:/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^    per_second: 500/#     per_second: 500/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^    burst_count: 1000/#     burst_count: 1000/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^rc_login:/# rc_login:/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^  account:/#   account:/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^  failed_attempts:/#   failed_attempts:/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^rc_message:/# rc_message:/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^  per_second: 1000/#   per_second: 1000/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^  burst_count: 10000/#   burst_count: 10000/g" "$HOMESERVER_YAML"

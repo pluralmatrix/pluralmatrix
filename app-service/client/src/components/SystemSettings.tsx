@@ -165,18 +165,30 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                         </h3>
 
                         <div className="flex items-start space-x-6">
-                            <div className="relative group w-24 h-24 rounded-2xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner flex-shrink-0">
-                                {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
-                                    <img src={getAvatarUrl(formData.avatarUrl)!} className="w-full h-full object-cover" alt="System Avatar" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-matrix-muted">
-                                        <Camera size={32} />
-                                    </div>
+                            <div className="relative group w-24 h-24 flex-shrink-0">
+                                <div className="w-full h-full rounded-2xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner relative">
+                                    {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
+                                        <img src={getAvatarUrl(formData.avatarUrl)!} className="w-full h-full object-cover" alt="System Avatar" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-matrix-muted">
+                                            <Camera size={32} />
+                                        </div>
+                                    )}
+                                    <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                        <Camera className="text-white" size={20} />
+                                        <input data-testid="system-avatar-upload" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
+                                    </label>
+                                </div>
+                                {formData.avatarUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, avatarUrl: '' })}
+                                        className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-0 group-hover:opacity-100"
+                                        title="Clear System Avatar"
+                                    >
+                                        <X size={12} />
+                                    </button>
                                 )}
-                                <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl">
-                                    <Camera className="text-white" size={20} />
-                                    <input data-testid="system-avatar-upload" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
-                                </label>
                             </div>
                             
                             <div className="flex-1 space-y-4">

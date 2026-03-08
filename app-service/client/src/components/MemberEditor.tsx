@@ -131,8 +131,8 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                     <div className="p-8 space-y-8 text-slate-200">
                         {/* Avatar & Basic Info */}
                         <div className="flex flex-col md:flex-row gap-8 items-start">
-                            <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32">
-                                <div className="relative group w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
+                            <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
+                                <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
                                     {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
                                         <img src={getAvatarUrl(formData.avatarUrl)!} className="w-full h-full object-cover" alt="Avatar" />
                                     ) : (
@@ -141,12 +141,22 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                         </div>
                                     )}
                                     {!isReadOnly && (
-                                        <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-3xl">
+                                        <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                             <Camera className="text-white" size={24} />
                                             <input data-testid="avatar-upload-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
                                         </label>
                                     )}
                                 </div>
+                                {!isReadOnly && formData.avatarUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, avatarUrl: '' })}
+                                        className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-0 group-hover:opacity-100"
+                                        title="Clear Avatar"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
 
                                 {/* Theme Color */}
                                 <div className="space-y-1">

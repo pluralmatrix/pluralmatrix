@@ -1,5 +1,6 @@
 import { test, expect } from './coverage';
 import { registerUser, getMatrixClient, deactivateUser, cleanupCryptoStorage } from '../e2e-helper';
+import * as path from 'path';
 
 test.describe('Web UI Groups Flow', () => {
     let username: string;
@@ -88,14 +89,59 @@ test.describe('Web UI Groups Flow', () => {
         await expect(page.locator('h2:has-text("Edit System Member")')).not.toBeVisible();
 
         // Verify member now has both group tags
-        await expect(page.getByTestId('member-tag-cool-group')).toBeVisible();
-        await expect(page.getByTestId('member-tag-another-group')).toBeVisible();
+        await expect(page.locator('span:has-text("Cool Group")').first()).toBeVisible();
+        await expect(page.locator('span:has-text("Another Group")').first()).toBeVisible();
 
-        // Step 5: Edit Group
+        // Step 5: Test Member Avatar Upload and Clear
+        await page.hover('h3:has-text("Lily")');
+        await page.getByTestId('edit-member-lily').click();
+        await expect(page.locator('h2:has-text("Edit System Member")')).toBeVisible();
+
+        const memberAvatarUploadPromise = page.waitForResponse(response => 
+            response.url().includes('/api/media/upload') && response.status() === 200
+        );
+        await page.locator('[data-testid="avatar-upload-input"]').setInputFiles(path.resolve(__dirname, 'fixtures/dummy.png'));
+        await memberAvatarUploadPromise;
+        await expect(page.locator('img[alt="Avatar"]')).toBeVisible();
+
+        await page.getByTestId('save-member-button').click();
+        await page.waitForTimeout(500);
+
+        await page.hover('h3:has-text("Lily")');
+        await page.getByTestId('edit-member-lily').click();
+        await expect(page.locator('img[alt="Avatar"]')).toBeVisible();
+        
+        await page.locator('button[title="Clear Avatar"]').click();
+        await expect(page.locator('img[alt="Avatar"]')).not.toBeVisible();
+        
+        await page.getByTestId('save-member-button').click();
+        await page.waitForTimeout(500);
+
+        // Step 6: Test Group Icon Upload and Clear
         await page.click('button:has-text("Groups (2)")');
         await page.hover('h3:has-text("Cool Group")');
-        
         await page.locator('div.group', { hasText: 'Cool Group' }).locator('button[title="Edit Group"]').click();
+
+        // Upload icon
+        const groupIconUploadPromise = page.waitForResponse(response => 
+            response.url().includes('/api/media/upload') && response.status() === 200
+        );
+        await page.locator('[data-testid="icon-upload-input"]').setInputFiles(path.resolve(__dirname, 'fixtures/dummy.png'));
+        await groupIconUploadPromise;
+        await expect(page.locator('img[alt="Icon"]')).toBeVisible();
+
+        // Save
+        await page.click('button:has-text("Save Group")');
+        await page.waitForTimeout(500);
+
+        // Edit again and clear icon
+        await page.hover('h3:has-text("Cool Group")');
+        await page.locator('div.group', { hasText: 'Cool Group' }).locator('button[title="Edit Group"]').click();
+
+        await expect(page.locator('img[alt="Icon"]')).toBeVisible();
+        await page.locator('button[title="Clear Icon"]').click();
+        await expect(page.locator('img[alt="Icon"]')).not.toBeVisible();
+
         await page.fill('input[name="group-name"]', 'Super Cool Group');
         await page.click('button:has-text("Save Group")');
         await expect(page.locator('h3:has-text("Super Cool Group")')).toBeVisible();

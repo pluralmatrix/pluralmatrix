@@ -104,6 +104,18 @@ test.describe('System Settings and Member Management', () => {
         await page.getByTestId('save-system-settings-button').click();
         await updateSystemPromise;
 
+        // Re-open settings and test clearing the avatar
+        await page.getByTestId('system-settings-button').click();
+        await expect(page.getByRole('heading', { name: 'System Settings' })).toBeVisible();
+
+        await expect(page.locator('img[alt="System Avatar"]')).toBeVisible();
+        await page.locator('button[title="Clear System Avatar"]').click();
+        await expect(page.locator('img[alt="System Avatar"]')).not.toBeVisible();
+
+        const updateSystemClearPromise = page.waitForResponse(response => response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200);
+        await page.getByTestId('save-system-settings-button').click();
+        await updateSystemClearPromise;
+
         // Re-open settings to continue with links
         await page.getByTestId('system-settings-button').click();
         await expect(page.getByRole('heading', { name: 'System Settings' })).toBeVisible();

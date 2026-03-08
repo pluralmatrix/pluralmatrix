@@ -111,22 +111,6 @@ sed -i "s/gatekeeper_secret: \"REPLACE_ME\"/gatekeeper_secret: \"$GATEKEEPER_SEC
 sed -i "s/as_token: \"secret_token\"/as_token: \"$AS_TOKEN\"/" synapse/config/homeserver.yaml
 sed -i "s/app-service:9000/${PROJECT_NAME}-app-service:$APP_PORT/" synapse/config/homeserver.yaml
 
-if [ "$CI_MODE" = true ]; then
-    echo "⚡ Relaxing rate limits for CI..."
-    sed -i "s/# rc_registration:/rc_registration:/" synapse/config/homeserver.yaml
-    sed -i "s/#   per_second: 500/  per_second: 500/g" synapse/config/homeserver.yaml
-    sed -i "s/#   burst_count: 1000/  burst_count: 1000/g" synapse/config/homeserver.yaml
-    sed -i "s/#   address:/  address:/g" synapse/config/homeserver.yaml
-    sed -i "s/#     per_second: 500/    per_second: 500/g" synapse/config/homeserver.yaml
-    sed -i "s/#     burst_count: 1000/    burst_count: 1000/g" synapse/config/homeserver.yaml
-    sed -i "s/# rc_login:/rc_login:/" synapse/config/homeserver.yaml
-    sed -i "s/#   account:/  account:/g" synapse/config/homeserver.yaml
-    sed -i "s/#   failed_attempts:/  failed_attempts:/g" synapse/config/homeserver.yaml
-    sed -i "s/# rc_message:/rc_message:/" synapse/config/homeserver.yaml
-    sed -i "s/#   per_second: 1000/  per_second: 1000/" synapse/config/homeserver.yaml
-    sed -i "s/#   burst_count: 10000/  burst_count: 10000/" synapse/config/homeserver.yaml
-fi
-
 # 4. Configure App Service Registration
 echo "🔑 Configuring app-service-registration.yaml..."
 cp synapse/config/app-service-registration.yaml.example synapse/config/app-service-registration.yaml

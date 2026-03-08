@@ -1,0 +1,14 @@
+services:
+  synapse:
+    volumes:
+      - ./synapse/config/homeserver.test-overrides.yaml:/data/homeserver.test-overrides.yaml:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "🛠️  Preparing combined configuration..."
+        cat /data/homeserver.yaml > /data/homeserver.combined.yaml
+        echo "" >> /data/homeserver.combined.yaml
+        cat /data/homeserver.test-overrides.yaml >> /data/homeserver.combined.yaml
+        echo "✅ Combined config created at /data/homeserver.combined.yaml"
+        grep "rc_registration" /data/homeserver.combined.yaml -A 5 || echo "❌ No rate limits found in combined config!"
+        exec /start.py run --config-path /data/homeserver.combined.yaml

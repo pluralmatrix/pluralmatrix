@@ -7,55 +7,23 @@ if [ -f ../.env ]; then
     export $(grep -v '^#' ../.env | xargs 2>/dev/null)
 fi
 PROJECT_NAME=${PROJECT_NAME:-pluralmatrix}
-HOMESERVER_YAML="../synapse/config/homeserver.yaml"
-RATE_LIMITS_RELAXED=false
 
-# Check if rate limits are already relaxed
-if grep -q "^rc_registration:" "$HOMESERVER_YAML"; then
-    RATE_LIMITS_RELAXED=true
-else
-    echo "⚠️ Relaxing rate limits in homeserver.yaml for tests..."
-    if grep -q "^# rc_registration:" "$HOMESERVER_YAML"; then
-        sudo sed -i "s/^# rc_registration:/rc_registration:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   per_second: 500/  per_second: 500/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   burst_count: 1000/  burst_count: 1000/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   address:/  address:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#     per_second: 500/    per_second: 500/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#     burst_count: 1000/    burst_count: 1000/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^# rc_login:/rc_login:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   account:/  account:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   failed_attempts:/  failed_attempts:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^# rc_message:/rc_message:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   per_second: 1000/  per_second: 1000/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   burst_count: 10000/  burst_count: 10000/g" "$HOMESERVER_YAML"
-    else
-        cat <<EOF | sudo tee -a "$HOMESERVER_YAML" > /dev/null
+echo "🛡️  Fixing Synapse permissions..."
+S_UID=${SYNAPSE_UID:-991}
+S_GID=${SYNAPSE_GID:-991}
+sudo chown -R $S_UID:$S_GID ../synapse/config 2>/dev/null || true
 
-rc_registration:
-  per_second: 500
-  burst_count: 1000
-  address:
-    per_second: 500
-    burst_count: 1000
-rc_login:
-  address:
-    per_second: 500
-    burst_count: 1000
-  account:
-    per_second: 500
-    burst_count: 1000
-  failed_attempts:
-    per_second: 500
-    burst_count: 1000
-rc_message:
-  per_second: 1000
-  burst_count: 10000
-EOF
-    fi
-    echo "🔄 Restarting Synapse container to apply rate limits..."
-    sudo docker restart "${PROJECT_NAME}-synapse" > /dev/null
-    sleep 5
-fi
+echo "⚠️  Restarting Synapse with relaxed rate limits for E2E testing..."
+# Use the E2E override to mount relaxed limits and concat config paths
+sudo docker compose -f ../docker-compose.yml -f ../docker-compose.e2e.yml up -d synapse
+# Wait for synapse to be healthy
+echo "⏳ Waiting for Synapse to settle..."
+# Use docker compose healthcheck
+until [ "$(sudo docker inspect -f '{{.State.Health.Status}}' ${PROJECT_NAME}-synapse)" == "healthy" ]; do
+  echo -n "."
+  sleep 2
+done
+echo " Synapse is healthy!"
 
 npm install --save-dev jest
 
@@ -80,24 +48,10 @@ else
     echo "❌ UI tests failed."
 fi
 
-if [ "$RATE_LIMITS_RELAXED" = false ]; then
-    echo "♻️ Restoring rate limits in homeserver.yaml..."
-    sudo sed -i "s/^rc_registration:/# rc_registration:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  per_second: 500/#   per_second: 500/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  burst_count: 1000/#   burst_count: 1000/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  address:/#   address:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^    per_second: 500/#     per_second: 500/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^    burst_count: 1000/#     burst_count: 1000/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^rc_login:/# rc_login:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  account:/#   account:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  failed_attempts:/#   failed_attempts:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^rc_message:/# rc_message:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  per_second: 1000/#   per_second: 1000/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  burst_count: 10000/#   burst_count: 10000/g" "$HOMESERVER_YAML"
-    echo "🔄 Restarting Synapse container to restore rate limits..."
-    sudo docker restart "${PROJECT_NAME}-synapse" > /dev/null
-    sleep 5
-fi
+echo "♻️  Restoring normal rate limits..."
+# Start synapse without the override to restore normal command and volumes
+sudo docker compose -f ../docker-compose.yml up -d synapse
+sleep 5
 
 # Final verdict
 if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ]; then

@@ -16,6 +16,7 @@ app-service/client/dist/
 # Synapse & Matrix (Secrets and DBs)
 .env
 synapse/config/homeserver.yaml
+synapse/config/homeserver.combined.yaml
 synapse/config/homeserver.db
 synapse/config/homeserver.db-shm
 synapse/config/homeserver.db-wal

@@ -46,27 +46,6 @@ enable_registration_without_verification: true
 app_service_config_files:
   - /data/app-service-registration.yaml
 
-# Relaxed rate limits for E2E testing (Uncomment if tests fail with M_LIMIT_EXCEEDED)
-# rc_registration:
-#   per_second: 500
-#   burst_count: 1000
-#   address:
-#     per_second: 500
-#     burst_count: 1000
-# rc_login:
-#   address:
-#     per_second: 500
-#     burst_count: 1000
-#   account:
-#     per_second: 500
-#     burst_count: 1000
-#   failed_attempts:
-#     per_second: 500
-#     burst_count: 1000
-# rc_message:
-#   per_second: 1000
-#   burst_count: 10000
-
 # Modules
 modules:
   - module: plural_gatekeeper.PluralGatekeeper

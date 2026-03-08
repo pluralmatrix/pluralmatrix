@@ -1,0 +1,19 @@
+# Relaxed rate limits for E2E testing
+rc_registration:
+  per_second: 500
+  burst_count: 1000
+
+rc_login:
+  address:
+    per_second: 500
+    burst_count: 1000
+  account:
+    per_second: 500
+    burst_count: 1000
+  failed_attempts:
+    per_second: 500
+    burst_count: 1000
+
+rc_message:
+  per_second: 1000
+  burst_count: 10000

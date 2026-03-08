@@ -48,7 +48,7 @@ fi
 npm install --save-dev jest
 
 echo "🏗️  Starting PluralMatrix Backend Tests (Jest)..."
-npx jest --forceExit --detectOpenHandles "$@"
+npx jest --forceExit "$@"
 JEST_EXIT_CODE=$?
 
 if [ $JEST_EXIT_CODE -eq 0 ]; then

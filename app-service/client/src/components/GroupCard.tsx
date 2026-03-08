@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit2, Trash2, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getAvatarUrl } from '../utils/matrix';
 
 interface GroupCardProps {
     group: any;
@@ -23,7 +24,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, isReadOnly, onEdit, onDele
                 <div className="relative">
                     {group.icon ? (
                         <img 
-                            src={group.icon.replace('mxc://', '/_matrix/media/v3/download/')} 
+                            src={getAvatarUrl(group.icon)!} 
                             alt={group.name} 
                             className="w-16 h-16 rounded-xl object-cover shadow-md"
                         />

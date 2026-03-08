@@ -18,26 +18,26 @@ else
     if grep -q "^# rc_registration:" "$HOMESERVER_YAML"; then
         sudo sed -i "s/^# rc_registration:/rc_registration:/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^#   address:/  address:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#     per_second: 50/    per_second: 50/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#     burst_count: 100/    burst_count: 100/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#     per_second: 500/    per_second: 500/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#     burst_count: 1000/    burst_count: 1000/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^# rc_login:/rc_login:/g" "$HOMESERVER_YAML"
         sudo sed -i "s/^# rc_message:/rc_message:/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   per_second: 100/  per_second: 100/g" "$HOMESERVER_YAML"
-        sudo sed -i "s/^#   burst_count: 1000/  burst_count: 1000/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#   per_second: 1000/  per_second: 1000/g" "$HOMESERVER_YAML"
+        sudo sed -i "s/^#   burst_count: 10000/  burst_count: 10000/g" "$HOMESERVER_YAML"
     else
         cat <<EOF | sudo tee -a "$HOMESERVER_YAML" > /dev/null
 
 rc_registration:
   address:
-    per_second: 50
-    burst_count: 100
+    per_second: 500
+    burst_count: 1000
 rc_login:
   address:
-    per_second: 50
-    burst_count: 100
+    per_second: 500
+    burst_count: 1000
 rc_message:
-  per_second: 100
-  burst_count: 1000
+  per_second: 1000
+  burst_count: 10000
 EOF
     fi
     echo "🔄 Restarting Synapse container to apply rate limits..."
@@ -72,12 +72,12 @@ if [ "$RATE_LIMITS_RELAXED" = false ]; then
     echo "♻️ Restoring rate limits in homeserver.yaml..."
     sudo sed -i "s/^rc_registration:/# rc_registration:/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^  address:/#   address:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^    per_second: 50/#     per_second: 50/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^    burst_count: 100/#     burst_count: 100/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^    per_second: 500/#     per_second: 500/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^    burst_count: 1000/#     burst_count: 1000/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^rc_login:/# rc_login:/g" "$HOMESERVER_YAML"
     sudo sed -i "s/^rc_message:/# rc_message:/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  per_second: 100/#   per_second: 100/g" "$HOMESERVER_YAML"
-    sudo sed -i "s/^  burst_count: 1000/#   burst_count: 1000/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^  per_second: 1000/#   per_second: 1000/g" "$HOMESERVER_YAML"
+    sudo sed -i "s/^  burst_count: 10000/#   burst_count: 10000/g" "$HOMESERVER_YAML"
     echo "🔄 Restarting Synapse container to restore rate limits..."
     sudo docker restart "${PROJECT_NAME}-synapse" > /dev/null
     sleep 5

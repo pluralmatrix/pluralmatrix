@@ -115,12 +115,12 @@ if [ "$CI_MODE" = true ]; then
     echo "⚡ Relaxing rate limits for CI..."
     sed -i "s/# rc_registration:/rc_registration:/" synapse/config/homeserver.yaml
     sed -i "s/#   address:/  address:/g" synapse/config/homeserver.yaml
-    sed -i "s/#     per_second: 50/    per_second: 50/g" synapse/config/homeserver.yaml
-    sed -i "s/#     burst_count: 100/    burst_count: 100/g" synapse/config/homeserver.yaml
+    sed -i "s/#     per_second: 500/    per_second: 500/g" synapse/config/homeserver.yaml
+    sed -i "s/#     burst_count: 1000/    burst_count: 1000/g" synapse/config/homeserver.yaml
     sed -i "s/# rc_login:/rc_login:/" synapse/config/homeserver.yaml
     sed -i "s/# rc_message:/rc_message:/" synapse/config/homeserver.yaml
-    sed -i "s/#   per_second: 100/  per_second: 100/" synapse/config/homeserver.yaml
-    sed -i "s/#   burst_count: 1000/  burst_count: 1000/" synapse/config/homeserver.yaml
+    sed -i "s/#   per_second: 1000/  per_second: 1000/" synapse/config/homeserver.yaml
+    sed -i "s/#   burst_count: 10000/  burst_count: 10000/" synapse/config/homeserver.yaml
 fi
 
 # 4. Configure App Service Registration

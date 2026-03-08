@@ -49,15 +49,15 @@ app_service_config_files:
 # Relaxed rate limits for E2E testing (Uncomment if tests fail with M_LIMIT_EXCEEDED)
 # rc_registration:
 #   address:
-#     per_second: 50
-#     burst_count: 100
+#     per_second: 500
+#     burst_count: 1000
 # rc_login:
 #   address:
-#     per_second: 50
-#     burst_count: 100
+#     per_second: 500
+#     burst_count: 1000
 # rc_message:
-#   per_second: 100
-#   burst_count: 1000
+#   per_second: 1000
+#   burst_count: 10000
 
 # Modules
 modules:

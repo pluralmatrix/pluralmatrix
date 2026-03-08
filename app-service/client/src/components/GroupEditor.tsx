@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, Save, AlertCircle } from 'lucide-react';
-import { groupService } from '../services/api';
+import { X, Save, AlertCircle, Camera } from 'lucide-react';
+import { groupService, memberService } from '../services/api';
+import { getAvatarUrl } from '../utils/matrix';
+import { validateAvatarImage } from '../utils/imageValidation';
 
 interface GroupEditorProps {
     group?: any;
@@ -24,6 +26,30 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
         color: group?.color || '',
         members: group?.members?.map((m: any) => typeof m === 'object' ? m.id : m) || []
     });
+
+    const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            setSaving(true);
+            const validation = await validateAvatarImage(file);
+            if (!validation.valid) {
+                alert(validation.error);
+                setSaving(false);
+                return;
+            }
+
+            try {
+                // Using memberService.uploadMedia here since media upload is generic 
+                const res = await memberService.uploadMedia(file);
+                setFormData({ ...formData, icon: res.data.content_uri });
+            } catch (err) {
+                alert('Icon upload failed.');
+            } finally {
+                setSaving(false);
+            }
+        }
+    };
 
     const handleToggleMember = (memberId: string) => {
         setFormData(prev => {
@@ -109,77 +135,92 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                 )}
 
                 <form onSubmit={handleSave} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-bold mb-2">Internal Name <span className="text-red-400">*</span></label>
-                            <input
-                                required
-                                name="group-name"
-                                className="matrix-input w-full"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold mb-2">Display Name</label>
-                            <input
-                                name="group-display-name"
-                                className="matrix-input w-full"
-                                value={formData.displayName}
-                                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-bold mb-2">Slug (ID) <span className="text-matrix-muted font-normal ml-2">Optional</span></label>
-                            <input
-                                name="group-slug"
-                                className="matrix-input w-full"
-                                value={formData.slug}
-                                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                placeholder={formData.name ? formData.name.toLowerCase().replace(/[^a-z0-9-]/g, '') : ''}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold mb-2">Color (Hex) <span className="text-matrix-muted font-normal ml-2">Optional</span></label>
-                            <div className="flex items-center space-x-2">
-                                <span className="text-matrix-muted font-mono">#</span>
-                                <input
-                                    name="group-color"
-                                    className="matrix-input flex-1 font-mono uppercase"
-                                    value={formData.color}
-                                    maxLength={6}
-                                    placeholder="8F00FF"
-                                    onChange={(e) => setFormData({ ...formData, color: e.target.value.replace(/[^0-9A-Fa-f]/g, '') })}
-                                />
-                                {formData.color && formData.color.length === 6 && (
-                                    <div className="w-8 h-8 rounded-lg shadow-inner" style={{ backgroundColor: `#${formData.color}` }} />
+                    <div className="flex flex-col md:flex-row gap-8 items-start">
+                        <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32">
+                            <div className="relative group w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
+                                {formData.icon && getAvatarUrl(formData.icon) ? (
+                                    <img src={getAvatarUrl(formData.icon)!} className="w-full h-full object-cover" alt="Icon" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-matrix-muted">
+                                        <Camera size={40} />
+                                    </div>
+                                )}
+                                {!isReadOnly && (
+                                    <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-3xl">
+                                        <Camera className="text-white" size={24} />
+                                        <input data-testid="icon-upload-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleIconUpload} className="hidden" />
+                                    </label>
                                 )}
                             </div>
+
+                            {/* Theme Color */}
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-matrix-muted uppercase tracking-widest">Theme Color</label>
+                                <div className="flex items-center space-x-2">
+                                    {isReadOnly ? (
+                                        <div 
+                                            className="w-8 h-8 rounded-lg border border-white/10 shadow-inner"
+                                            style={{ backgroundColor: `#${formData.color.replace('#', '')}` }}
+                                        />
+                                    ) : (
+                                        <input 
+                                            type="color" 
+                                            value={`#${formData.color.replace('#', '')}`}
+                                            onChange={(e) => setFormData({ ...formData, color: e.target.value.replace('#', '') })}
+                                            className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border border-white/10 overflow-hidden shadow-inner p-0"
+                                        />
+                                    )}
+                                    <span className="text-xs font-mono text-slate-400">#{formData.color.toUpperCase()}</span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-bold mb-2">Description</label>
-                        <textarea
-                            name="group-description"
-                            className="matrix-input w-full h-24 resize-none"
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        />
-                    </div>
+                        <div className="flex-1 space-y-4 w-full">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider mb-1">Internal Name <span className="text-red-400">*</span></label>
+                                    <input
+                                        required
+                                        name="group-name"
+                                        className="matrix-input w-full"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider mb-1">Display Name</label>
+                                    <input
+                                        name="group-display-name"
+                                        className="matrix-input w-full"
+                                        value={formData.displayName}
+                                        onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                                    />
+                                </div>
+                            </div>
 
-                    <div>
-                        <label className="block text-sm font-bold mb-2">Icon URL (mxc://)</label>
-                        <input
-                            name="group-icon"
-                            className="matrix-input w-full"
-                            value={formData.icon}
-                            onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                            placeholder="mxc://server.name/abc123def456"
-                        />
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider mb-1">Slug (ID) <span className="font-normal opacity-50 ml-1">Optional</span></label>
+                                    <input
+                                        name="group-slug"
+                                        className="matrix-input w-full"
+                                        value={formData.slug}
+                                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                                        placeholder={formData.name ? formData.name.toLowerCase().replace(/[^a-z0-9-]/g, '') : ''}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider mb-1">Description</label>
+                                <textarea
+                                    name="group-description"
+                                    className="matrix-input w-full h-24 resize-none"
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -188,10 +229,12 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                             <div className="flex flex-wrap gap-2 bg-matrix-dark/30 p-4 rounded-xl border border-white/5">
                                 {systemMembers.sort((a, b) => a.name.localeCompare(b.name)).map(member => {
                                     const isSelected = formData.members.includes(member.id);
+                                    const testId = member.name ? `toggle-member-${member.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : '';
                                     return (
                                         <button
                                             key={member.id}
                                             type="button"
+                                            data-testid={testId}
                                             onClick={() => handleToggleMember(member.id)}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
                                                 isSelected 

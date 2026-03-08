@@ -64,6 +64,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, isReadOnly, onEdit, onDele
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-20">
                     <button 
                         onClick={() => onEdit?.(group)}
+                        data-testid={`edit-group-${group.slug}`}
                         className="p-1.5 bg-matrix-dark hover:bg-matrix-primary text-white rounded-md shadow-lg transition-colors"
                         title="Edit Group"
                     >
@@ -71,6 +72,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, isReadOnly, onEdit, onDele
                     </button>
                     <button 
                         onClick={() => onDelete?.(group.id)}
+                        data-testid={`delete-group-${group.slug}`}
                         className="p-1.5 bg-matrix-dark hover:bg-red-500 text-white rounded-md shadow-lg transition-colors"
                         title="Delete Group"
                     >

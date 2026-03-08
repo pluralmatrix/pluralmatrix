@@ -51,6 +51,8 @@ const mockAuth = (req: any, res: any, next: any) => {
     next();
 };
 
+app.post('/members', mockAuth, memberController.createMember);
+app.put('/members/:id', mockAuth, memberController.updateMember);
 app.patch('/members/:id', mockAuth, memberController.updateMember);
 app.delete('/members/:id', mockAuth, memberController.deleteMember);
 app.delete('/members', mockAuth, memberController.deleteAllMembers);
@@ -60,7 +62,53 @@ describe('Member Controller', () => {
         jest.clearAllMocks();
     });
 
+    describe('POST /members', () => {
+        it('should correctly process group arrays in the create payload', async () => {
+            const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
+            (prisma.member.create as jest.Mock).mockResolvedValue({ id: 'm1', system: mockSystem });
+
+            const res = await request(app)
+                .post('/members')
+                .send({
+                    name: 'New Member',
+                    slug: 'new-member',
+                    proxyTags: [{ prefix: 'n:' }],
+                    groups: ['g1', 'g2']
+                });
+
+            expect(res.status).toBe(201);
+            expect(prisma.member.create).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({
+                    groups: { connect: [{ id: 'g1' }, { id: 'g2' }] }
+                })
+            }));
+        });
+    });
+
     describe('PATCH /members/:id', () => {
+        it('should correctly process group arrays in the update payload', async () => {
+            const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
+            const oldMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1' };
+            const updatedMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1', system: mockSystem };
+
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
+            (prisma.member.findFirst as jest.Mock).mockResolvedValue(oldMember);
+            (prisma.member.update as jest.Mock).mockResolvedValue(updatedMember);
+
+            const res = await request(app)
+                .patch('/members/m1')
+                .send({
+                    groups: ['g3']
+                });
+
+            expect(res.status).toBe(200);
+            expect(prisma.member.update).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({
+                    groups: { set: [{ id: 'g3' }] }
+                })
+            }));
+        });
         it('should decommission the old ghost when the member slug is changed', async () => {
             const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
             const oldMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1' };

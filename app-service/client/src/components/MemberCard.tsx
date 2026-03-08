@@ -114,19 +114,23 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                     )}
                     {member.groups && member.groups.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 pt-2">
-                            {member.groups.map(group => (
-                                <span 
-                                    key={group.id} 
-                                    className="text-[10px] px-2 py-0.5 rounded-md font-medium border"
-                                    style={{
-                                        backgroundColor: group.color ? `#${group.color}20` : 'rgba(255,255,255,0.05)',
-                                        borderColor: group.color ? `#${group.color}40` : 'rgba(255,255,255,0.1)',
-                                        color: group.color ? `#${group.color}` : '#9ca3af'
-                                    }}
-                                >
-                                    {group.name}
-                                </span>
-                            ))}
+                            {member.groups.map(group => {
+                                const testId = group.name ? `member-tag-${group.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : '';
+                                return (
+                                    <span 
+                                        key={group.id} 
+                                        data-testid={testId}
+                                        className="text-[10px] px-2 py-0.5 rounded-md font-medium border"
+                                        style={{
+                                            backgroundColor: group.color ? `#${group.color}20` : 'rgba(255,255,255,0.05)',
+                                            borderColor: group.color ? `#${group.color}40` : 'rgba(255,255,255,0.1)',
+                                            color: group.color ? `#${group.color}` : '#9ca3af'
+                                        }}
+                                    >
+                                        {group.name}
+                                    </span>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

@@ -18,7 +18,8 @@ export const MemberSchema = z.object({
     slug: z.string().regex(/^[a-z0-9-]+$/, "Short ID must be alphanumeric with hyphens").max(50),
     description: z.preprocess(emptyToNull, z.string().max(5000).optional().nullable()),
     pronouns: z.preprocess(emptyToNull, z.string().max(100).optional().nullable()),
-    color: z.preprocess(emptyToNull, z.string().regex(/^[0-9a-fA-F]{6}$/, "Color must be a 6-digit hex code").optional().nullable())
+    color: z.preprocess(emptyToNull, z.string().regex(/^[0-9a-fA-F]{6}$/, "Color must be a 6-digit hex code").optional().nullable()),
+    groups: z.array(z.string()).optional()
 });
 
 export const SystemSchema = z.object({

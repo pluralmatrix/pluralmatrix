@@ -301,10 +301,12 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                 <div className="flex flex-wrap gap-2">
                                     {systemGroups.map(group => {
                                         const isSelected = formData.groups.includes(group.id);
+                                        const testId = group.name ? `toggle-group-${group.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : '';
                                         return (
                                             <button
                                                 key={group.id}
                                                 type="button"
+                                                data-testid={testId}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
                                                     setFormData(prev => ({

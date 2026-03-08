@@ -36,3 +36,30 @@ export async function ensureUniqueSlug(prisma: PrismaClient, baseSlug: string, c
         counter++;
     }
 }
+
+export async function ensureUniqueGroupSlug(prisma: PrismaClient, systemId: string, baseSlug: string, currentGroupId?: string): Promise<string> {
+    const cleaned = baseSlug.toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    
+    let slug = cleaned || "group";
+
+    let candidate = slug.substring(0, 50);
+    let counter = 2; 
+
+    while (true) {
+        const existing = await prisma.group.findUnique({
+            where: { systemId_slug: { systemId, slug: candidate } },
+            select: { id: true }
+        });
+
+        if (!existing || (currentGroupId && existing.id === currentGroupId)) {
+            return candidate;
+        }
+
+        const suffix = `-${counter}`;
+        candidate = slug.substring(0, 50 - suffix.length) + suffix;
+        counter++;
+    }
+}

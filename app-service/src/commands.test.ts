@@ -69,6 +69,13 @@ describe('CommandHandler Tests', () => {
                 update: jest.fn(),
                 delete: jest.fn()
             },
+            group: {
+                create: jest.fn(),
+                update: jest.fn(),
+                delete: jest.fn(),
+                findUnique: jest.fn(),
+                findFirst: jest.fn()
+            },
             accountLink: {
                 findUnique: jest.fn(),
                 findFirst: jest.fn(),
@@ -380,6 +387,63 @@ describe('CommandHandler Tests', () => {
                 data: { autoproxyId: "mem1", autoproxyMode: "member" }
             });
         });
+
+        describe('pk;group commands', () => {
+            let sendRichTextSpy: jest.SpyInstance;
+            
+            beforeEach(() => {
+                sendRichTextSpy = jest.spyOn(commandHandler as any, 'sendRichText').mockResolvedValue(true);
+            });
+
+            const mockSystemWithGroups = {
+                id: 'sys1',
+                name: 'Test System',
+                members: [{ id: 'm1', slug: 'lily', name: 'Lily' }],
+                groups: [
+                    { id: 'g1', slug: 'testgroup', name: 'Test Group', members: [] }
+                ]
+            };
+            const groupEvent = { room_id: "!room:localhost", sender: "@alice:localhost" };
+
+            it('pk;group list should show groups', async () => {
+                const parts = ["pk;group", "list"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(), 
+                    "!room:localhost", 
+                    expect.stringContaining("Test Group")
+                );
+            });
+
+            it('pk;group new should create a group', async () => {
+                const parts = ["pk;group", "new", "My New Group"];
+                (mockPrisma.group.create as jest.Mock).mockResolvedValue({ id: 'g2', name: 'My New Group' });
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.create).toHaveBeenCalled();
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Created group")
+                );
+            });
+
+            it('pk;group <group> add should add members', async () => {
+                const parts = ["pk;group", "testgroup", "add", "lily"];
+                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+                    data: { members: { connect: [{ id: 'm1' }] } }
+                }));
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Added 1 member")
+                );
+            });
+        });
     });
 
     describe('resolveGhostMessage', () => {
@@ -431,7 +495,7 @@ describe('CommandHandler Tests', () => {
 
             expect(mockPrisma.accountLink.findUnique).toHaveBeenCalledWith({
                 where: { matrixId: sender },
-                include: { system: { include: { members: true } } }
+                include: { system: { include: { members: true, groups: { include: { members: true } } } } }
             });
             expect(result).toEqual(mockSys);
         });

@@ -7,7 +7,7 @@ import { sendEncryptedEvent } from "../crypto/encryption";
 import { registerDevice, processCryptoRequests } from "../crypto/crypto-utils";
 import { proxyCache, lastMessageCache } from "./cache";
 import { emitSystemUpdate } from "./events";
-import { ensureUniqueSlug } from "../utils/slug";
+import { ensureUniqueSlug, ensureUniqueGroupSlug } from "../utils/slug";
 import { maskMxid } from "../utils/privacy";
 import { config } from "../config";
 import { parseCommand } from "../utils/commandParser";
@@ -915,6 +915,153 @@ ${webUrl}
             return true;
         }
 
+        if (cmd === "group" || cmd === "g") {
+            if (!system) {
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have a system registered yet.");
+                return true;
+            }
+
+            const subCmd = parts[1]?.toLowerCase();
+            
+            if (!subCmd || subCmd === "list") {
+                const groups = system.groups || [];
+                if (groups.length === 0) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have any groups in your system.");
+                    return true;
+                }
+                const sortedGroups = groups.sort((a: any, b: any) => a.slug.localeCompare(b.slug));
+                const groupList = sortedGroups.map((g: any) => `* **${g.displayName || g.name}** (id: \`${g.slug}\`) - ${g.members?.length || 0} members`).join("\n");
+                await this.sendRichText(this.bridge.getIntent(), roomId, `### ${system.name || "Your System"} Groups\n${groupList}`);
+                return true;
+            }
+
+            if (subCmd === "new") {
+                const name = parts.slice(2).join(" ");
+                if (!name) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Usage: `pk;group new <name>`");
+                    return true;
+                }
+                
+                const { generateSlug } = require('../import');
+                let baseSlug = generateSlug(name, "group");
+                const newSlug = await ensureUniqueGroupSlug(this.prisma, system.id, baseSlug);
+                
+                await this.prisma.group.create({
+                    data: {
+                        name: name,
+                        slug: newSlug,
+                        systemId: system.id
+                    }
+                });
+                
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Created group **${name}** (id: \`${newSlug}\`).`);
+                return true;
+            }
+
+            // Commands that target a specific group: `pk;group <group> <action>`
+            const groupSlug = subCmd;
+            const group = (system.groups || []).find((g: any) => g.slug === groupSlug || g.pkId === groupSlug);
+            
+            if (!group) {
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No group found with ID: ${groupSlug}`);
+                return true;
+            }
+
+            const action = parts[2]?.toLowerCase();
+            
+            if (!action || action === "list") {
+                if (!group.members || group.members.length === 0) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Group **${group.name}** has no members.`);
+                    return true;
+                }
+                const memberList = group.members.sort((a: any, b: any) => a.slug.localeCompare(b.slug)).map((m: any) => `* **${m.name}** (\`${m.slug}\`)`).join("\n");
+                await this.sendRichText(this.bridge.getIntent(), roomId, `### Group: ${group.displayName || group.name}\n${memberList}`);
+                return true;
+            }
+
+            if (action === "add" || action === "remove") {
+                const memberSlugs = parts.slice(3).map(s => s.toLowerCase());
+                if (memberSlugs.length === 0) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Usage: \`pk;group ${groupSlug} ${action} <member1> <member2> ...\``);
+                    return true;
+                }
+                
+                const validMembers = system.members.filter((m: any) => memberSlugs.includes(m.slug) || memberSlugs.includes(m.pkId));
+                if (validMembers.length === 0) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, `None of the specified members were found.`);
+                    return true;
+                }
+
+                const connectArr = validMembers.map((m: any) => ({ id: m.id }));
+                
+                if (action === "add") {
+                    await this.prisma.group.update({
+                        where: { id: group.id },
+                        data: { members: { connect: connectArr } }
+                    });
+                    await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Added ${validMembers.length} member(s) to **${group.name}**.`);
+                } else {
+                    await this.prisma.group.update({
+                        where: { id: group.id },
+                        data: { members: { disconnect: connectArr } }
+                    });
+                    await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Removed ${validMembers.length} member(s) from **${group.name}**.`);
+                }
+                
+                emitSystemUpdate(sender);
+                return true;
+            }
+
+            if (action === "rename") {
+                const newName = parts.slice(3).join(" ");
+                if (!newName) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Usage: \`pk;group ${groupSlug} rename <new name>\``);
+                    return true;
+                }
+                await this.prisma.group.update({
+                    where: { id: group.id },
+                    data: { name: newName }
+                });
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Renamed group to **${newName}**.`);
+                return true;
+            }
+
+            if (action === "description" || action === "desc") {
+                const newDesc = parts.slice(3).join(" ");
+                await this.prisma.group.update({
+                    where: { id: group.id },
+                    data: { description: newDesc || null }
+                });
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, newDesc ? `✅ Updated group description.` : `✅ Cleared group description.`);
+                return true;
+            }
+
+            if (action === "icon") {
+                const newIcon = parts.slice(3).join(" ");
+                await this.prisma.group.update({
+                    where: { id: group.id },
+                    data: { icon: newIcon || null }
+                });
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, newIcon ? `✅ Updated group icon.` : `✅ Cleared group icon.`);
+                return true;
+            }
+
+            if (action === "delete") {
+                await this.prisma.group.delete({ where: { id: group.id } });
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Deleted group **${group.name}**.`);
+                return true;
+            }
+            
+            // Unrecognized group action
+            await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Unknown group action: ${action}`);
+            return true;
+        }
+
         // Targeting Logic
         if (["edit", "e", "reproxy", "rp", "message", "msg"].includes(cmd)) {
             if (!system && cmd !== "message" && cmd !== "msg") return true;
@@ -932,7 +1079,7 @@ ${webUrl}
         // Issue #4: Directly query DB instead of relying on cache which might double-query
         const existingLink = await this.prisma.accountLink.findUnique({
             where: { matrixId: sender },
-            include: { system: { include: { members: true } } }
+            include: { system: { include: { members: true, groups: { include: { members: true } } } } }
         });
         
         return existingLink ? existingLink.system : null;

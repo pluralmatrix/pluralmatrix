@@ -13,6 +13,7 @@ interface Member {
     description: string | null;
     color: string | null;
     proxyTags: any[];
+    groups?: any[];
 }
 
 interface MemberCardProps {
@@ -79,6 +80,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                             </button>
                             <button 
                                 onClick={() => onEdit(member)}
+                                data-testid={`edit-member-${member.slug}`}
                                 className="p-2 hover:bg-white/5 rounded-lg text-matrix-muted hover:text-white transition-colors"
                                 aria-label={`Edit Member ${member.name}`}
                             >
@@ -108,6 +110,23 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                         <div className="flex items-start space-x-2 text-sm text-matrix-muted">
                             <Info size={14} className="mt-1 flex-shrink-0" />
                             <p className="line-clamp-2 italic">{member.description}</p>
+                        </div>
+                    )}
+                    {member.groups && member.groups.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-2">
+                            {member.groups.map(group => (
+                                <span 
+                                    key={group.id} 
+                                    className="text-[10px] px-2 py-0.5 rounded-md font-medium border"
+                                    style={{
+                                        backgroundColor: group.color ? `#${group.color}20` : 'rgba(255,255,255,0.05)',
+                                        borderColor: group.color ? `#${group.color}40` : 'rgba(255,255,255,0.1)',
+                                        color: group.color ? `#${group.color}` : '#9ca3af'
+                                    }}
+                                >
+                                    {group.name}
+                                </span>
+                            ))}
                         </div>
                     )}
                 </div>

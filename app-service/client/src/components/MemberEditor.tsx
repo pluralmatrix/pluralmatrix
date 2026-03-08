@@ -6,12 +6,13 @@ import { validateAvatarImage } from '../utils/imageValidation';
 
 interface MemberEditorProps {
     member?: any;
+    systemGroups?: any[];
     isReadOnly?: boolean;
     onSave: () => void;
     onCancel: () => void;
 }
 
-const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave, onCancel }) => {
+const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], isReadOnly, onSave, onCancel }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [formData, setFormData] = useState({
         slug: member?.slug || '',
@@ -21,7 +22,8 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
         description: member?.description || '',
         color: member?.color || '0dbd8b',
         avatarUrl: member?.avatarUrl || '',
-        proxyTags: member?.proxyTags || [{ prefix: '', suffix: '' }]
+        proxyTags: member?.proxyTags || [{ prefix: '', suffix: '' }],
+        groups: member?.groups?.map((g: any) => typeof g === 'object' ? g.id : g) || []
     });
     const [loading, setLoading] = useState(false);
 
@@ -292,6 +294,39 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, isReadOnly, onSave,
                                 ))}
                             </div>
                         </div>
+                        {/* Groups */}
+                        {systemGroups.length > 0 && (
+                            <div className="space-y-3 pt-4 border-t border-white/5">
+                                <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Groups</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {systemGroups.map(group => {
+                                        const isSelected = formData.groups.includes(group.id);
+                                        return (
+                                            <button
+                                                key={group.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (isReadOnly) return;
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        groups: isSelected 
+                                                            ? prev.groups.filter((id: string) => id !== group.id)
+                                                            : [...prev.groups, group.id]
+                                                    }));
+                                                }}
+                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                                                    isSelected 
+                                                        ? 'bg-matrix-primary text-white border-matrix-primary shadow-md shadow-matrix-primary/20' 
+                                                        : 'bg-white/5 text-matrix-muted border-white/10 hover:bg-white/10 hover:text-white'
+                                                } ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
+                                            >
+                                                {group.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-6 border-t border-white/5 bg-matrix-dark/30 flex justify-end gap-3 rounded-b-2xl">

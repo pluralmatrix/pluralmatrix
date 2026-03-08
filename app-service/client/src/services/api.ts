@@ -68,4 +68,11 @@ export const systemService = {
     getPublic: (slug: string) => api.get(`/system/public/${slug}`)
 };
 
+export const groupService = {
+    list: () => api.get('/groups'),
+    create: (data: any) => api.post('/groups', data),
+    update: (id: string, data: any) => api.put(`/groups/${id}`, data),
+    delete: (id: string) => api.delete(`/groups/${id}`)
+};
+
 export default api;

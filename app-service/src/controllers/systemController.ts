@@ -69,7 +69,33 @@ export const getPublicSystem = async (req: Request, res: Response) => {
                         description: true,
                         color: true,
                         proxyTags: true,
-                        createdAt: true
+                        createdAt: true,
+                        groups: {
+                            select: {
+                                id: true,
+                                name: true,
+                                color: true,
+                                icon: true
+                            }
+                        }
+                    },
+                    orderBy: {
+                        slug: 'asc'
+                    }
+                },
+                groups: {
+                    select: {
+                        id: true,
+                        slug: true,
+                        name: true,
+                        displayName: true,
+                        description: true,
+                        icon: true,
+                        color: true,
+                        createdAt: true,
+                        members: {
+                            select: { id: true }
+                        }
                     },
                     orderBy: {
                         slug: 'asc'

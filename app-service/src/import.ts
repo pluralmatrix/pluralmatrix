@@ -399,6 +399,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
 
     let importedCount = 0;
     const failedAvatars: AvatarMigrationError[] = [];
+    const pkIdToDbIdMap: Record<string, string> = {};
 
     for (const pkMember of processedMembers) {
         try {
@@ -440,6 +441,10 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
                 }
             });
 
+            if (pkMember.id) {
+                pkIdToDbIdMap[pkMember.id] = member.id;
+            }
+
             try {
                 await syncGhostProfile(member, system);
             } catch (syncErr: any) {
@@ -464,7 +469,90 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         }
     }
 
-    console.log(`[Importer] Successfully imported ${importedCount} members for ${maskMxid(mxid)}`);
+    const rawGroups = jsonData.groups || [];
+    let importedGroupsCount = 0;
+    
+    // Create a set of base group slugs to ensure uniqueness within the system
+    const groupSlugGroups: Record<string, any[]> = {};
+    for (const group of rawGroups) {
+        let baseSlug = (isPluralMatrix && group.id) 
+            ? group.id 
+            : generateSlug(group.name || group.id, group.id);
+            
+        if (!baseSlug) baseSlug = group.id.toLowerCase();
+        
+        if (!groupSlugGroups[baseSlug]) groupSlugGroups[baseSlug] = [];
+        groupSlugGroups[baseSlug].push(group);
+    }
+    
+    const processedGroups = [];
+    for (const [baseSlug, groups] of Object.entries(groupSlugGroups)) {
+        if (groups.length === 1) {
+            processedGroups.push({ ...groups[0], finalSlug: baseSlug });
+        } else {
+            groups.forEach((g, idx) => {
+                if (idx === 0) {
+                    processedGroups.push({ ...g, finalSlug: baseSlug });
+                } else {
+                    processedGroups.push({ ...g, finalSlug: `${baseSlug}-${g.id.toLowerCase()}` });
+                }
+            });
+        }
+    }
+
+    for (const pkGroup of processedGroups) {
+        try {
+            const slug = pkGroup.finalSlug;
+            
+            // Link members that were present in the import
+            const memberConnections = [];
+            if (pkGroup.members && Array.isArray(pkGroup.members)) {
+                for (const memberPkId of pkGroup.members) {
+                    if (pkIdToDbIdMap[memberPkId]) {
+                        memberConnections.push({ id: pkIdToDbIdMap[memberPkId] });
+                    }
+                }
+            }
+
+            const groupData = {
+                name: pkGroup.name || 'Unnamed Group',
+                pkId: pkGroup.id,
+                displayName: pkGroup.display_name,
+                description: pkGroup.description,
+                icon: pkGroup.icon,
+                color: pkGroup.color
+            };
+
+            await prisma.group.upsert({
+                where: {
+                    systemId_slug: {
+                        systemId: system.id,
+                        slug: slug
+                    }
+                },
+                update: {
+                    ...groupData,
+                    members: {
+                        set: memberConnections // overwrites previous members for this group with the newly imported ones
+                    }
+                },
+                create: {
+                    ...groupData,
+                    systemId: system.id,
+                    slug: slug,
+                    members: {
+                        connect: memberConnections
+                    }
+                }
+            });
+
+            importedGroupsCount++;
+        } catch (groupError) {
+            console.error(`[Importer] Failed to import a group:`, groupError);
+        }
+    }
+
+    console.log(`[Importer] Successfully imported ${importedCount} members and ${importedGroupsCount} groups for ${maskMxid(mxid)}`);
     return { count: importedCount, systemSlug: system.slug, failedAvatars };
 };
 
@@ -486,7 +574,12 @@ export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string,
         where: { matrixId: mxid },
         include: { 
             system: {
-                include: { members: true }
+                include: { 
+                    members: true,
+                    groups: {
+                        include: { members: true }
+                    }
+                }
             }
         }
     });
@@ -573,6 +666,26 @@ export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string,
                 proxy_privacy: "public"
             }
         })),
+        groups: (system as any).groups?.map((g: any) => ({
+            id: g.pkId || generateRandomPkId(),
+            uuid: g.id,
+            name: g.name,
+            display_name: g.displayName || null,
+            description: g.description || null,
+            icon: g.icon || null,
+            banner: null,
+            color: g.color || null,
+            created: g.createdAt.toISOString(),
+            members: g.members?.map((m: any) => m.pkId) || [],
+            privacy: {
+                name_privacy: "public",
+                description_privacy: "public",
+                icon_privacy: "public",
+                list_privacy: "public",
+                metadata_privacy: "public",
+                visibility: "public"
+            }
+        })) || [],
         switches: []
     };
 
@@ -587,7 +700,12 @@ export const generateBackupJson = async (mxid: string) => {
         where: { matrixId: mxid },
         include: { 
             system: {
-                include: { members: true }
+                include: { 
+                    members: true,
+                    groups: {
+                        include: { members: true }
+                    }
+                }
             }
         }
     });
@@ -621,7 +739,17 @@ export const generateBackupJson = async (mxid: string) => {
             avatar_url: m.avatarUrl,
             description: m.description,
             proxy_tags: m.proxyTags
-        }))
+        })),
+        groups: (system as any).groups?.map((g: any) => ({
+            id: g.slug,
+            pk_id: g.pkId,
+            name: g.name,
+            display_name: g.displayName,
+            description: g.description,
+            icon: g.icon,
+            color: g.color,
+            members: g.members?.map((m: any) => m.slug) || []
+        })) || []
     };
 
     return backup;
@@ -635,7 +763,12 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
         where: { matrixId: mxid },
         include: { 
             system: {
-                include: { members: true }
+                include: { 
+                    members: true,
+                    groups: {
+                        include: { members: true }
+                    }
+                }
             }
         }
     });
@@ -701,6 +834,49 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
                 }
             } catch (e) {
                 console.error(`[Export] Error pre-processing avatar for ${member.name}:`, e);
+            }
+        }
+
+        // Handle Group Icons
+        const groups = (system as any).groups || [];
+        for (const group of groups) {
+            if (!group.icon || !group.icon.startsWith('mxc://')) continue;
+
+            try {
+                const mxc = group.icon.replace('mxc://', '');
+                const [server, mediaId] = mxc.split('/');
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); 
+
+                const response = await fetch(`${homeserverUrl}/_matrix/client/v1/media/download/${server}/${mediaId}`, {
+                    headers: { 'Authorization': `Bearer ${asToken}` },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    console.warn(`[Export] Failed to download group icon: ${response.status}`);
+                    continue;
+                }
+
+                const contentType = response.headers.get('content-type') || 'image/png';
+                const ext = contentType.split('/')[1]?.split(';')[0] || 'png';
+                const buffer = Buffer.from(await response.arrayBuffer());
+
+                const filename = `avatars/group_${group.slug}_${mediaId}.${ext}`;
+                const tmpPath = path.join(tmpExportDir, `group_${mediaId}.${ext}`);
+                
+                fs.writeFileSync(tmpPath, buffer);
+                
+                avatarFiles.push({ memberId: group.id, tmpPath, filename });
+                
+                if (type === 'pk') {
+                    // For groups, PluralKit uses 'icon' property but we will map it similarly
+                    // Actually PK json doesn't support changing URLs in export right now, so we just include the file.
+                }
+            } catch (e) {
+                console.error(`[Export] Error pre-processing group icon for ${group.name}:`, e);
             }
         }
 
@@ -772,7 +948,10 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
         where: { matrixId: mxid },
         include: { 
             system: {
-                include: { members: true }
+                include: { 
+                    members: true,
+                    groups: true
+                }
             }
         }
     });
@@ -797,15 +976,32 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
         const namePart = filename.split('/').pop()?.split('.')[0];
         if (!namePart) continue;
 
-        const oldMediaId = namePart.includes('_') ? namePart.split('_').slice(1).join('_') : namePart;
+        const isGroupIcon = namePart.startsWith('group_');
+        let oldMediaId = namePart;
+        if (isGroupIcon) {
+            const parts = namePart.split('_');
+            oldMediaId = parts.length > 2 ? parts.slice(2).join('_') : namePart;
+        } else {
+            oldMediaId = namePart.includes('_') ? namePart.split('_').slice(1).join('_') : namePart;
+        }
+
         const ext = filename.split('.').pop() || 'png';
         const contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
-        const affectedMembers = system.members.filter(m => 
-            m.avatarUrl && m.avatarUrl.endsWith(`/${oldMediaId}`)
-        );
+        let affectedMembers: any[] = [];
+        let affectedGroups: any[] = [];
 
-        if (affectedMembers.length === 0) continue;
+        if (isGroupIcon) {
+            affectedGroups = (system as any).groups.filter((g: any) => 
+                g.icon && g.icon.endsWith(`/${oldMediaId}`)
+            );
+        } else {
+            affectedMembers = system.members.filter(m => 
+                m.avatarUrl && m.avatarUrl.endsWith(`/${oldMediaId}`)
+            );
+        }
+
+        if (affectedMembers.length === 0 && affectedGroups.length === 0) continue;
 
         try {
             const data = entry.getData();
@@ -815,6 +1011,9 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
             if (!validation.valid) {
                 for (const member of affectedMembers) {
                     failedAvatars.push({ slug: member.slug, name: member.name, error: validation.error! });
+                }
+                for (const group of affectedGroups) {
+                    failedAvatars.push({ slug: group.slug, name: group.name, error: validation.error! });
                 }
                 continue;
             }
@@ -836,11 +1035,22 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
                     });
                 }
             }
+
+            for (const group of affectedGroups) {
+                await prisma.group.update({
+                    where: { id: group.id },
+                    data: { icon: mxcUrl }
+                });
+            }
+
             count++;
         } catch (e: any) {
             console.error(`[Import] Failed to re-upload avatar ${filename}:`, e);
             for (const member of affectedMembers) {
                 failedAvatars.push({ slug: member.slug, name: member.name, error: e.message });
+            }
+            for (const group of affectedGroups) {
+                failedAvatars.push({ slug: group.slug, name: group.name, error: e.message });
             }
         }
     }

@@ -23,6 +23,7 @@ model System {
   autoproxyId String?
   autoproxy   Member?  @relation("Autoproxy", fields: [autoproxyId], references: [id])
   members     Member[] @relation("SystemMembers")
+  groups      Group[]  @relation("SystemGroups")
   accountLinks AccountLink[]
   deviceRegistered Boolean @default(false)
   createdAt   DateTime @default(now())
@@ -51,7 +52,27 @@ model Member {
   color       String?
   proxyTags   Json     // Array of { prefix: string, suffix: string }
   matrixId    String?  // The Ghost User ID (@_plural_id:server)
+  groups      Group[]  @relation("MemberGroups")
   deviceRegistered Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([systemId, slug])
+  @@unique([systemId, pkId])
+}
+
+model Group {
+  id          String   @id @default(uuid())
+  systemId    String
+  system      System   @relation("SystemGroups", fields: [systemId], references: [id], onDelete: Cascade)
+  slug        String   // Name-based ID for commands
+  pkId        String?  // PluralKit-compatible random ID
+  name        String
+  displayName String?
+  description String?
+  icon        String?  // Avatar/icon URL
+  color       String?
+  members     Member[] @relation("MemberGroups")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

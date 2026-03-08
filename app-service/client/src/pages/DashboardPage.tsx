@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { memberService, systemService } from '../services/api';
+import { memberService, systemService, groupService } from '../services/api';
 import MemberCard from '../components/MemberCard';
 import MemberEditor from '../components/MemberEditor';
+import GroupCard from '../components/GroupCard';
+import GroupEditor from '../components/GroupEditor';
 import ImportTool from '../components/ImportTool';
 import SystemSettings from '../components/SystemSettings';
-import { LogOut, Plus, Upload, Search, LayoutGrid, List, Trash2, Download, ChevronDown, Database, Edit3, Loader2, Info, Archive } from 'lucide-react';
+import { LogOut, Plus, Upload, Search, LayoutGrid, List, Trash2, Download, ChevronDown, Database, Edit3, Loader2, Info, Archive, Users, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const DashboardPage: React.FC = () => {
@@ -16,13 +18,17 @@ const DashboardPage: React.FC = () => {
     
     const [system, setSystem] = useState<any>(null);
     const [members, setMembers] = useState<any[]>([]);
+    const [groups, setGroups] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'members' | 'groups'>('members');
     const [isOwner, setIsOwner] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     
     const [search, setSearch] = useState('');
     const [isEditing, setIsEditing] = useState(false);
+    const [isEditingGroup, setIsEditingGroup] = useState(false);
     const [selectedMember, setSelectedMember] = useState<any>(null);
+    const [selectedGroup, setSelectedGroup] = useState<any>(null);
     const [isImporting, setIsImporting] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
@@ -44,6 +50,7 @@ const DashboardPage: React.FC = () => {
             
             setSystem(pubSystem);
             setMembers(pubSystem.members || []);
+            setGroups(pubSystem.groups || []);
             
             // 2. Check ownership if logged in
             if (token) {
@@ -145,6 +152,18 @@ const DashboardPage: React.FC = () => {
                 navigate('/setup', { replace: true });
             } catch (e) {
                 alert('Failed to delete system');
+            }
+        }
+    };
+
+    const handleDeleteGroup = async (id: string) => {
+        if (!isOwner) return;
+        if (confirm('Are you sure you want to delete this group?')) {
+            try {
+                await groupService.delete(id);
+                fetchData(true);
+            } catch (e) {
+                alert('Delete group failed');
             }
         }
     };
@@ -270,13 +289,23 @@ const DashboardPage: React.FC = () => {
                     
                     {isOwner && (
                         <div className="flex items-center gap-3">
-                            <button 
-                                onClick={() => { setSelectedMember(null); setIsEditing(true); }}
-                                data-testid="add-member-button"
-                                className="matrix-button flex items-center shadow-lg shadow-matrix-primary/20"
-                            >
-                                <Plus size={18} className="mr-2" /> Add System Member
-                            </button>
+                            {activeTab === 'members' ? (
+                                <button 
+                                    onClick={() => { setSelectedMember(null); setIsEditing(true); }}
+                                    data-testid="add-member-button"
+                                    className="matrix-button flex items-center shadow-lg shadow-matrix-primary/20"
+                                >
+                                    <Plus size={18} className="mr-2" /> Add System Member
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={() => { setSelectedGroup(null); setIsEditingGroup(true); }}
+                                    data-testid="add-group-button"
+                                    className="matrix-button flex items-center shadow-lg shadow-matrix-primary/20"
+                                >
+                                    <Plus size={18} className="mr-2" /> Add Group
+                                </button>
+                            )}
 
                             <div className="relative">
                                 <button 
@@ -346,46 +375,82 @@ const DashboardPage: React.FC = () => {
 
                 {/* Search & Filter */}
                 <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-matrix-light p-4 rounded-2xl border border-white/5 shadow-inner">
-                    <div className="relative w-full md:max-w-md">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-matrix-muted" size={18} />
-                        <input 
-                            className="matrix-input pl-12 bg-matrix-dark/50" 
-                            placeholder="Search by name or ID..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                    <div className="flex space-x-2 bg-matrix-dark/50 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
+                        <button
+                            onClick={() => setActiveTab('members')}
+                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap ${
+                                activeTab === 'members' ? 'bg-matrix-primary text-white shadow-md' : 'text-matrix-muted hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                            <User size={16} /> <span>Members ({members.length})</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('groups')}
+                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap ${
+                                activeTab === 'groups' ? 'bg-matrix-primary text-white shadow-md' : 'text-matrix-muted hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                            <Users size={16} /> <span>Groups ({groups.length})</span>
+                        </button>
                     </div>
-                    <div className="flex items-center bg-matrix-dark/50 p-1 rounded-lg">
-                        <button className="p-2 bg-matrix-light shadow-sm rounded-md text-matrix-primary"><LayoutGrid size={18} /></button>
-                        <button className="p-2 text-matrix-muted hover:text-white transition-colors"><List size={18} /></button>
+                    
+                    <div className="flex flex-col md:flex-row gap-4 items-center w-full md:w-auto flex-1 md:justify-end">
+                        <div className="relative w-full md:max-w-md">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-matrix-muted" size={18} />
+                            <input 
+                                className="matrix-input pl-12 bg-matrix-dark/50 w-full" 
+                                placeholder={`Search ${activeTab}...`}
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-center bg-matrix-dark/50 p-1 rounded-lg hidden md:flex">
+                            <button className="p-2 bg-matrix-light shadow-sm rounded-md text-matrix-primary"><LayoutGrid size={18} /></button>
+                            <button className="p-2 text-matrix-muted hover:text-white transition-colors"><List size={18} /></button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <AnimatePresence mode="popLayout">
-                        {filteredMembers.map((member: any) => (
-                            <MemberCard 
-                                key={member.id} 
-                                member={member} 
-                                isReadOnly={!isOwner}
-                                isAutoproxy={system?.autoproxyId === member.id}
-                                onEdit={(m) => { setSelectedMember(m); setIsEditing(true); }}
-                                onDelete={handleDelete}
-                                onToggleAutoproxy={handleToggleAutoproxy}
-                            />
-                        ))}
+                        {activeTab === 'members' ? (
+                            filteredMembers.map((member: any) => (
+                                <MemberCard 
+                                    key={member.id} 
+                                    member={member} 
+                                    isReadOnly={!isOwner}
+                                    isAutoproxy={system?.autoproxyId === member.id}
+                                    onEdit={(m) => { setSelectedMember(m); setIsEditing(true); }}
+                                    onDelete={handleDelete}
+                                    onToggleAutoproxy={handleToggleAutoproxy}
+                                />
+                            ))
+                        ) : (
+                            groups.filter((g: any) => 
+                                g.name.toLowerCase().includes(search.toLowerCase()) || 
+                                g.slug.toLowerCase().includes(search.toLowerCase())
+                            ).sort((a: any, b: any) => a.slug.localeCompare(b.slug)).map((group: any) => (
+                                <GroupCard 
+                                    key={group.id} 
+                                    group={group} 
+                                    isReadOnly={!isOwner}
+                                    onEdit={(g) => { setSelectedGroup(g); setIsEditingGroup(true); }}
+                                    onDelete={handleDeleteGroup}
+                                />
+                            ))
+                        )}
                     </AnimatePresence>
                 </div>
 
-                {filteredMembers.length === 0 && (
+                {((activeTab === 'members' && filteredMembers.length === 0) || (activeTab === 'groups' && groups.length === 0 && search === '') || (activeTab === 'groups' && groups.filter((g: any) => g.name.toLowerCase().includes(search.toLowerCase())).length === 0)) && (
                     <div className="text-center py-20 space-y-4">
                         <div className="w-20 h-20 bg-matrix-light rounded-full flex items-center justify-center mx-auto text-matrix-muted opacity-50">
                             <Search size={40} />
                         </div>
-                        <h3 className="text-xl font-bold">No system members found</h3>
+                        <h3 className="text-xl font-bold">No {activeTab} found</h3>
                         <p className="text-matrix-muted max-w-xs mx-auto">
-                            {isOwner ? "Try a different search term or add your first system member using the button above." : "Try a different search term."}
+                            {isOwner ? `Try a different search term or add your first ${activeTab === 'members' ? 'member' : 'group'} using the button above.` : "Try a different search term."}
                         </p>
                     </div>
                 )}
@@ -395,9 +460,20 @@ const DashboardPage: React.FC = () => {
             {isEditing && (
                 <MemberEditor 
                     member={selectedMember} 
+                    systemGroups={groups}
                     isReadOnly={!isOwner}
                     onSave={() => { setIsEditing(false); fetchData(true); }}
                     onCancel={() => setIsEditing(false)}
+                />
+            )}
+
+            {isEditingGroup && (
+                <GroupEditor 
+                    group={selectedGroup}
+                    systemMembers={members}
+                    isReadOnly={!isOwner}
+                    onSave={() => { setIsEditingGroup(false); fetchData(true); }}
+                    onCancel={() => setIsEditingGroup(false)}
                 />
             )}
 

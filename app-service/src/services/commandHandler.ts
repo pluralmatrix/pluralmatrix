@@ -10,6 +10,7 @@ import { emitSystemUpdate } from "./events";
 import { ensureUniqueSlug, ensureUniqueGroupSlug } from "../utils/slug";
 import { maskMxid } from "../utils/privacy";
 import { config } from "../config";
+import { buildWebUrl } from "../utils/url";
 import { parseCommand } from "../utils/commandParser";
 
 export class CommandHandler {
@@ -575,7 +576,7 @@ export class CommandHandler {
             const accountMxid = primaryLink ? primaryLink.matrixId : "Unknown Account";
 
             const messageLink = `https://matrix.to/#/${roomId}/${targetEventId}`;
-            const baseUrl = config.publicWebUrl.endsWith('/') ? config.publicWebUrl.slice(0, -1) : config.publicWebUrl;
+            const baseUrl = buildWebUrl();
             const systemUrl = `${baseUrl}/s/${system.slug}`;
             
             const accountSplit = accountMxid !== "Unknown Account" ? accountMxid.split(':')[0] : "Unknown Account";
@@ -697,7 +698,7 @@ export class CommandHandler {
 
                     proxyCache.invalidate(sender);
 
-                    const webUrl = config.publicWebUrl;
+                    const webUrl = buildWebUrl();
                     const successMessage = `✅ **System created!**
 You can now manage your members and settings at:
 ${webUrl}
@@ -719,7 +720,7 @@ ${webUrl}
             }
 
             if (!targetSystem) {
-                const webUrl = config.publicWebUrl;
+                const webUrl = buildWebUrl();
                 await this.sendRichText(this.bridge.getIntent(), roomId, `❌ You do not have a system registered with PluralMatrix. To create one, type \`pk;system new\` or log in with your Matrix account at: ${webUrl}`);
                 return true;
             }
@@ -749,7 +750,7 @@ ${webUrl}
                     card += `\n*${targetSystem.description}*\n`;
                 }
                 
-                const webUrl = `${config.publicWebUrl}/s/${targetSystem.slug}`;
+                const webUrl = buildWebUrl(`/s/${targetSystem.slug}`);
                 card += `\n[View Web Profile](${webUrl})`;
                 
                 await this.sendRichText(this.bridge.getIntent(), roomId, card);
@@ -877,22 +878,21 @@ ${webUrl}
 
             if (subCmd === "delete") {
                 // To keep it safe via Bot, we just tell them to use UI for now
-                await this.sendRichText(this.bridge.getIntent(), roomId, `⚠️ To delete your system, please use the Web Dashboard Settings: ${config.publicWebUrl}`);
+                await this.sendRichText(this.bridge.getIntent(), roomId, `⚠️ To delete your system, please use the Web Dashboard Settings: ${buildWebUrl()}`);
                 return true;
             }
         }
 
         // For all other commands, if no system exists, prompt them to create one
         if (!system && cmd !== "link" && cmd !== "system" && cmd !== "s" && cmd !== "message" && cmd !== "msg") {
-            const webUrl = config.publicWebUrl;
+            const webUrl = buildWebUrl();
             await this.sendRichText(
-                this.bridge.getIntent(), 
-                roomId, 
+                this.bridge.getIntent(),
+                roomId,
                 `❌ You do not have a system registered with PluralMatrix. To create one, type \`pk;system new\` or log in with your Matrix account at: ${webUrl}`
             );
             return true;
         }
-
         if (cmd === "list") {
             const newParts = ["system", "list", ...parts.slice(1)];
             return this.handleCommand(event, "system", newParts, system);

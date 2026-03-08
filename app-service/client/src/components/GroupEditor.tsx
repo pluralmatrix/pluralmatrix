@@ -3,6 +3,7 @@ import { X, Save, AlertCircle, Camera } from 'lucide-react';
 import { groupService, memberService } from '../services/api';
 import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
+import { useDirtyState } from '../hooks/useDirtyState';
 
 interface GroupEditorProps {
     group?: any;
@@ -16,8 +17,8 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
     const isNew = !group;
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
-    
-    const [formData, setFormData] = useState({
+
+    const [formData, setFormData, isDirty] = useDirtyState({
         name: group?.name || '',
         displayName: group?.displayName || '',
         slug: group?.slug || '',
@@ -27,6 +28,15 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
         members: group?.members?.map((m: any) => typeof m === 'object' ? m.id : m) || []
     });
 
+    const handleCancel = () => {
+        if (!isReadOnly && isDirty) {
+            if (window.confirm("You have unsaved changes. Are you sure you want to close without saving?")) {
+                onCancel();
+            }
+        } else {
+            onCancel();
+        }
+    };
     const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -121,7 +131,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
             <div className="bg-matrix-light rounded-3xl p-6 w-full max-w-2xl my-8 border border-white/10 shadow-2xl relative">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-white">{isNew ? 'Create Group' : 'Edit Group'}</h2>
-                    <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted"><X /></button>
+                    <button onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted"><X /></button>
                 </div>
 
                 {error && (
@@ -267,7 +277,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                     <div className="pt-4 flex justify-end space-x-3 border-t border-white/5">
                         <button
                             type="button"
-                            onClick={onCancel}
+                            onClick={handleCancel}
                             disabled={saving}
                             className="px-6 py-2.5 rounded-xl font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-colors"
                         >

@@ -6,6 +6,7 @@ import DeadLetterQueue from './dlq/DeadLetterQueue';
 import { Archive } from 'lucide-react';
 import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
+import { useDirtyState } from '../hooks/useDirtyState';
 
 interface SystemSettingsProps {
     onSave: (newSlug?: string) => void;
@@ -16,7 +17,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
     const { user } = useAuth();
     const [dlqOpen, setDlqOpen] = useState(false);
     const [dlqCount, setDlqCount] = useState(0);
-    const [formData, setFormData] = useState({
+    const [formData, setFormData, isDirty] = useDirtyState({
         name: '',
         systemTag: '',
         slug: '',
@@ -28,6 +29,16 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [linking, setLinking] = useState(false);
+
+    const handleCancel = () => {
+        if (isDirty) {
+            if (window.confirm("You have unsaved changes. Are you sure you want to close without saving?")) {
+                onCancel();
+            }
+        } else {
+            onCancel();
+        }
+    };
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -152,7 +163,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                         </div>
                         <h2 className="text-xl font-bold">System Settings</h2>
                     </div>
-                    <button type="button" data-testid="close-settings-button" onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
+                    <button type="button" data-testid="close-settings-button" onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
                         <X size={20} />
                     </button>
                 </div>

@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Plus, Trash2, Camera } from 'lucide-react';
 import { memberService } from '../services/api';
 import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
+import { useDirtyState } from '../hooks/useDirtyState';
 
 interface MemberEditorProps {
     member?: any;
@@ -14,7 +15,7 @@ interface MemberEditorProps {
 
 const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], isReadOnly, onSave, onCancel }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const [formData, setFormData] = useState({
+    const [formData, setFormData, isDirty] = useDirtyState({
         slug: member?.slug || '',
         name: member?.name || '',
         displayName: member?.displayName || '',
@@ -26,6 +27,16 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
         groups: member?.groups?.map((g: any) => typeof g === 'object' ? g.id : g) || []
     });
     const [loading, setLoading] = useState(false);
+
+    const handleCancel = () => {
+        if (!isReadOnly && isDirty) {
+            if (window.confirm("You have unsaved changes. Are you sure you want to close without saving?")) {
+                onCancel();
+            }
+        } else {
+            onCancel();
+        }
+    };
 
     const handleAddTag = () => {
         setFormData({ ...formData, proxyTags: [...formData.proxyTags, { prefix: '', suffix: '' }] });
@@ -123,7 +134,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                         <h2 className="text-2xl font-bold">
                             {isReadOnly ? 'System Member Profile' : (member ? 'Edit System Member' : 'New System Member')}
                         </h2>
-                        <button type="button" onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
+                        <button type="button" onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
                             <X size={20} />
                         </button>
                     </div>
@@ -319,7 +330,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                                 data-testid={testId}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
-                                                    setFormData(prev => ({
+                                                    setFormData((prev: any) => ({
                                                         ...prev,
                                                         groups: isSelected 
                                                             ? prev.groups.filter((id: string) => id !== group.id)
@@ -342,7 +353,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                     </div>
 
                     <div className="p-6 border-t border-white/5 bg-matrix-dark/30 flex justify-end gap-3 rounded-b-2xl">
-                        <button type="button" onClick={onCancel} className="px-6 py-2 rounded-xl text-sm font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-all">
+                        <button type="button" onClick={handleCancel} className="px-6 py-2 rounded-xl text-sm font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-all">
                             {isReadOnly ? 'Close' : 'Cancel'}
                         </button>
                         {!isReadOnly && (

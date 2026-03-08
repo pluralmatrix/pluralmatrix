@@ -117,7 +117,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                 <div className="bg-matrix-light rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-white">{group.displayName || group.name}</h2>
+                        <h2 data-testid="group-editor-title" className="text-2xl font-bold text-white">{group.displayName || group.name}</h2>
                         <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted"><X /></button>
                     </div>
                     <div className="space-y-4">

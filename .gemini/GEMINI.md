@@ -45,6 +45,8 @@ When running `npm test` within the App Service, always redirect stdout and stder
 cd app-service && npm test > test_output.log 2>&1; cat test_output.log
 ```
 
+* **Playwright Notes:** NEVER run Playwright tests with the `--debug` flag as it launches an interactive UI inspector that will cause the CLI to hang.
+
 ## Troubleshooting
 * **Logs:** `sleep 5 && sudo docker logs pluralmatrix-app-service --tail 50` (Never use -f!)
 * **Synapse Logs:** `sudo docker logs pluralmatrix-synapse --tail 50`

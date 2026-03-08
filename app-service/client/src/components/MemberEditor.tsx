@@ -131,7 +131,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
             <div className="max-w-2xl w-full bg-matrix-light border border-white/10 rounded-2xl shadow-2xl my-8">
                 <form onSubmit={isReadOnly ? (e) => e.preventDefault() : handleSubmit}>
                     <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                        <h2 className="text-2xl font-bold">
+                        <h2 data-testid="member-editor-title" className="text-2xl font-bold">
                             {isReadOnly ? 'System Member Profile' : (member ? 'Edit System Member' : 'New System Member')}
                         </h2>
                         <button type="button" onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
@@ -353,7 +353,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                     </div>
 
                     <div className="p-6 border-t border-white/5 bg-matrix-dark/30 flex justify-end gap-3 rounded-b-2xl">
-                        <button type="button" onClick={handleCancel} className="px-6 py-2 rounded-xl text-sm font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-all">
+                        <button type="button" data-testid="cancel-member-button" onClick={handleCancel} className="px-6 py-2 rounded-xl text-sm font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-all">
                             {isReadOnly ? 'Close' : 'Cancel'}
                         </button>
                         {!isReadOnly && (

@@ -277,6 +277,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                     <div className="pt-4 flex justify-end space-x-3 border-t border-white/5">
                         <button
                             type="button"
+                            data-testid="cancel-group-button"
                             onClick={handleCancel}
                             disabled={saving}
                             className="px-6 py-2.5 rounded-xl font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-colors"
@@ -285,6 +286,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                         </button>
                         <button
                             type="submit"
+                            data-testid="save-group-button"
                             disabled={saving}
                             className="matrix-button flex items-center shadow-lg shadow-matrix-primary/20"
                         >

@@ -18,6 +18,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, isReadOnly, onEdit, onDele
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2 }}
+            data-testid={`group-card-${group.slug}`}
             className={`bg-matrix-light p-5 rounded-2xl border border-white/5 relative overflow-hidden group shadow-lg`}
         >
             <div className="flex items-start space-x-4 relative z-10">

@@ -87,6 +87,7 @@ describe('MessageQueueService', () => {
             rootEventId: "$new_event",
             latestEventId: "$new_event",
             latestContent: expect.objectContaining({ body: plaintext }),
+            rootContent: expect.objectContaining({ body: plaintext }),
             sender: mockGhostIntent.userId
         });
 

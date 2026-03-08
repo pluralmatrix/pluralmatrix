@@ -8,7 +8,7 @@ test.describe('Web UI Groups Flow', () => {
     const password = "ui_test_password";
     let matrixAccessToken: string;
 
-    test.beforeAll(async () => {
+    test.beforeEach(async () => {
         username = `ui_group_user_${Math.random().toString(36).substring(7)}`;
         
         fullMxid = await registerUser(username, password);
@@ -17,7 +17,7 @@ test.describe('Web UI Groups Flow', () => {
         await client.stop(); 
     });
 
-    test.afterAll(async () => {
+    test.afterEach(async () => {
         if (fullMxid && matrixAccessToken) {
             await deactivateUser(fullMxid, matrixAccessToken);
         }
@@ -45,7 +45,7 @@ test.describe('Web UI Groups Flow', () => {
         await expect(page.locator('h3:has-text("Lily")')).toBeVisible();
 
         // Step 2: Switch to Groups Tab
-        await page.click('button:has-text("Groups (0)")');
+        await page.getByTestId('tab-groups').click();
 
         // Step 3: Create a Group
         await page.click('[data-testid="add-group-button"]');
@@ -53,28 +53,28 @@ test.describe('Web UI Groups Flow', () => {
         await page.fill('textarea[name="group-description"]', 'A very cool group.');
         // Select Lily
         await page.getByTestId('toggle-member-lily').click();
-        await page.click('button:has-text("Save Group")');
+        await page.getByTestId('save-group-button').click();
 
         // Verify group card shows up
         await expect(page.locator('h3:has-text("Cool Group")')).toBeVisible();
         await expect(page.locator('div:has-text("1 Member")').last()).toBeVisible();
 
         // Switch to members tab and verify tag
-        await page.click('button:has-text("Members (1)")');
+        await page.getByTestId('tab-members').click();
         await expect(page.getByTestId('member-tag-cool-group')).toBeVisible();
 
         // Step 4: Add member to new group via Member Editor
-        await page.click('button:has-text("Groups (1)")');
+        await page.getByTestId('tab-groups').click();
         await page.click('[data-testid="add-group-button"]');
         await page.fill('input[name="group-name"]', 'Another Group');
-        await page.click('button:has-text("Save Group")');
+        await page.getByTestId('save-group-button').click();
         
-        await page.click('button:has-text("Members (1)")');
+        await page.getByTestId('tab-members').click();
         await page.hover('h3:has-text("Lily")');
         await page.getByTestId('edit-member-lily').click();
         
         // Ensure modal is open and the groups section is visible
-        await expect(page.locator('h2:has-text("Edit System Member")')).toBeVisible();
+        await expect(page.getByTestId('member-editor-title')).toBeVisible();
         await expect(page.locator('label:has-text("Groups")')).toBeVisible();
 
         // Ensure "Cool Group" is currently selected (has the primary matrix color class)
@@ -85,8 +85,7 @@ test.describe('Web UI Groups Flow', () => {
         await page.getByTestId('save-member-button').click();
 
         // Wait for modal to close indicating save is done
-        await page.waitForTimeout(500);
-        await expect(page.locator('h2:has-text("Edit System Member")')).not.toBeVisible();
+        await expect(page.getByTestId('member-editor-title')).toHaveCount(0);
 
         // Verify member now has both group tags
         await expect(page.locator('span:has-text("Cool Group")').first()).toBeVisible();
@@ -95,7 +94,7 @@ test.describe('Web UI Groups Flow', () => {
         // Step 5: Test Member Avatar Upload and Clear
         await page.hover('h3:has-text("Lily")');
         await page.getByTestId('edit-member-lily').click();
-        await expect(page.locator('h2:has-text("Edit System Member")')).toBeVisible();
+        await expect(page.getByTestId('member-editor-title')).toBeVisible();
 
         const memberAvatarUploadPromise = page.waitForResponse(response => 
             response.url().includes('/api/media/upload') && response.status() === 200
@@ -105,7 +104,7 @@ test.describe('Web UI Groups Flow', () => {
         await expect(page.locator('img[alt="Avatar"]')).toBeVisible();
 
         await page.getByTestId('save-member-button').click();
-        await page.waitForTimeout(500);
+        await expect(page.getByTestId('member-editor-title')).toHaveCount(0);
 
         await page.hover('h3:has-text("Lily")');
         await page.getByTestId('edit-member-lily').click();
@@ -115,12 +114,14 @@ test.describe('Web UI Groups Flow', () => {
         await expect(page.locator('img[alt="Avatar"]')).not.toBeVisible();
         
         await page.getByTestId('save-member-button').click();
-        await page.waitForTimeout(500);
+        await expect(page.getByTestId('member-editor-title')).toHaveCount(0);
 
         // Step 6: Test Group Icon Upload and Clear
-        await page.click('button:has-text("Groups (2)")');
-        await page.hover('h3:has-text("Cool Group")');
-        await page.locator('div.group', { hasText: 'Cool Group' }).locator('button[title="Edit Group"]').click();
+        await page.getByTestId('tab-groups').click();
+
+        const coolGroupCard = page.getByTestId('group-card-coolgroup');
+        await coolGroupCard.hover();
+        await coolGroupCard.getByTestId('edit-group-coolgroup').click();
 
         // Upload icon
         const groupIconUploadPromise = page.waitForResponse(response => 
@@ -131,26 +132,77 @@ test.describe('Web UI Groups Flow', () => {
         await expect(page.locator('img[alt="Icon"]')).toBeVisible();
 
         // Save
-        await page.click('button:has-text("Save Group")');
-        await page.waitForTimeout(500);
+        await page.getByTestId('save-group-button').click();
+        await expect(page.locator('h2:has-text("Edit Group")')).toHaveCount(0);
 
         // Edit again and clear icon
-        await page.hover('h3:has-text("Cool Group")');
-        await page.locator('div.group', { hasText: 'Cool Group' }).locator('button[title="Edit Group"]').click();
+        await page.mouse.move(0, 0);
+        await coolGroupCard.hover();
+        await coolGroupCard.getByTestId('edit-group-coolgroup').click();
 
         await expect(page.locator('img[alt="Icon"]')).toBeVisible();
         await page.locator('button[title="Clear Icon"]').click();
         await expect(page.locator('img[alt="Icon"]')).not.toBeVisible();
 
         await page.fill('input[name="group-name"]', 'Super Cool Group');
-        await page.click('button:has-text("Save Group")');
+        await page.getByTestId('save-group-button').click();
         await expect(page.locator('h3:has-text("Super Cool Group")')).toBeVisible();
 
-        // Step 6: Delete Group
-        await page.hover('h3:has-text("Super Cool Group")');
-        page.on('dialog', dialog => dialog.accept()); // Accept the confirmation dialog
-        await page.locator('div.group', { hasText: 'Super Cool Group' }).locator('button[title="Delete Group"]').click();
+        // Step 7: Delete Group
+        const superCoolGroupCard = page.getByTestId('group-card-coolgroup');
+        await superCoolGroupCard.hover();
+        page.once('dialog', dialog => {
+            expect(dialog.type()).toBe('confirm');
+            dialog.accept();
+        });
+        await superCoolGroupCard.getByTestId('delete-group-coolgroup').click();
 
         await expect(page.locator('h3:has-text("Super Cool Group")')).not.toBeVisible();
+    });
+
+    test('User receives a warning when closing an editor with unsaved changes', async ({ page }) => {
+        await page.goto('/login');
+        await page.getByTestId('login-mxid-input').fill(fullMxid);
+        await page.getByTestId('login-password-input').fill(password);
+        await page.getByTestId('login-submit-button').click();
+        
+        await page.waitForURL('/setup');
+        await page.getByTestId('create-system-button').click();
+        await expect(page.locator('text=Please Note')).toBeVisible();
+        await page.getByTestId('acknowledge-warning-button').click();
+        await page.waitForURL(/\/s\/[a-z0-9-]+/);
+
+        // Open member editor and make a change
+        await page.getByTestId('add-member-button').click();
+        await expect(page.getByTestId('member-editor-title')).toBeVisible();
+
+        // 1. Test clicking cancel without changes (should close immediately)
+        await page.getByTestId('cancel-member-button').click();
+        await expect(page.getByTestId('member-editor-title')).not.toBeVisible();
+
+        // 2. Test clicking cancel WITH changes (should prompt and cancel if dismissed)
+        await page.getByTestId('add-member-button').click();
+        await page.fill('input[name="name"]', 'Unsaved Member');
+        
+        // Setup dialog handler to DISMISS the dirty state warning
+        let dialogHandled = false;
+        page.once('dialog', dialog => {
+            expect(dialog.message()).toContain('unsaved changes');
+            dialog.dismiss();
+            dialogHandled = true;
+        });
+
+        await page.getByTestId('cancel-member-button').click();
+        
+        // Ensure dialog was triggered and modal is STILL visible
+        expect(dialogHandled).toBe(true);
+        await expect(page.getByTestId('member-editor-title')).toBeVisible();
+
+        // 3. Test clicking cancel WITH changes and ACCEPTING the warning (should close)
+        page.once('dialog', dialog => dialog.accept());
+        await page.getByTestId('cancel-member-button').click();
+        
+        // Ensure modal is gone
+        await expect(page.getByTestId('member-editor-title')).not.toBeVisible();
     });
 });

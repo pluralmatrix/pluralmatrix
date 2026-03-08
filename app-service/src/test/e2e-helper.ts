@@ -136,16 +136,25 @@ export const setupTestRoom = async (client: MatrixClient): Promise<string> => {
 };
 
 export const deactivateUser = async (userId: string, accessToken: string) => {
-    console.log(`[E2E] Deactivating user ${userId} via Admin API...`);
+    console.log(`[E2E] Deactivating user ${userId} via Client API...`);
     const hsUrl = getSynapseUrl();
     try {
-        const response = await fetch(`${hsUrl}/_synapse/admin/v1/deactivate/${encodeURIComponent(userId)}`, {
+        const response = await fetch(`${hsUrl}/_matrix/client/v3/account/deactivate`, {
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ erase: true })
+            body: JSON.stringify({ 
+                auth: {
+                    type: "m.login.password",
+                    identifier: {
+                        type: "m.id.user",
+                        user: userId
+                    },
+                    password: "ui_test_password"
+                }
+            })
         });
         
         if (!response.ok) {

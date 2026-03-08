@@ -87,6 +87,8 @@ describe('Proxy on Edit', () => {
             sender: sender,
             type: "m.room.message",
             content: {
+                body: "* lily: New message after edit",
+                msgtype: "m.text",
                 "m.new_content": {
                     body: "lily: New message after edit",
                     msgtype: "m.text"
@@ -100,12 +102,21 @@ describe('Proxy on Edit', () => {
 
         const req = { getData: () => editEvent } as any;
 
+        // Mock original event
+        mockBotClient.getEvent.mockResolvedValueOnce({
+            event_id: originalId,
+            sender: sender,
+            content: {
+                body: "Old unproxied message",
+                msgtype: "m.text"
+            }
+        });
+
         // 3. Handle the event
         await handleEvent(req, undefined, mockBridge as any, prisma);
 
-        // 4. Verify original and edit were redacted
-        expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, eventId, "PluralProxy");
-        expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, originalId, "PluralProxyOriginal");
+        // 4. Verify original event was redacted (Matrix server cascades to edit)
+        expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, originalId, "PluralProxy");
 
         // 5. Verify the message was enqueued for the ghost
         expect(messageQueue.enqueue).toHaveBeenCalledWith(
@@ -113,6 +124,10 @@ describe('Proxy on Edit', () => {
             sender,
             expect.objectContaining({ userId: "@_plural_test_lily:localhost" }),
             "New message after edit",
+            undefined,
+            expect.anything(),
+            "test",
+            undefined,
             undefined,
             expect.anything()
         );

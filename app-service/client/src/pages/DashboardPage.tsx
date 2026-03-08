@@ -391,6 +391,7 @@ const DashboardPage: React.FC = () => {
                     <div className="flex space-x-2 bg-matrix-dark/50 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
                         <button
                             onClick={() => setActiveTab('members')}
+                            data-testid="tab-members"
                             className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap ${
                                 activeTab === 'members' ? 'bg-matrix-primary text-white shadow-md' : 'text-matrix-muted hover:text-white hover:bg-white/5'
                             }`}
@@ -399,6 +400,7 @@ const DashboardPage: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setActiveTab('groups')}
+                            data-testid="tab-groups"
                             className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap ${
                                 activeTab === 'groups' ? 'bg-matrix-primary text-white shadow-md' : 'text-matrix-muted hover:text-white hover:bg-white/5'
                             }`}

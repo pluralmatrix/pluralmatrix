@@ -66,6 +66,7 @@ describe('CommandHandler Tests', () => {
             member: {
                 findUnique: jest.fn(),
                 findFirst: jest.fn(),
+                findMany: jest.fn(),
                 update: jest.fn(),
                 delete: jest.fn()
             },
@@ -388,11 +389,194 @@ describe('CommandHandler Tests', () => {
             });
         });
 
-        describe('pk;group commands', () => {
+        describe('pk;autoproxy edge cases', () => {
+            let sendEncryptedTextSpy: jest.SpyInstance;
+            beforeEach(() => {
+                sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+            });
+
+            it('pk;autoproxy off should disable autoproxy', async () => {
+                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+                const parts = ["pk;autoproxy", "off"];
+                
+                await commandHandler.handleCommand(event, "autoproxy", parts, mockSystem);
+
+                expect(mockPrisma.system.update).toHaveBeenCalledWith({
+                    where: { id: "sys123" },
+                    data: { autoproxyId: null, autoproxyMode: "off" }
+                });
+            });
+
+            it('pk;autoproxy latch should enable latch mode', async () => {
+                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+                const parts = ["pk;autoproxy", "latch"];
+                
+                await commandHandler.handleCommand(event, "autoproxy", parts, mockSystem);
+
+                expect(mockPrisma.system.update).toHaveBeenCalledWith({
+                    where: { id: "sys123" },
+                    data: { autoproxyMode: "latch" }
+                });
+            });
+
+            it('pk;autoproxy should error if member not found', async () => {
+                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+                const parts = ["pk;autoproxy", "notfound"];
+                
+                const handled = await commandHandler.handleCommand(event, "autoproxy", parts, mockSystem);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("No member found with ID: notfound")
+                );
+            });
+        });
+
+        describe('pk;member command', () => {
             let sendRichTextSpy: jest.SpyInstance;
             
             beforeEach(() => {
                 sendRichTextSpy = jest.spyOn(commandHandler as any, 'sendRichText').mockResolvedValue(true);
+            });
+
+            it('should display own member details', async () => {
+                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+                const parts = ["pk;member", "lily"];
+                
+                const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
+                
+                expect(handled).toBe(true);
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Member Details: Lily")
+                );
+            });
+
+            it('should handle member not found error', async () => {
+                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+                const parts = ["pk;member", "nonexistent"];
+                
+                const sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
+                
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("No member found with ID: nonexistent")
+                );
+            });
+
+            it('should error if no member ID is provided', async () => {
+                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+                const parts = ["pk;member"];
+                
+                const sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
+                
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Usage: `pk;member <id>`")
+                );
+            });
+
+            it('should log an error if avatar sending fails', async () => {
+                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
+                const parts = ["pk;member", "lily"];
+                
+                const systemWithAvatar = {
+                    ...mockSystem,
+                    members: [{ id: 'm1', slug: 'lily', name: 'Lily', avatarUrl: 'mxc://broken' }]
+                };
+
+                const sendEncryptedImageSpy = jest.spyOn(commandHandler as any, 'sendEncryptedImage').mockRejectedValue(new Error("Avatar Upload Fail"));
+                const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+                const handled = await commandHandler.handleCommand(event, "member", parts, systemWithAvatar);
+                
+                expect(handled).toBe(true);
+                expect(sendEncryptedImageSpy).toHaveBeenCalled();
+                expect(consoleSpy).toHaveBeenCalledWith(
+                    expect.stringContaining("[Bot] Failed to send avatar for lily:"), 
+                    "Avatar Upload Fail"
+                );
+
+                consoleSpy.mockRestore();
+            });
+
+            it('should respect privacy settings for external queries', async () => {
+                const event = { room_id: "!room:localhost", sender: "@bob:localhost" }; // Bob querying Alice's member
+                const parts = ["pk;member", "abcde"]; // Global pkId query
+                
+                // Mock global search finding Alice's member
+                const privateMember = { 
+                    id: "mem1", 
+                    slug: "lily", 
+                    name: "Lily", 
+                    pkId: "abcde", 
+                    system: mockSystem,
+                    privacy: { visibility: "private" } 
+                };
+                
+                // Mock the getSenderSystem hit for bob (null) so he doesn't hit the "no system" global check before running the command
+                mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
+                mockPrisma.member.findMany.mockResolvedValue([privateMember]);
+                
+                const sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                const handled = await commandHandler.handleCommand(event, "member", parts, { id: 'bobsys', members: [] });
+                
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("No member found with ID: abcde")
+                );
+            });
+            
+            it('should fallback to displayName if name is private for external queries', async () => {
+                const event = { room_id: "!room:localhost", sender: "@bob:localhost" }; 
+                const parts = ["pk;member", "abcde"]; 
+                
+                const namePrivateMember = { 
+                    id: "mem1", 
+                    slug: "lily", 
+                    name: "Secret Name", 
+                    displayName: "Public Face",
+                    pkId: "abcde", 
+                    system: mockSystem,
+                    privacy: { visibility: "public", name_privacy: "private" } 
+                };
+                
+                mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
+                mockPrisma.member.findMany.mockResolvedValue([namePrivateMember]);
+                
+                const handled = await commandHandler.handleCommand(event, "member", parts, { id: 'bobsys', members: [] });
+                
+                expect(handled).toBe(true);
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Member Details: Public Face")
+                );
+                expect(sendRichTextSpy).not.toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Secret Name")
+                );
+            });
+        });
+
+        describe('pk;group commands', () => {
+            let sendRichTextSpy: jest.SpyInstance;
+            let sendEncryptedTextSpy: jest.SpyInstance;
+            
+            beforeEach(() => {
+                sendRichTextSpy = jest.spyOn(commandHandler as any, 'sendRichText').mockResolvedValue(true);
+                sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
             });
 
             const mockSystemWithGroups = {
@@ -400,7 +584,8 @@ describe('CommandHandler Tests', () => {
                 name: 'Test System',
                 members: [{ id: 'm1', slug: 'lily', name: 'Lily' }],
                 groups: [
-                    { id: 'g1', slug: 'testgroup', name: 'Test Group', members: [] }
+                    { id: 'g1', slug: 'testgroup', name: 'Test Group', members: [{ id: 'm1', slug: 'lily', name: 'Lily' }] },
+                    { id: 'g2', slug: 'emptygroup', name: 'Empty Group', members: [] }
                 ]
             };
             const groupEvent = { room_id: "!room:localhost", sender: "@alice:localhost" };
@@ -413,6 +598,39 @@ describe('CommandHandler Tests', () => {
                     expect.anything(), 
                     "!room:localhost", 
                     expect.stringContaining("Test Group")
+                );
+            });
+
+            it('pk;group list should report empty if no groups', async () => {
+                const parts = ["pk;group", "list"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, { ...mockSystemWithGroups, groups: [] });
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(), 
+                    "!room:localhost", 
+                    expect.stringContaining("You don't have any groups")
+                );
+            });
+
+            it('pk;group <group> list should show members', async () => {
+                const parts = ["pk;group", "testgroup", "list"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Lily")
+                );
+            });
+
+            it('pk;group <group> list should report empty if no members', async () => {
+                const parts = ["pk;group", "emptygroup", "list"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(), 
+                    "!room:localhost", 
+                    expect.stringContaining("has no members")
                 );
             });
 
@@ -429,6 +647,28 @@ describe('CommandHandler Tests', () => {
                 );
             });
 
+            it('pk;group new without name should error', async () => {
+                const parts = ["pk;group", "new"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Usage: `pk;group new")
+                );
+            });
+
+            it('pk;group <group> should show error if group not found', async () => {
+                const parts = ["pk;group", "notfoundgroup"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("No group found with ID: notfoundgroup")
+                );
+            });
+
             it('pk;group <group> add should add members', async () => {
                 const parts = ["pk;group", "testgroup", "add", "lily"];
                 (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
@@ -441,6 +681,115 @@ describe('CommandHandler Tests', () => {
                     expect.anything(),
                     "!room:localhost",
                     expect.stringContaining("Added 1 member")
+                );
+            });
+
+            it('pk;group <group> remove should remove members', async () => {
+                const parts = ["pk;group", "testgroup", "remove", "lily"];
+                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+                    data: { members: { disconnect: [{ id: 'm1' }] } }
+                }));
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Removed 1 member")
+                );
+            });
+
+            it('pk;group <group> add without args should error', async () => {
+                const parts = ["pk;group", "testgroup", "add"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Usage: `pk;group testgroup add")
+                );
+            });
+
+            it('pk;group <group> should show error if no members found', async () => {
+                const parts = ["pk;group", "testgroup", "add", "notfound"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("None of the specified members were found")
+                );
+            });
+
+            it('pk;group <group> rename should rename the group', async () => {
+                const parts = ["pk;group", "testgroup", "rename", "New Name"];
+                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+                    data: { name: "New Name" }
+                }));
+            });
+
+            it('pk;group <group> rename without args should error', async () => {
+                const parts = ["pk;group", "testgroup", "rename"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Usage: `pk;group testgroup rename")
+                );
+            });
+
+            it('pk;group <group> description should update description', async () => {
+                const parts = ["pk;group", "testgroup", "desc", "New description"];
+                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+                    data: { description: "New description" }
+                }));
+            });
+
+            it('pk;group <group> description empty should clear description', async () => {
+                const parts = ["pk;group", "testgroup", "desc"];
+                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+                    data: { description: null }
+                }));
+            });
+
+            it('pk;group <group> icon should update icon', async () => {
+                const parts = ["pk;group", "testgroup", "icon", "mxc://icon"];
+                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+                    data: { icon: "mxc://icon" }
+                }));
+            });
+
+            it('pk;group <group> delete should delete the group', async () => {
+                const parts = ["pk;group", "testgroup", "delete"];
+                (mockPrisma.group.delete as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(mockPrisma.group.delete).toHaveBeenCalledWith({
+                    where: { id: "g1" }
+                });
+            });
+
+            it('pk;group <group> unknown action should show error', async () => {
+                const parts = ["pk;group", "testgroup", "hack"];
+                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
+                expect(handled).toBe(true);
+                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "!room:localhost",
+                    expect.stringContaining("Unknown group action: hack")
                 );
             });
         });

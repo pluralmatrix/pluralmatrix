@@ -108,6 +108,12 @@ describe('System Controller', () => {
             const res = await request(app).get('/links');
             expect(res.status).toBe(404);
         });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).get('/links');
+            expect(res.status).toBe(500);
+        });
     });
 
     describe('GET /system', () => {
@@ -128,6 +134,12 @@ describe('System Controller', () => {
 
             expect(res.status).toBe(404);
             expect(prisma.system.create).not.toHaveBeenCalled();
+        });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).get('/system');
+            expect(res.status).toBe(500);
         });
     });
 
@@ -154,6 +166,12 @@ describe('System Controller', () => {
 
             expect(res.status).toBe(400);
             expect(prisma.system.create).not.toHaveBeenCalled();
+        });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).post('/system');
+            expect(res.status).toBe(500);
         });
     });
 
@@ -185,6 +203,12 @@ describe('System Controller', () => {
 
             expect(res.status).toBe(403);
             expect(prisma.system.delete).not.toHaveBeenCalled();
+        });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).delete('/system');
+            expect(res.status).toBe(500);
         });
     });
 
@@ -240,6 +264,12 @@ describe('System Controller', () => {
             await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
 
             expect(prisma.system.delete).toHaveBeenCalledWith({ where: { id: 'sys2' } });
+        });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
+            expect(res.status).toBe(500);
         });
     });
 
@@ -302,6 +332,12 @@ describe('System Controller', () => {
             await request(app).delete('/links/@bob:localhost');
             expect(prisma.system.delete).toHaveBeenCalledWith({ where: { id: 'sys1' } });
         });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).delete('/links/@bob:localhost');
+            expect(res.status).toBe(500);
+        });
     });
 
     describe('POST /links/primary', () => {
@@ -322,6 +358,12 @@ describe('System Controller', () => {
                 where: { matrixId: '@bob:localhost' },
                 data: { isPrimary: true }
             });
+        });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).post('/links/primary').send({ targetMxid: '@bob:localhost' });
+            expect(res.status).toBe(500);
         });
     });
 
@@ -347,6 +389,12 @@ describe('System Controller', () => {
             const res = await request(app).delete('/dlq/dl123');
             expect(res.status).toBe(200);
             expect(messageQueue.deleteDeadLetter).toHaveBeenCalledWith('dl123');
+        });
+
+        it('should handle get errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).get('/dlq');
+            expect(res.status).toBe(500);
         });
     });
 
@@ -440,6 +488,12 @@ describe('System Controller', () => {
             expect(res.body.error).toBe('Invalid input format');
             expect(prisma.system.update).not.toHaveBeenCalled();
         });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).patch('/system').send({});
+            expect(res.status).toBe(500);
+        });
     });
 
     describe('GET /public/:slug', () => {
@@ -470,6 +524,12 @@ describe('System Controller', () => {
             (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
             const res = await request(app).get('/public/missing');
             expect(res.status).toBe(404);
+        });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.system.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).get('/public/sys1');
+            expect(res.status).toBe(500);
         });
     });
 });

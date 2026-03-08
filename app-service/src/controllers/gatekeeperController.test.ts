@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { checkMessage } from './gatekeeperController';
 import { proxyCache } from '../services/cache';
-import { cryptoManager, commandHandler } from '../bot';
+import { prisma, cryptoManager, commandHandler } from '../bot';
 import { sendGhostMessage } from '../services/ghostService';
 
 jest.mock('../bot', () => ({
@@ -173,5 +173,96 @@ describe('GatekeeperController', () => {
             expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
             expect(commandHandler.executeTargetingCommand).not.toHaveBeenCalled();
         });
+    });
+
+    it('should catch validation errors and return ALLOW', async () => {
+        const req = {
+            body: { invalid: 'data' } // Missing required fields
+        } as Request;
+
+        await checkMessage(req, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
+    });
+
+    it('should ALLOW if E2EE decryption fails completely after retries', async () => {
+        const req = {
+            body: { 
+                sender: '@alice:localhost', 
+                room_id: '!room:localhost', 
+                event_id: '$1', 
+                type: 'm.room.encrypted',
+                encrypted_payload: { body: 'lily: Secret' }
+            }
+        } as any;
+
+        (cryptoManager.getMachine as jest.Mock).mockResolvedValue({
+            decryptRoomEvent: jest.fn().mockRejectedValue(new Error('Decryption Failed'))
+        });
+
+        await checkMessage(req, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
+    });
+
+    it('should update latch autoproxy if configured and tag is used', async () => {
+        const latchSystem = { ...mockSystem, autoproxyMode: 'latch', autoproxyId: null };
+        (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(latchSystem);
+        
+        const req = {
+            body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'lily: Hello' } }
+        } as any;
+
+        (prisma as any).system = { update: jest.fn().mockResolvedValue({}) };
+
+        await checkMessage(req, mockRes as Response);
+
+        // Wait a tick for async background task
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(prisma.system.update).toHaveBeenCalledWith({
+            where: { id: 'sys1' },
+            data: { autoproxyId: 'm1' }
+        });
+        expect(proxyCache.invalidate).toHaveBeenCalledWith('@alice:localhost');
+    });
+
+    it('should handle edit events and fetch original event', async () => {
+        (proxyCache.getSystemRules as jest.Mock).mockResolvedValue(mockSystem);
+        
+        const req = {
+            body: { 
+                sender: '@alice:localhost', 
+                room_id: '!room:localhost', 
+                event_id: '$edit', 
+                content: { 
+                    body: 'lily: Edited',
+                    'm.new_content': { body: 'lily: Edited' },
+                    'm.relates_to': { rel_type: 'm.replace', event_id: '$orig' }
+                } 
+            }
+        } as any;
+
+        const mockClient = {
+            getEvent: jest.fn().mockResolvedValue({
+                content: {
+                    body: 'lily: Original',
+                    'm.relates_to': { 'm.in_reply_to': { event_id: '$parent' } }
+                }
+            })
+        };
+
+        const { getBridge } = require('../bot');
+        getBridge.mockReturnValue({
+            getBot: () => ({ getUserId: () => '@bot:localhost', getClient: () => mockClient })
+        });
+
+        await checkMessage(req, mockRes as Response);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(mockClient.getEvent).toHaveBeenCalledWith('!room:localhost', '$orig');
+        expect(sendGhostMessage).toHaveBeenCalledWith(expect.objectContaining({
+            cleanContent: 'Edited',
+            relatesTo: { 'm.in_reply_to': { event_id: '$parent' } } // Pulled from original event
+        }));
     });
 });

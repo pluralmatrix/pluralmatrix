@@ -51,6 +51,7 @@ const mockAuth = (req: any, res: any, next: any) => {
     next();
 };
 
+app.get('/members', mockAuth, memberController.listMembers);
 app.post('/members', mockAuth, memberController.createMember);
 app.put('/members/:id', mockAuth, memberController.updateMember);
 app.patch('/members/:id', mockAuth, memberController.updateMember);
@@ -60,6 +61,29 @@ app.delete('/members', mockAuth, memberController.deleteAllMembers);
 describe('Member Controller', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+    });
+
+    describe('GET /members', () => {
+        it('should list members for the user', async () => {
+            const mockMembers = [{ id: 'm1', name: 'Test' }];
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+                system: { members: mockMembers }
+            });
+
+            const res = await request(app).get('/members');
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual(mockMembers);
+        });
+
+        it('should handle errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+
+            const res = await request(app).get('/members');
+
+            expect(res.status).toBe(500);
+            expect(res.body.error).toBe('Failed to fetch members');
+        });
     });
 
     describe('POST /members', () => {
@@ -83,6 +107,48 @@ describe('Member Controller', () => {
                     groups: { connect: [{ id: 'g1' }, { id: 'g2' }] }
                 })
             }));
+        });
+
+        it('should reject duplicate proxy tags', async () => {
+            const mockSystem = { 
+                id: 'sys1', 
+                slug: 'sys-slug', 
+                members: [{ name: 'Existing', proxyTags: [{ prefix: 'n:', suffix: '' }] }] 
+            };
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
+
+            const res = await request(app)
+                .post('/members')
+                .send({
+                    name: 'New Member',
+                    slug: 'new-member',
+                    proxyTags: [{ prefix: 'n:' }]
+                });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toContain('already in use');
+        });
+
+        it('should return 400 for Zod validation error', async () => {
+            const res = await request(app).post('/members').send({ name: '' });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('Invalid input format');
+        });
+
+        it('should handle unexpected errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).post('/members').send({
+                name: 'New', slug: 'new', proxyTags: [{ prefix: 'new:' }]
+            });
+            expect(res.status).toBe(500);
+        });
+
+        it('should return 404 if system not found', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+            const res = await request(app).post('/members').send({
+                name: 'New', slug: 'new', proxyTags: [{ prefix: 'new:' }]
+            });
+            expect(res.status).toBe(404);
         });
     });
 
@@ -162,6 +228,48 @@ describe('Member Controller', () => {
             expect(res.body.error).toBe('Invalid input format');
             expect(prisma.member.update).not.toHaveBeenCalled();
         });
+
+        it('should reject duplicate proxy tags on update', async () => {
+            const mockSystem = { 
+                id: 'sys1', 
+                slug: 'sys-slug', 
+                members: [
+                    { id: 'm2', name: 'Existing', proxyTags: [{ prefix: 'existing:', suffix: '' }] }
+                ] 
+            };
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
+            (prisma.member.findFirst as jest.Mock).mockResolvedValue({ id: 'm1', slug: 'm1' });
+
+            const res = await request(app)
+                .patch('/members/m1')
+                .send({
+                    proxyTags: [{ prefix: 'existing:' }]
+                });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toContain('already in use');
+        });
+
+        it('should return 404 if member not found', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+            (prisma.member.findFirst as jest.Mock).mockResolvedValue(null);
+
+            const res = await request(app).patch('/members/m1').send({ name: 'New' });
+            expect(res.status).toBe(404);
+        });
+
+        it('should return 403 if user not linked to system', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+
+            const res = await request(app).patch('/members/m1').send({ name: 'New' });
+            expect(res.status).toBe(403);
+        });
+
+        it('should handle unexpected errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).patch('/members/m1').send({ name: 'New' });
+            expect(res.status).toBe(500);
+        });
     });
 
     describe('DELETE /members/:id', () => {
@@ -177,6 +285,25 @@ describe('Member Controller', () => {
             expect(res.status).toBe(200);
             expect(decommissionGhost).toHaveBeenCalledWith(mockMember, mockSystem);
             expect(prisma.member.delete).toHaveBeenCalledWith({ where: { id: 'm1' } });
+        });
+
+        it('should return 403 if user not linked to system', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+            const res = await request(app).delete('/members/m1');
+            expect(res.status).toBe(403);
+        });
+
+        it('should return 404 if member not found', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+            (prisma.member.findFirst as jest.Mock).mockResolvedValue(null);
+            const res = await request(app).delete('/members/m1');
+            expect(res.status).toBe(404);
+        });
+
+        it('should handle unexpected errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).delete('/members/m1');
+            expect(res.status).toBe(500);
         });
     });
 
@@ -196,6 +323,18 @@ describe('Member Controller', () => {
             expect(res.status).toBe(200);
             expect(decommissionGhost).toHaveBeenCalledTimes(2);
             expect(prisma.member.deleteMany).toHaveBeenCalledWith({ where: { systemId: 'sys1' } });
+        });
+
+        it('should return 403 if user not linked to system', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+            const res = await request(app).delete('/members');
+            expect(res.status).toBe(403);
+        });
+
+        it('should handle unexpected errors gracefully', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+            const res = await request(app).delete('/members');
+            expect(res.status).toBe(500);
         });
     });
 });

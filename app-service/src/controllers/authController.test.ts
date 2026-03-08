@@ -57,6 +57,21 @@ describe('AuthController - login', () => {
         }));
     });
 
+    it('should auto-format mxid if missing @ or domain', async () => {
+        mockReq.body.mxid = 'ALICE';
+        (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
+        (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: "link1" });
+
+        await login(mockReq, mockRes);
+
+        expect(prisma.accountLink.findUnique).toHaveBeenCalledWith({
+            where: { matrixId: '@alice:localhost' }
+        });
+        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+            mxid: '@alice:localhost'
+        }));
+    });
+
     it('should return token and hasSystem: false if user has no system', async () => {
         (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
@@ -68,5 +83,45 @@ describe('AuthController - login', () => {
             token: 'mock_token',
             hasSystem: false
         }));
+    });
+
+    it('should return 401 if matrix login fails', async () => {
+        (auth.loginToMatrix as jest.Mock).mockResolvedValue(false);
+
+        await login(mockReq, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid Matrix credentials' });
+    });
+
+    it('should return 400 for invalid inputs', async () => {
+        mockReq.body = { mxid: 'just-string' }; // Missing password
+
+        await login(mockReq, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid input format' }));
+    });
+
+    it('should return 500 on unexpected errors', async () => {
+        (auth.loginToMatrix as jest.Mock).mockRejectedValue(new Error('Matrix server down'));
+
+        await login(mockReq, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    });
+});
+
+import { me } from './authController';
+
+describe('AuthController - me', () => {
+    it('should return req.user', () => {
+        const mockReq = { user: { mxid: '@test:localhost' } } as any;
+        const mockRes = { json: jest.fn() } as any;
+
+        me(mockReq, mockRes);
+
+        expect(mockRes.json).toHaveBeenCalledWith({ user: { mxid: '@test:localhost' } });
     });
 });

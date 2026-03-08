@@ -12,7 +12,7 @@ export const listMembers = async (req: AuthRequest, res: Response) => {
         const mxid = req.user!.mxid;
         const link = await prisma.accountLink.findUnique({
             where: { matrixId: mxid },
-            include: { system: { include: { members: true } } }
+            include: { system: { include: { members: { include: { groups: true } } } } }
         });
         res.json(link?.system?.members || []);
     } catch (e) {
@@ -23,7 +23,7 @@ export const listMembers = async (req: AuthRequest, res: Response) => {
 export const createMember = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        const { name, displayName, avatarUrl, proxyTags, slug, description, pronouns, color, groups } = MemberSchema.parse(req.body);
+        const { name, displayName, avatarUrl, proxyTags, slug, description, pronouns, color, groups, privacy } = MemberSchema.parse(req.body);
 
         const link = await prisma.accountLink.findUnique({ 
             where: { matrixId: mxid },
@@ -53,6 +53,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
                 description,
                 pronouns,
                 color,
+                privacy: privacy as any,
                 groups: groups ? { connect: groups.map(id => ({ id })) } : undefined
             }
         });
@@ -107,12 +108,13 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
             await decommissionGhost(memberToUpdate, link.system);
         }
 
-        const { groups, ...prismaUpdateData } = updateData;
+        const { groups, privacy, ...prismaUpdateData } = updateData;
 
         const updated = await prisma.member.update({
             where: { id },
             data: {
                 ...prismaUpdateData,
+                privacy: privacy === undefined ? undefined : (privacy as any),
                 groups: groups ? { set: groups.map(groupId => ({ id: groupId })) } : undefined
             },
             include: { system: true }

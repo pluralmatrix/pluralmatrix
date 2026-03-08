@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Plus, Trash2, Camera } from 'lucide-react';
+import { X, Save, Plus, Trash2, Camera, Shield } from 'lucide-react';
 import { memberService } from '../services/api';
 import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
 import { useDirtyState } from '../hooks/useDirtyState';
+import PrivacyToggle from './PrivacyToggle';
 
 interface MemberEditorProps {
     member?: any;
@@ -15,6 +16,7 @@ interface MemberEditorProps {
 
 const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], isReadOnly, onSave, onCancel }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [activeTab, setActiveTab] = useState<'profile' | 'privacy'>('profile');
     const [formData, setFormData, isDirty] = useDirtyState({
         slug: member?.slug || '',
         name: member?.name || '',
@@ -24,7 +26,18 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
         color: member?.color || '0dbd8b',
         avatarUrl: member?.avatarUrl || '',
         proxyTags: member?.proxyTags || [{ prefix: '', suffix: '' }],
-        groups: member?.groups?.map((g: any) => typeof g === 'object' ? g.id : g) || []
+        groups: member?.groups?.map((g: any) => typeof g === 'object' ? g.id : g) || [],
+        privacy: member?.privacy || {
+            visibility: 'public',
+            name_privacy: 'public',
+            description_privacy: 'public',
+            avatar_privacy: 'public',
+            birthday_privacy: 'public',
+            pronoun_privacy: 'public',
+            metadata_privacy: 'public',
+            proxy_privacy: 'public',
+            banner_privacy: 'public'
+        }
     });
     const [loading, setLoading] = useState(false);
 
@@ -131,19 +144,41 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
             <div className="max-w-2xl w-full bg-matrix-light border border-white/10 rounded-2xl shadow-2xl my-8">
                 <form onSubmit={isReadOnly ? (e) => e.preventDefault() : handleSubmit}>
                     <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                        <h2 data-testid="member-editor-title" className="text-2xl font-bold">
-                            {isReadOnly ? 'System Member Profile' : (member ? 'Edit System Member' : 'New System Member')}
-                        </h2>
+                        <div className="flex items-center gap-6">
+                            <h2 data-testid="member-editor-title" className="text-2xl font-bold">
+                                {isReadOnly ? 'System Member Profile' : (member ? 'Edit System Member' : 'New System Member')}
+                            </h2>
+                            {!isReadOnly && (
+                                <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('profile')}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                                    >
+                                        Profile
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('privacy')}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center ${activeTab === 'privacy' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                                    >
+                                        <Shield size={14} className="mr-1.5" /> Privacy
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <button type="button" onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
                             <X size={20} />
                         </button>
                     </div>
 
                     <div className="p-8 space-y-8 text-slate-200">
-                        {/* Avatar & Basic Info */}
-                        <div className="flex flex-col md:flex-row gap-8 items-start">
-                            <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
-                                <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
+                        {activeTab === 'profile' && (
+                            <>
+                                {/* Avatar & Basic Info */}
+                                <div className="flex flex-col md:flex-row gap-8 items-start">
+                                    <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
+                                        <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
                                     {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
                                         <img src={getAvatarUrl(formData.avatarUrl)!} className="w-full h-full object-cover" alt="Avatar" />
                                     ) : (
@@ -347,6 +382,37 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                             </button>
                                         );
                                     })}
+                                </div>
+                            </div>
+                        )}
+                        </>
+                        )}
+
+                        {activeTab === 'privacy' && (
+                            <div className="space-y-6">
+                                <div className="p-4 bg-matrix-dark/50 rounded-xl border border-white/5 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-bold text-sm">Member Visibility</h3>
+                                            <p className="text-xs text-matrix-muted">If private, this member will not appear in the system member list for others.</p>
+                                        </div>
+                                        <PrivacyToggle 
+                                            value={formData.privacy.visibility} 
+                                            onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, visibility: v } })} 
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {['name', 'description', 'avatar', 'pronouns', 'proxy'].map((field) => (
+                                        <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
+                                            <span className="text-sm font-medium capitalize">{field} Privacy</span>
+                                            <PrivacyToggle 
+                                                value={formData.privacy[`${field}_privacy`]} 
+                                                onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, [`${field}_privacy`]: v } })} 
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}

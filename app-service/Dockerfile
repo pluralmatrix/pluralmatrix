@@ -67,7 +67,7 @@ RUN npm install
 COPY app-service/ .
 
 RUN npx prisma generate
-RUN npx tsc
+RUN NODE_OPTIONS="--max-old-space-size=4096" npx tsc
 
 # Copy Rust helper from builder
 COPY --from=rust-builder /usr/src/helper/target/release/rust-crypto-helper /usr/local/bin/

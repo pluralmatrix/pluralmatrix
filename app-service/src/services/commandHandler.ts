@@ -42,7 +42,7 @@ export class CommandHandler {
             }
         } else if (userId === this.bridge.getBot().getUserId()) {
             const system = await this.prisma.system.findFirst({
-                where: { accountLinks: { some: { isPrimary: true } } }, 
+                where: { accountLinks: { some: { isPrimary: true } } },
                 select: { id: true }
             });
             systemId = system?.id;
@@ -50,6 +50,31 @@ export class CommandHandler {
         return { memberId, systemId };
     }
 
+    async resolveTargetSystem(target: string, senderMxid: string) {
+        if (!target) return null;
+        if (target.startsWith('@')) {
+            let targetMxid = target;
+            if (!targetMxid.includes(':')) targetMxid = `${targetMxid}:${senderMxid.split(':')[1]}`;
+            const link = await this.prisma.accountLink.findUnique({
+                where: { matrixId: targetMxid },
+                include: { system: { include: { members: true, groups: true } } }
+            });
+            return link?.system || null;
+        }
+
+        let system = await this.prisma.system.findUnique({
+            where: { slug: target },
+            include: { members: true, groups: true }
+        });
+
+        if (!system && target.length === 5) {
+            system = await this.prisma.system.findFirst({
+                where: { pkId: target },
+                include: { members: true, groups: true }
+            });
+        }
+        return system;
+    }
     /**
      * Messaging Helpers
      */
@@ -623,14 +648,33 @@ export class CommandHandler {
         }
     }
 
-    async handleCommand(event: any, cmd: string, parts: string[], system: any) {
+    async handleCommand(event: any, cmd: string, parts: string[], system: any): Promise<any> {
         const roomId = event.room_id;
         const sender = event.sender;
 
         // Handle explicit system creation first
         if (cmd === "system" || cmd === "s") {
-            const subCmd = parts[1]?.toLowerCase();
+            const possibleTarget = parts[1]?.toLowerCase();
+            const knownSubCmds = ["new", "rename", "description", "desc", "tag", "avatar", "icon", "delete", "list"];
             
+            let targetSystem = system;
+            let subCmd = possibleTarget;
+            let subCmdArgs = parts.slice(2);
+            let isOwnSystem = true;
+            
+            if (possibleTarget && !knownSubCmds.includes(possibleTarget)) {
+                targetSystem = await this.resolveTargetSystem(possibleTarget, sender);
+                if (!targetSystem) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, `❌ System not found: ${possibleTarget}`);
+                    return true;
+                }
+                subCmd = parts[2]?.toLowerCase();
+                subCmdArgs = parts.slice(3);
+                // Check if targetSystem is the sender's system
+                const link = await this.prisma.accountLink.findUnique({ where: { matrixId: sender } });
+                isOwnSystem = link ? link.systemId === targetSystem.id : false;
+            }
+
             if (subCmd === "new") {
                 if (system) {
                     await this.sendRichText(this.bridge.getIntent(), roomId, `You already have a system registered (\`${system.slug}\`).`);
@@ -674,29 +718,98 @@ ${webUrl}
                 }
             }
 
-            if (!system) {
+            if (!targetSystem) {
                 const webUrl = config.publicWebUrl;
                 await this.sendRichText(this.bridge.getIntent(), roomId, `❌ You do not have a system registered with PluralMatrix. To create one, type \`pk;system new\` or log in with your Matrix account at: ${webUrl}`);
                 return true;
             }
 
+            const sysPrivacy: any = targetSystem.privacy || {};
+
             if (!subCmd) {
                 // Display system info card
-                let card = `### ${system.name || "System"} (\`${system.slug}\`)\n`;
-                if (system.systemTag) card += `**Tag:** \`${system.systemTag}\`\n`;
-                if (system.pronouns) card += `**Pronouns:** ${system.pronouns}\n`;
-                card += `**Members:** ${system.members?.length || 0}\n`;
-                if (system.description) card += `\n*${system.description}*\n`;
+                let dispName = targetSystem.name || "System";
+                if (!isOwnSystem && sysPrivacy.name_privacy === 'private') dispName = "System";
+
+                let card = `### ${dispName} (\`${targetSystem.slug}\`)\n`;
+                if (targetSystem.systemTag) card += `**Tag:** \`${targetSystem.systemTag}\`\n`;
                 
-                const webUrl = `${config.publicWebUrl}/s/${system.slug}`;
+                if (targetSystem.pronouns && (isOwnSystem || sysPrivacy.pronoun_privacy !== 'private')) {
+                    card += `**Pronouns:** ${targetSystem.pronouns}\n`;
+                }
+
+                if (isOwnSystem || sysPrivacy.member_list_privacy !== 'private') {
+                    const visibleMembers = targetSystem.members?.filter((m: any) => isOwnSystem || (m.privacy || {}).visibility !== 'private') || [];
+                    card += `**Members:** ${visibleMembers.length}\n`;
+                } else {
+                    card += `**Members:** (Private)\n`;
+                }
+
+                if (targetSystem.description && (isOwnSystem || sysPrivacy.description_privacy !== 'private')) {
+                    card += `\n*${targetSystem.description}*\n`;
+                }
+                
+                const webUrl = `${config.publicWebUrl}/s/${targetSystem.slug}`;
                 card += `\n[View Web Profile](${webUrl})`;
                 
                 await this.sendRichText(this.bridge.getIntent(), roomId, card);
                 return true;
             }
 
+            if (subCmd === "list") {
+                if (!isOwnSystem && sysPrivacy.member_list_privacy === 'private') {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, "❌ This system's member list is private.");
+                    return true;
+                }
+                
+                const isFull = subCmdArgs[0] === "full";
+                const visibleMembers = targetSystem.members?.filter((m: any) => isOwnSystem || (m.privacy || {}).visibility !== 'private') || [];
+                
+                if (visibleMembers.length === 0) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, "No system members found or they are all private.");
+                    return true;
+                }
+
+                const sortedMembers = visibleMembers.sort((a: any, b: any) => a.slug.localeCompare(b.slug));
+                const memberList = sortedMembers.map((m: any) => {
+                    const mp = m.privacy || {};
+                    let dName = m.name;
+                    if (!isOwnSystem && mp.name_privacy === 'private') {
+                        dName = m.displayName || m.name;
+                    }
+                    
+                    let line = `* **${dName}** (\`${m.slug}\`)`;
+                    
+                    const tags = m.proxyTags as any[];
+                    const tag = tags[0];
+                    if (tag && (isOwnSystem || mp.proxy_privacy !== 'private')) {
+                        line += ` - \`${tag.prefix || ""}text${tag.suffix || ""}\``;
+                    }
+
+                    if (isFull) {
+                        if (m.pronouns && (isOwnSystem || mp.pronoun_privacy !== 'private')) {
+                            line += `\n  *Pronouns:* ${m.pronouns}`;
+                        }
+                        if (m.description && (isOwnSystem || mp.description_privacy !== 'private')) {
+                            line += `\n  *Description:* ${m.description.split('\n')[0].substring(0, 100)}${m.description.length > 100 ? '...' : ''}`;
+                        }
+                    }
+                    return line;
+                }).join("\n");
+
+                const sysName = targetSystem.name && (isOwnSystem || sysPrivacy.name_privacy !== 'private') ? targetSystem.name : "System";
+                await this.sendRichText(this.bridge.getIntent(), roomId, `### ${sysName} Members\n${memberList}`);
+                return true;
+            }
+
+            // Commands below require ownership
+            if (!isOwnSystem) {
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, `❌ You can only modify your own system.`);
+                return true;
+            }
+
             if (subCmd === "rename") {
-                const newName = parts.slice(2).join(" ");
+                const newName = subCmdArgs.join(" ");
                 if (!newName) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Usage: `pk;system rename <new name>`");
                     return true;
@@ -711,9 +824,9 @@ ${webUrl}
             }
 
             if (subCmd === "description" || subCmd === "desc") {
-                const newDesc = parts.slice(2).join(" ");
+                const newDesc = subCmdArgs.join(" ");
                 await this.prisma.system.update({
-                    where: { id: system.id },
+                    where: { id: targetSystem.id },
                     data: { description: newDesc || null }
                 });
                 emitSystemUpdate(sender);
@@ -722,9 +835,9 @@ ${webUrl}
             }
 
             if (subCmd === "tag") {
-                const newTag = parts.slice(2).join(" ");
+                const newTag = subCmdArgs.join(" ");
                 await this.prisma.system.update({
-                    where: { id: system.id },
+                    where: { id: targetSystem.id },
                     data: { systemTag: newTag || null }
                 });
                 proxyCache.invalidate(sender);
@@ -734,12 +847,12 @@ ${webUrl}
             }
 
             if (subCmd === "avatar" || subCmd === "icon") {
-                const newAvatar = parts.slice(2).join(" ");
+                const newAvatar = subCmdArgs.join(" ");
                 // Matrix media URLs are typically generated via UI. If the user passes an HTTP url, we can save it, but PluralMatrix expects mxc://
                 // We'll allow any URL string just for parity, though mxc:// is preferred for Matrix.
                 if (!newAvatar && !event.content?.url && !event.content?.info) {
                     await this.prisma.system.update({
-                        where: { id: system.id },
+                        where: { id: targetSystem.id },
                         data: { avatarUrl: null }
                     });
                     emitSystemUpdate(sender);
@@ -750,7 +863,7 @@ ${webUrl}
                 const avatarUrl = event.content?.url || newAvatar;
                 if (avatarUrl) {
                     await this.prisma.system.update({
-                        where: { id: system.id },
+                        where: { id: targetSystem.id },
                         data: { avatarUrl: avatarUrl }
                     });
                     emitSystemUpdate(sender);
@@ -781,20 +894,8 @@ ${webUrl}
         }
 
         if (cmd === "list") {
-
-            if (!system || system.members.length === 0) {
-                await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have any system members registered yet.");
-                return true;
-            }
-            const sortedMembers = system.members.sort((a: any, b: any) => a.slug.localeCompare(b.slug));
-            const memberList = sortedMembers.map((m: any) => {
-                const tags = m.proxyTags as any[];
-                const tag = tags[0];
-                const display = tag ? `\`${tag.prefix}text${tag.suffix}\`` : "None";
-                return `* **${m.name}** - ${display} (id: \`${m.slug}\`)`;
-            }).join("\n");
-            await this.sendRichText(this.bridge.getIntent(), roomId, `### ${system.name || "Your System"} Members\n${memberList}`);
-            return true;
+            const newParts = ["system", "list", ...parts.slice(1)];
+            return this.handleCommand(event, "system", newParts, system);
         }
 
         if (cmd === "link") {
@@ -941,29 +1042,67 @@ ${webUrl}
 
         if (cmd === "member" || cmd === "m") {
 
-            const slug = parts[1].toLowerCase();
-            const member = system?.members.find((m: any) => m.slug === slug);
+            const slug = parts[1]?.toLowerCase();
+            if (!slug) {
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Usage: \`pk;member <id>\``);
+                return true;
+            }
+
+            let member = system?.members.find((m: any) => m.slug === slug || m.pkId === slug);
+            let isOwnMember = !!member;
+            let targetSystem = system;
+
+            if (!member) {
+                // Try global search by pkId
+                if (slug.length === 5) {
+                    const members = await this.prisma.member.findMany({
+                        where: { pkId: slug },
+                        include: { system: true }
+                    });
+                    if (members.length === 1) {
+                        member = members[0];
+                        isOwnMember = false;
+                        targetSystem = member.system;
+                    }
+                }
+            }
+
             if (!member) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${slug}`);
                 return true;
             }
-            let info = `## Member Details: ${member.name}\n\n`;
-            if (member.pronouns) info += `* **Pronouns:** ${member.pronouns}\n`;
+
+            // Enforce privacy
+            const mp: any = member.privacy || {};
+            if (!isOwnMember && mp.visibility === 'private') {
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${slug}`);
+                return true;
+            }
+
+            let dName = member.name;
+            if (!isOwnMember && mp.name_privacy === 'private') {
+                dName = member.displayName || member.name;
+            }
+
+            let info = `## Member Details: ${dName}\n\n`;
+            if (member.pronouns && (isOwnMember || mp.pronoun_privacy !== 'private')) info += `* **Pronouns:** ${member.pronouns}\n`;
             if (member.color) info += `* **Color:** \`#${member.color}\`\n`;
-            if (member.description) info += `\n### Description\n${member.description}\n\n`;
-            const tags = (member.proxyTags as any[]).map(t => `\`${t.prefix}text${t.suffix}\``).join(", ");
-            info += `--- \n* **Proxy Tags:** ${tags || "None"}`;
-            
+            if (member.description && (isOwnMember || mp.description_privacy !== 'private')) info += `\n### Description\n${member.description}\n\n`;
+
+            if (isOwnMember || mp.proxy_privacy !== 'private') {
+                const tags = ((member.proxyTags || []) as any[]).map(t => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
+                info += `--- \n* **Proxy Tags:** ${tags || "None"}`;
+            }
+
             await this.sendRichText(this.bridge.getIntent(), roomId, info);
 
-            if (member.avatarUrl) {
-                await this.sendEncryptedImage(this.bridge.getIntent(), roomId, member.avatarUrl, `${member.name}'s Avatar`).catch(err => {
+            if (member.avatarUrl && (isOwnMember || mp.avatar_privacy !== 'private')) {
+                await this.sendEncryptedImage(this.bridge.getIntent(), roomId, member.avatarUrl, `${dName}'s Avatar`).catch(err => {
                     console.error(`[Bot] Failed to send avatar for ${member.slug}:`, err.message);
                 });
             }
             return true;
         }
-
         if (cmd === "autoproxy" || cmd === "auto" || cmd === "ap") {
             if (!system) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have a system registered yet.");

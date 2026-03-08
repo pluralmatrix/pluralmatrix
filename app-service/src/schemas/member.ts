@@ -10,6 +10,32 @@ export const ProxyTagSchema = z.object({
 
 const emptyToNull = (val: any) => (val === "" ? null : val);
 
+export const PrivacyLevelSchema = z.enum(["public", "private"]);
+
+export const MemberPrivacySchema = z.object({
+    visibility: PrivacyLevelSchema.default("public"),
+    name_privacy: PrivacyLevelSchema.default("public"),
+    description_privacy: PrivacyLevelSchema.default("public"),
+    avatar_privacy: PrivacyLevelSchema.default("public"),
+    birthday_privacy: PrivacyLevelSchema.default("public"),
+    pronoun_privacy: PrivacyLevelSchema.default("public"),
+    metadata_privacy: PrivacyLevelSchema.default("public"),
+    proxy_privacy: PrivacyLevelSchema.default("public"),
+    banner_privacy: PrivacyLevelSchema.default("public")
+}).passthrough();
+
+export const SystemPrivacySchema = z.object({
+    description_privacy: PrivacyLevelSchema.default("public"),
+    member_list_privacy: PrivacyLevelSchema.default("public"),
+    group_list_privacy: PrivacyLevelSchema.default("public"),
+    front_privacy: PrivacyLevelSchema.default("public"),
+    front_history_privacy: PrivacyLevelSchema.default("public"),
+    name_privacy: PrivacyLevelSchema.default("public"),
+    avatar_privacy: PrivacyLevelSchema.default("public"),
+    banner_privacy: PrivacyLevelSchema.default("public"),
+    pronoun_privacy: PrivacyLevelSchema.default("public")
+}).passthrough();
+
 export const MemberSchema = z.object({
     name: z.string().min(1, "Internal Name is required").max(100),
     displayName: z.preprocess(emptyToNull, z.string().max(100).optional().nullable()),
@@ -19,7 +45,8 @@ export const MemberSchema = z.object({
     description: z.preprocess(emptyToNull, z.string().max(5000).optional().nullable()),
     pronouns: z.preprocess(emptyToNull, z.string().max(100).optional().nullable()),
     color: z.preprocess(emptyToNull, z.string().regex(/^[0-9a-fA-F]{6}$/, "Color must be a 6-digit hex code").optional().nullable()),
-    groups: z.array(z.string()).optional()
+    groups: z.array(z.string()).optional(),
+    privacy: MemberPrivacySchema.optional()
 });
 
 export const SystemSchema = z.object({
@@ -29,5 +56,6 @@ export const SystemSchema = z.object({
     autoproxyId: z.string().uuid().optional().nullable(),
     autoproxyMode: z.enum(["off", "latch", "member"]).optional(),
     description: z.preprocess(emptyToNull, z.string().max(1000).optional().nullable()),
-    avatarUrl: z.preprocess(emptyToNull, z.string().max(256).url().or(z.string().startsWith('mxc://')).optional().nullable())
+    avatarUrl: z.preprocess(emptyToNull, z.string().max(256).url().or(z.string().startsWith('mxc://')).optional().nullable()),
+    privacy: SystemPrivacySchema.optional()
 });

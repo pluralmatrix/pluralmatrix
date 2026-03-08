@@ -58,7 +58,7 @@ test.describe('System Settings and Member Management', () => {
         await page.getByTestId('add-member-button').waitFor({ state: 'visible' });
         await page.getByTestId('add-member-button').click();
         
-        await expect(page.getByRole('heading', { name: 'New System Member' })).toBeVisible();
+        await expect(page.getByTestId('member-editor-title')).toBeVisible();
 
         await page.fill('input[name="name"]', 'Avatar Tester');
         await page.fill('input[name="slug"]', 'avatar');
@@ -86,7 +86,7 @@ test.describe('System Settings and Member Management', () => {
 
         // 3. Settings & Account Links
         await page.getByTestId('system-settings-button').click();
-        await expect(page.getByRole('heading', { name: 'System Settings' })).toBeVisible();
+        await expect(page.getByTestId('system-settings-title')).toBeVisible();
 
         // Update System Profile (Description and Avatar)
         const descInput = page.locator('textarea[name="description"]');
@@ -106,7 +106,7 @@ test.describe('System Settings and Member Management', () => {
 
         // Re-open settings and test clearing the avatar
         await page.getByTestId('system-settings-button').click();
-        await expect(page.getByRole('heading', { name: 'System Settings' })).toBeVisible();
+        await expect(page.getByTestId('system-settings-title')).toBeVisible();
 
         await expect(page.locator('img[alt="System Avatar"]')).toBeVisible();
         await page.locator('button[title="Clear System Avatar"]').click();
@@ -118,7 +118,7 @@ test.describe('System Settings and Member Management', () => {
 
         // Re-open settings to continue with links
         await page.getByTestId('system-settings-button').click();
-        await expect(page.getByRole('heading', { name: 'System Settings' })).toBeVisible();
+        await expect(page.getByTestId('system-settings-title')).toBeVisible();
 
         // Add a new link
         await page.getByTestId('new-link-input').fill(linkFullMxid);
@@ -224,5 +224,48 @@ test.describe('System Settings and Member Management', () => {
         await expect(page.getByTestId('login-submit-button')).toBeVisible();
 
         console.log('[UI-Settings-Test] Success!');
+    });
+
+    test('Closing settings immediately after opening should not prompt for unsaved changes', async ({ page }) => {
+        const testUser = `ui_set_user2_${Math.random().toString(36).substring(7)}`;
+        const testFullMxid = await registerUser(testUser, password);
+        const client = await getMatrixClient(testUser, password);
+        const testToken = client.accessToken;
+        await client.stop();
+
+        page.on('console', msg => console.log(`[Browser] ${msg.text()}`));
+        // 1. Log in
+        await page.goto('/login');
+        await page.getByTestId('login-mxid-input').fill(testFullMxid);
+        await page.getByTestId('login-password-input').fill(password);
+        
+        await page.getByTestId('login-submit-button').click();
+        await page.waitForURL(/\/setup/);
+
+        await page.getByTestId('create-system-button').click();
+        await page.getByTestId('acknowledge-warning-button').click();
+        await page.waitForURL(/\/s\/[a-z0-9-]+/);
+
+        // Track dialogs to ensure none are triggered
+        let dialogTriggered = false;
+        page.on('dialog', dialog => {
+            dialogTriggered = true;
+            dialog.accept();
+        });
+
+        // 2. Open settings
+        await page.getByTestId('system-settings-button').click();
+        await expect(page.getByTestId('system-settings-title')).toBeVisible();
+
+        // 3. Close immediately
+        await page.getByTestId('close-settings-button').click();
+
+        // 4. Verify no dialog was triggered and modal closed
+        expect(dialogTriggered).toBe(false);
+        await expect(page.getByTestId('system-settings-title')).not.toBeVisible();
+
+        // Cleanup
+        await deactivateUser(testFullMxid, testToken);
+        cleanupCryptoStorage(testUser);
     });
 });

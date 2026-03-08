@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Settings, Hash, Link as LinkIcon, Trash2, Plus, AlertCircle, Star, Camera } from 'lucide-react';
+import { X, Save, Settings, Hash, Link as LinkIcon, Trash2, Plus, AlertCircle, Star, Camera, Shield } from 'lucide-react';
 import { systemService, memberService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import DeadLetterQueue from './dlq/DeadLetterQueue';
@@ -7,6 +7,7 @@ import { Archive } from 'lucide-react';
 import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
 import { useDirtyState } from '../hooks/useDirtyState';
+import PrivacyToggle from './PrivacyToggle';
 
 interface SystemSettingsProps {
     onSave: (newSlug?: string) => void;
@@ -17,12 +18,24 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
     const { user } = useAuth();
     const [dlqOpen, setDlqOpen] = useState(false);
     const [dlqCount, setDlqCount] = useState(0);
-    const [formData, setFormData, isDirty] = useDirtyState({
+    const [activeTab, setActiveTab] = useState<'general' | 'privacy'>('general');
+    const [formData, setFormData, isDirty, resetFormData] = useDirtyState({
         name: '',
         systemTag: '',
         slug: '',
         description: '',
-        avatarUrl: ''
+        avatarUrl: '',
+        privacy: {
+            description_privacy: 'public',
+            member_list_privacy: 'public',
+            group_list_privacy: 'public',
+            front_privacy: 'public',
+            front_history_privacy: 'public',
+            name_privacy: 'public',
+            avatar_privacy: 'public',
+            banner_privacy: 'public',
+            pronoun_privacy: 'public'
+        }
     });
     const [links, setLinks] = useState<any[]>([]);
     const [newLinkMxid, setNewLinkMxid] = useState('');
@@ -76,12 +89,23 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
         const fetchSystem = async () => {
             try {
                 const res = await systemService.get();
-                setFormData({
+                resetFormData({
                     name: res.data.name || '',
                     systemTag: res.data.systemTag || '',
                     slug: res.data.slug || '',
                     description: res.data.description || '',
-                    avatarUrl: res.data.avatarUrl || ''
+                    avatarUrl: res.data.avatarUrl || '',
+                    privacy: res.data.privacy || {
+                        description_privacy: 'public',
+                        member_list_privacy: 'public',
+                        group_list_privacy: 'public',
+                        front_privacy: 'public',
+                        front_history_privacy: 'public',
+                        name_privacy: 'public',
+                        avatar_privacy: 'public',
+                        banner_privacy: 'public',
+                        pronoun_privacy: 'public'
+                    }
                 });
                 await fetchLinks();
                 
@@ -157,20 +181,40 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="max-w-2xl w-full bg-matrix-light border border-white/10 rounded-2xl shadow-2xl my-8">
                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-matrix-primary/10 text-matrix-primary rounded-lg">
-                            <Settings size={20} />
+                    <div className="flex items-center space-x-6">
+                        <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-matrix-primary/10 text-matrix-primary rounded-lg">
+                                <Settings size={20} />
+                            </div>
+                            <h2 data-testid="system-settings-title" className="text-xl font-bold">System Settings</h2>
                         </div>
-                        <h2 className="text-xl font-bold">System Settings</h2>
+                        <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('general')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'general' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                            >
+                                General
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('privacy')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center ${activeTab === 'privacy' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                            >
+                                <Shield size={14} className="mr-1.5" /> Privacy
+                            </button>
+                        </div>
                     </div>
                     <button type="button" data-testid="close-settings-button" onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-12">
-                    {/* Left: General Settings */}
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="p-8">
+                    {activeTab === 'general' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                            {/* Left: General Settings */}
+                            <form onSubmit={handleSubmit} className="space-y-6">
                         <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
                             General
                         </h3>
@@ -354,6 +398,39 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                         onClose={() => setDlqOpen(false)} 
                         onCountChange={(count) => setDlqCount(count)}
                     />
+                </div>
+            ) : (
+                <div className="max-w-2xl mx-auto space-y-6">
+                    <h3 className="text-lg font-bold">System Privacy Controls</h3>
+                    <p className="text-sm text-matrix-muted mb-6">
+                        These settings control what information is publicly visible when people view your system profile or query your system via commands.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {['description', 'member_list', 'group_list', 'name', 'avatar', 'pronoun', 'banner', 'front', 'front_history'].map((field) => (
+                            <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
+                                <span className="text-sm font-medium capitalize">{field.replace('_', ' ')} Privacy</span>
+                                <PrivacyToggle 
+                                    value={(formData.privacy as any)[`${field}_privacy`]} 
+                                    onChange={(v) => {
+                                        setFormData({ 
+                                            ...formData, 
+                                            privacy: { ...formData.privacy, [`${field}_privacy`]: v } 
+                                        });
+                                    }} 
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="pt-6 border-t border-white/5">
+                        <button type="button" onClick={handleSubmit} disabled={saving} className="matrix-button w-full flex items-center justify-center">
+                            <Save size={18} className="mr-2" />
+                            {saving ? 'Saving...' : 'Save Privacy Settings'}
+                        </button>
+                    </div>
+                </div>
+            )}
                 </div>
             </div>
         </div>

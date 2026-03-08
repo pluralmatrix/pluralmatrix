@@ -112,7 +112,7 @@ test.describe('Web UI Onboarding Flow', () => {
             await page.getByTestId('add-member-button').click();
             
             console.log('[UI-Test] Waiting for New System Member modal...');
-            await page.waitForSelector('h2:has-text("New System Member")', { timeout: 5000 });
+            await page.waitForSelector('[data-testid="member-editor-title"]', { timeout: 5000 });
         } catch (e) {
             console.error(`[UI-Test] Failed to find member creation UI. Dumping DOM...`);
             const html = await page.content();

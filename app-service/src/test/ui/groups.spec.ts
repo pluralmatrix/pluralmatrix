@@ -133,7 +133,7 @@ test.describe('Web UI Groups Flow', () => {
 
         // Save
         await page.getByTestId('save-group-button').click();
-        await expect(page.locator('h2:has-text("Edit Group")')).toHaveCount(0);
+        await expect(page.getByTestId('group-editor-title')).toHaveCount(0);
 
         // Edit again and clear icon
         await page.mouse.move(0, 0);

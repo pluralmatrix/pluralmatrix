@@ -5,6 +5,7 @@ export function useDirtyState<T>(initialState: T) {
     const [isDirty, setIsDirty] = useState(false);
 
     const setDirtyState = useCallback((newState: T | ((prevState: T) => T)) => {
+        console.log('[useDirtyState] setDirtyState called!', new Error().stack?.split('\n')[2]);
         setIsDirty(true);
         setState(newState);
     }, []);

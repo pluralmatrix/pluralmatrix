@@ -22,6 +22,7 @@ model System {
   autoproxyMode String @default("off") // "off", "latch", "member"
   autoproxyId String?
   autoproxy   Member?  @relation("Autoproxy", fields: [autoproxyId], references: [id])
+  privacy     Json?
   members     Member[] @relation("SystemMembers")
   groups      Group[]  @relation("SystemGroups")
   accountLinks AccountLink[]
@@ -53,6 +54,7 @@ model Member {
   proxyTags   Json     // Array of { prefix: string, suffix: string }
   matrixId    String?  // The Ghost User ID (@_plural_id:server)
   groups      Group[]  @relation("MemberGroups")
+  privacy     Json?
   deviceRegistered Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -73,6 +75,7 @@ model Group {
   icon        String?  // Avatar/icon URL
   color       String?
   members     Member[] @relation("MemberGroups")
+  privacy     Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

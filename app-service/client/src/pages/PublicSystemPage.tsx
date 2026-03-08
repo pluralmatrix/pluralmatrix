@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { systemService } from '../services/api';
 import MemberCard from '../components/MemberCard';
 import MemberEditor from '../components/MemberEditor';
-import { Search, LayoutGrid, List, Info, ArrowLeft, Loader2 } from 'lucide-react';
+import { Search, LayoutGrid, List, Info, ArrowLeft, Loader2, Lock } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
 const PublicSystemPage: React.FC = () => {
@@ -116,29 +116,41 @@ const PublicSystemPage: React.FC = () => {
                 </div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <AnimatePresence mode="popLayout">
-                        {filteredMembers.map((member: any) => (
-                            <MemberCard 
-                                key={member.id} 
-                                member={member} 
-                                isReadOnly={true}
-                                isAutoproxy={system.autoproxyId === member.id}
-                                onEdit={(m) => setSelectedMember(m)}
-                                onDelete={() => {}}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </div>
-
-                {filteredMembers.length === 0 && (
+                {system.list_privacy_enforced ? (
                     <div className="text-center py-20 space-y-4">
-                        <div className="w-20 h-20 bg-matrix-light rounded-full flex items-center justify-center mx-auto text-matrix-muted opacity-50">
-                            <Search size={40} />
+                        <div className="w-20 h-20 bg-matrix-light rounded-full flex items-center justify-center mx-auto text-red-500/80 opacity-80">
+                            <Lock size={40} />
                         </div>
-                        <h3 className="text-xl font-bold">No system members found</h3>
-                        <p className="text-matrix-muted max-w-xs mx-auto">Try a different search term.</p>
+                        <h3 className="text-xl font-bold">Member list is private</h3>
+                        <p className="text-matrix-muted max-w-xs mx-auto">This system has chosen not to display its members publicly.</p>
                     </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <AnimatePresence mode="popLayout">
+                                {filteredMembers.map((member: any) => (
+                                    <MemberCard 
+                                        key={member.id} 
+                                        member={member} 
+                                        isReadOnly={true}
+                                        isAutoproxy={system.autoproxyId === member.id}
+                                        onEdit={(m) => setSelectedMember(m)}
+                                        onDelete={() => {}}
+                                    />
+                                ))}
+                            </AnimatePresence>
+                        </div>
+
+                        {filteredMembers.length === 0 && (
+                            <div className="text-center py-20 space-y-4">
+                                <div className="w-20 h-20 bg-matrix-light rounded-full flex items-center justify-center mx-auto text-matrix-muted opacity-50">
+                                    <Search size={40} />
+                                </div>
+                                <h3 className="text-xl font-bold">No system members found</h3>
+                                <p className="text-matrix-muted max-w-xs mx-auto">Try a different search term.</p>
+                            </div>
+                        )}
+                    </>
                 )}
             </main>
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, Save, AlertCircle, Camera } from 'lucide-react';
+import { X, Save, AlertCircle, Camera, Shield } from 'lucide-react';
 import { groupService, memberService } from '../services/api';
 import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
 import { useDirtyState } from '../hooks/useDirtyState';
+import PrivacyToggle from './PrivacyToggle';
 
 interface GroupEditorProps {
     group?: any;
@@ -17,6 +18,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
     const isNew = !group;
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [activeTab, setActiveTab] = useState<'profile' | 'privacy'>('profile');
 
     const [formData, setFormData, isDirty] = useDirtyState({
         name: group?.name || '',
@@ -25,7 +27,15 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
         description: group?.description || '',
         icon: group?.icon || '',
         color: group?.color || '',
-        members: group?.members?.map((m: any) => typeof m === 'object' ? m.id : m) || []
+        members: group?.members?.map((m: any) => typeof m === 'object' ? m.id : m) || [],
+        privacy: group?.privacy || {
+            visibility: 'public',
+            name_privacy: 'public',
+            description_privacy: 'public',
+            avatar_privacy: 'public',
+            metadata_privacy: 'public',
+            banner_privacy: 'public'
+        }
     });
 
     const handleCancel = () => {
@@ -85,7 +95,8 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                 description: formData.description || null,
                 icon: formData.icon || null,
                 color: formData.color || null,
-                members: formData.members
+                members: formData.members,
+                privacy: formData.privacy
             };
 
             if (isNew) {
@@ -130,7 +141,25 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-matrix-light rounded-3xl p-6 w-full max-w-2xl my-8 border border-white/10 shadow-2xl relative">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-white">{isNew ? 'Create Group' : 'Edit Group'}</h2>
+                    <div className="flex items-center gap-6">
+                        <h2 data-testid="group-editor-title" className="text-2xl font-bold text-white">{isNew ? 'Create Group' : 'Edit Group'}</h2>
+                        <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('profile')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                            >
+                                Profile
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('privacy')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center ${activeTab === 'privacy' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                            >
+                                <Shield size={14} className="mr-1.5" /> Privacy
+                            </button>
+                        </div>
+                    </div>
                     <button onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted"><X /></button>
                 </div>
 
@@ -145,9 +174,11 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                 )}
 
                 <form onSubmit={handleSave} className="space-y-6">
-                    <div className="flex flex-col md:flex-row gap-8 items-start">
-                        <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
-                            <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
+                    {activeTab === 'profile' ? (
+                        <>
+                            <div className="flex flex-col md:flex-row gap-8 items-start">
+                                <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
+                                    <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
                                 {formData.icon && getAvatarUrl(formData.icon) ? (
                                     <img src={getAvatarUrl(formData.icon)!} className="w-full h-full object-cover" alt="Icon" />
                                 ) : (
@@ -273,6 +304,35 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                             </div>
                         )}
                     </div>
+                </>
+            ) : (
+                        <div className="space-y-6">
+                            <div className="p-4 bg-matrix-dark/50 rounded-xl border border-white/5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="font-bold text-sm">Group Visibility</h3>
+                                        <p className="text-xs text-matrix-muted">If private, this group will not appear in group lists for others.</p>
+                                    </div>
+                                    <PrivacyToggle 
+                                        value={formData.privacy.visibility} 
+                                        onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, visibility: v } })} 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {['name', 'description', 'avatar', 'metadata', 'banner'].map((field) => (
+                                    <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
+                                        <span className="text-sm font-medium capitalize">{field} Privacy</span>
+                                        <PrivacyToggle 
+                                            value={formData.privacy[`${field}_privacy`]} 
+                                            onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, [`${field}_privacy`]: v } })} 
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="pt-4 flex justify-end space-x-3 border-t border-white/5">
                         <button

@@ -58,6 +58,7 @@ export const getPublicSystem = async (req: Request, res: Response) => {
                 createdAt: true,
                 autoproxyId: true,
                 autoproxyMode: true,
+                privacy: true,
                 members: {
                     select: {
                         id: true,
@@ -70,6 +71,7 @@ export const getPublicSystem = async (req: Request, res: Response) => {
                         color: true,
                         proxyTags: true,
                         createdAt: true,
+                        privacy: true,
                         groups: {
                             select: {
                                 id: true,
@@ -93,6 +95,7 @@ export const getPublicSystem = async (req: Request, res: Response) => {
                         icon: true,
                         color: true,
                         createdAt: true,
+                        privacy: true,
                         members: {
                             select: { id: true }
                         }
@@ -107,6 +110,58 @@ export const getPublicSystem = async (req: Request, res: Response) => {
         if (!system) {
             return res.status(404).json({ error: 'System not found' });
         }
+
+        const sysPrivacy: any = system.privacy || {};
+        
+        // Filter System Level Fields
+        if (sysPrivacy.name_privacy === 'private') system.name = null;
+        if (sysPrivacy.description_privacy === 'private') system.description = null;
+        if (sysPrivacy.avatar_privacy === 'private') system.avatarUrl = null;
+        if (sysPrivacy.banner_privacy === 'private') system.banner = null;
+        if (sysPrivacy.pronoun_privacy === 'private') system.pronouns = null;
+
+        // Filter Member List
+        if (sysPrivacy.member_list_privacy === 'private') {
+            system.members = [];
+            (system as any).list_privacy_enforced = true;
+        } else {
+            system.members = (system.members || []).filter(m => {
+                const mp: any = m.privacy || {};
+                return mp.visibility !== 'private';
+            }).map(m => {
+                const mp: any = m.privacy || {};
+                if (mp.name_privacy === 'private') m.name = m.displayName || m.name;
+                if (mp.description_privacy === 'private') m.description = null;
+                if (mp.avatar_privacy === 'private') m.avatarUrl = null;
+                if (mp.pronoun_privacy === 'private') m.pronouns = null;
+                if (mp.proxy_privacy === 'private') m.proxyTags = [];
+                // remove privacy object so we don't leak settings
+                delete (m as any).privacy;
+                return m;
+            });
+        }
+
+        // Filter Group List
+        if (sysPrivacy.group_list_privacy === 'private') {
+            system.groups = [];
+            (system as any).group_list_privacy_enforced = true;
+        } else {
+            system.groups = (system.groups || []).filter(g => {
+                const gp: any = g.privacy || {};
+                return gp.visibility !== 'private';
+            }).map(g => {
+                const gp: any = g.privacy || {};
+                if (gp.name_privacy === 'private') g.name = g.displayName || g.name;
+                if (gp.description_privacy === 'private') g.description = null;
+                if (gp.avatar_privacy === 'private') g.icon = null;
+                // remove privacy object
+                delete (g as any).privacy;
+                return g;
+            });
+        }
+
+        // Strip system privacy object
+        delete (system as any).privacy;
 
         res.json(system);
     } catch (e) {
@@ -213,7 +268,7 @@ export const deleteSystem = async (req: AuthRequest, res: Response) => {
 export const updateSystem = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        const { name, systemTag, slug: requestedSlug, autoproxyId, autoproxyMode, description, avatarUrl } = SystemSchema.parse(req.body);
+        const { name, systemTag, slug: requestedSlug, autoproxyId, autoproxyMode, description, avatarUrl, privacy } = SystemSchema.parse(req.body);
 
         const link = await prisma.accountLink.findUnique({
             where: { matrixId: mxid }
@@ -225,6 +280,11 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
 
         const currentSystemId = link.systemId;
         const updateData: any = { name, systemTag, autoproxyId, autoproxyMode, description, avatarUrl };
+        
+        if (privacy !== undefined) {
+            updateData.privacy = privacy;
+        }
+
         let finalSlug = undefined;
         let slugChanged = false;
 

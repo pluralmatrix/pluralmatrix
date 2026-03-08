@@ -43,41 +43,51 @@ const DashboardPage: React.FC = () => {
     const fetchData = async (isBackground = false) => {
         if (!urlSlug) return;
         if (!isBackground) setLoading(true);
-        
+
         try {
-            // 1. Fetch public data
-            const pubRes = await systemService.getPublic(urlSlug);
-            const pubSystem = pubRes.data;
-            
-            setSystem(pubSystem);
-            setMembers(pubSystem.members || []);
-            setGroups(pubSystem.groups || []);
-            
-            // 2. Check ownership if logged in
+            // 1. Check ownership if logged in
+            let isUserOwner = false;
+            let privateSystem = null;
+
             if (token) {
                 try {
                     const ownRes = await systemService.get();
-                    if (ownRes.data.slug === pubSystem.slug) {
-                        setIsOwner(true);
-                    } else {
-                        setIsOwner(false);
+                    if (ownRes.data.slug === urlSlug) {
+                        isUserOwner = true;
+                        privateSystem = ownRes.data;
                     }
                 } catch (e) {
-                    setIsOwner(false);
+                    // Ignore 404s for own system
                 }
-            } else {
-                setIsOwner(false);
             }
-            
+            setIsOwner(isUserOwner);
+
+            if (isUserOwner && privateSystem) {
+                // Fetch private members and groups directly
+                const memRes = await memberService.list();
+                const grpRes = await groupService.list();
+
+                setSystem(privateSystem);
+                setMembers(memRes.data || []);
+                setGroups(grpRes.data || []);
+            } else {
+                // Fetch public data
+                const pubRes = await systemService.getPublic(urlSlug);
+                const pubSystem = pubRes.data;
+
+                setSystem(pubSystem);
+                setMembers(pubSystem.members || []);
+                setGroups(pubSystem.groups || []);
+            }
+
             setError(null);
             setLoading(false); 
         } catch (err: any) {
             console.error('Failed to fetch system data:', err);
-            
+
             // Resilience: If 404 and logged in, check if our own system slug changed
             // CRITICAL: We use systemRef to know if we were already successfully viewing a system.
-            if (err.response?.status === 404 && token && systemRef.current) {
-                // If a modal is open, let the modal handle its own redirect/finish state.
+            if (err.response?.status === 404 && token && systemRef.current) {                // If a modal is open, let the modal handle its own redirect/finish state.
                 if (isModalOpenRef.current) {
                     setLoading(false);
                     return;

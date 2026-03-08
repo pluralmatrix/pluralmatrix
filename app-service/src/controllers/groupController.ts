@@ -21,7 +21,7 @@ export const listGroups = async (req: AuthRequest, res: Response) => {
 export const createGroup = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        const { name, slug, displayName, description, icon, color, members } = GroupSchema.parse(req.body);
+        const { name, slug, displayName, description, icon, color, members, privacy } = GroupSchema.parse(req.body);
 
         const link = await prisma.accountLink.findUnique({ 
             where: { matrixId: mxid },
@@ -39,6 +39,7 @@ export const createGroup = async (req: AuthRequest, res: Response) => {
                 description,
                 icon,
                 color,
+                privacy: privacy as any,
                 members: members ? { connect: members.map(id => ({ id })) } : undefined
             },
             include: { members: true }
@@ -59,7 +60,7 @@ export const updateGroup = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
         const id = req.params.id as string;
-        const { members, ...updateData } = GroupSchema.partial().parse(req.body);
+        const { members, privacy, ...updateData } = GroupSchema.partial().parse(req.body);
 
         const link = await prisma.accountLink.findUnique({
             where: { matrixId: mxid }
@@ -75,6 +76,7 @@ export const updateGroup = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: {
                 ...updateData,
+                privacy: privacy === undefined ? undefined : (privacy as any),
                 members: members ? { set: members.map(mId => ({ id: mId })) } : undefined
             },
             include: { members: true }

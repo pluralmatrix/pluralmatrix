@@ -79,7 +79,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-matrix-light border border-white/10 rounded-2xl p-8 space-y-6 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                 <div className="flex items-center justify-between shrink-0">
-                    <h2 className="text-2xl font-bold">Import System</h2>
+                    <h2 data-testid="import-modal-title" className="text-2xl font-bold">Import System</h2>
                     <button 
                         onClick={status === 'success' ? () => onComplete(systemSlug) : onCancel} 
                         className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors"

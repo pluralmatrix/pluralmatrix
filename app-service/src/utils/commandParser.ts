@@ -44,13 +44,11 @@ export function parseCommand(body: string, formattedBody?: string): { cmd: strin
         if (formattedMatch) {
             finalFormattedBody = cleanFormattedBody.slice(formattedMatch[0].length);
         } else {
-            // Fallback in case the HTML tags wrapped the command in a weird way
-            const commandPrefixLength = match[0].length;
-            if (cleanFormattedBody.startsWith(cleanBody.substring(0, commandPrefixLength))) {
-                finalFormattedBody = cleanFormattedBody.slice(commandPrefixLength).trim();
-            } else {
-                finalFormattedBody = cleanFormattedBody;
-            }
+            // Fallback: If HTML tags interrupt the command structure (e.g. `<b>pk;</b>list`),
+            // our regex won't match. Rather than attempting a risky partial slice that might
+            // leave fragmented commands behind, we take no action and preserve the body intact.
+            // limitation: The command invocation will be visible in the final formatted message.
+            finalFormattedBody = cleanFormattedBody;
         }
     }
     

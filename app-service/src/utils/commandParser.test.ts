@@ -85,16 +85,17 @@ describe('commandParser', () => {
         });
     });
 
-    it('should fallback to stripping standard prefix if regex match fails due to HTML tags', () => {
+    it('should fallback to preserving the intact formatted body if regex match fails due to HTML tags', () => {
         const body = 'pk; e hello';
-        // HTML is broken/unexpected so regex fails, but it still starts with the prefix verbatim
+        // HTML is broken/unexpected so regex fails (the command 'e' is wrapped in italics).
+        // Limitation: We take no action and leave the body intact to avoid risky partial slicing.
         const formattedBody = 'pk; <i>e</i> hello';
         
         expect(parseCommand(body, formattedBody)).toEqual({
             cmd: 'e',
             args: ['hello'],
             parts: ['pk;e', 'hello'],
-            cleanFormattedBody: '<i>e</i> hello' // Slices off 'pk; '
+            cleanFormattedBody: 'pk; <i>e</i> hello' // Leaves the entire body intact
         });
     });
 

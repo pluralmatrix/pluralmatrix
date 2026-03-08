@@ -213,7 +213,7 @@ export const deleteSystem = async (req: AuthRequest, res: Response) => {
 export const updateSystem = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        const { name, systemTag, slug: requestedSlug, autoproxyId, autoproxyMode } = SystemSchema.parse(req.body);
+        const { name, systemTag, slug: requestedSlug, autoproxyId, autoproxyMode, description, avatarUrl } = SystemSchema.parse(req.body);
 
         const link = await prisma.accountLink.findUnique({
             where: { matrixId: mxid }
@@ -224,6 +224,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
         }
 
         const currentSystemId = link.systemId;
+        const updateData: any = { name, systemTag, autoproxyId, autoproxyMode, description, avatarUrl };
         let finalSlug = undefined;
         let slugChanged = false;
 
@@ -264,11 +265,8 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
         const updated = await prisma.system.update({
             where: { id: currentSystemId },
             data: { 
-                name, 
-                systemTag, 
-                slug: finalSlug, 
-                autoproxyId,
-                autoproxyMode
+                ...updateData,
+                slug: finalSlug || undefined
             }
         });
 

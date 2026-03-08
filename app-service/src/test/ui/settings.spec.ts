@@ -88,6 +88,26 @@ test.describe('System Settings and Member Management', () => {
         await page.getByTestId('system-settings-button').click();
         await expect(page.getByRole('heading', { name: 'System Settings' })).toBeVisible();
 
+        // Update System Profile (Description and Avatar)
+        const descInput = page.locator('textarea[name="description"]');
+        await expect(descInput).toBeVisible();
+        await descInput.fill('My awesome test system');
+        
+        const systemAvatarUploadPromise = page.waitForResponse(response => 
+            response.url().includes('/api/media/upload') && response.status() === 200
+        );
+        await page.locator('[data-testid="system-avatar-upload"]').setInputFiles(fixturePath);
+        await systemAvatarUploadPromise;
+        await expect(page.locator('img[alt="System Avatar"]')).toBeVisible();
+
+        const updateSystemPromise = page.waitForResponse(response => response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200);
+        await page.getByTestId('save-system-settings-button').click();
+        await updateSystemPromise;
+
+        // Re-open settings to continue with links
+        await page.getByTestId('system-settings-button').click();
+        await expect(page.getByRole('heading', { name: 'System Settings' })).toBeVisible();
+
         // Add a new link
         await page.getByTestId('new-link-input').fill(linkFullMxid);
         
@@ -155,7 +175,7 @@ test.describe('System Settings and Member Management', () => {
         await expect(page.locator('text=Forbidden: Cannot join room')).toBeVisible();
         
         // Use a more specific locator for the textarea content
-        const textarea = page.locator('textarea');
+        const textarea = page.locator('textarea[readonly]');
         await expect(textarea).toHaveValue('This message failed to send due to an error.');
 
         // Test copy action

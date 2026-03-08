@@ -411,6 +411,26 @@ describe('System Controller', () => {
             expect(syncGhostProfile).not.toHaveBeenCalled();
         });
 
+        it('should update description and avatarUrl without side effects', async () => {
+            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+            (prisma.system.findUnique as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug' });
+            (prisma.system.update as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug', description: 'Test', avatarUrl: 'mxc://example.com/123' });
+
+            const res = await request(app)
+                .patch('/system')
+                .send({ description: 'Test', avatarUrl: 'mxc://example.com/123' });
+
+            expect(res.status).toBe(200);
+            expect(prisma.system.update).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({
+                    description: 'Test',
+                    avatarUrl: 'mxc://example.com/123'
+                })
+            }));
+            expect(decommissionGhost).not.toHaveBeenCalled();
+            expect(syncGhostProfile).not.toHaveBeenCalled();
+        });
+
         it('should return 400 Bad Request on Zod validation failure', async () => {
             const res = await request(app)
                 .patch('/system')

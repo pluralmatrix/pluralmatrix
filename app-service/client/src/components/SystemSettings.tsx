@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Settings, Hash, Link as LinkIcon, Trash2, Plus, AlertCircle, Star } from 'lucide-react';
-import { systemService } from '../services/api';
+import { X, Save, Settings, Hash, Link as LinkIcon, Trash2, Plus, AlertCircle, Star, Camera } from 'lucide-react';
+import { systemService, memberService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import DeadLetterQueue from './dlq/DeadLetterQueue';
 import { Archive } from 'lucide-react';
+import { getAvatarUrl } from '../utils/matrix';
+import { validateAvatarImage } from '../utils/imageValidation';
 
 interface SystemSettingsProps {
     onSave: (newSlug?: string) => void;
@@ -17,13 +19,38 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
     const [formData, setFormData] = useState({
         name: '',
         systemTag: '',
-        slug: ''
+        slug: '',
+        description: '',
+        avatarUrl: ''
     });
     const [links, setLinks] = useState<any[]>([]);
     const [newLinkMxid, setNewLinkMxid] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [linking, setLinking] = useState(false);
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            setSaving(true);
+            const validation = await validateAvatarImage(file);
+            if (!validation.valid) {
+                alert(validation.error);
+                setSaving(false);
+                return;
+            }
+
+            try {
+                const res = await memberService.uploadMedia(file);
+                setFormData({ ...formData, avatarUrl: res.data.content_uri });
+            } catch (err) {
+                alert('Avatar upload failed.');
+            } finally {
+                setSaving(false);
+            }
+        }
+    };
 
     const fetchLinks = async () => {
         try {
@@ -41,7 +68,9 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                 setFormData({
                     name: res.data.name || '',
                     systemTag: res.data.systemTag || '',
-                    slug: res.data.slug || ''
+                    slug: res.data.slug || '',
+                    description: res.data.description || '',
+                    avatarUrl: res.data.avatarUrl || ''
                 });
                 await fetchLinks();
                 
@@ -131,18 +160,47 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                 <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-12">
                     {/* Left: General Settings */}
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        <h3 className="text-lg font-bold flex items-center gap-2">
+                        <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
                             General
                         </h3>
-                        
+
+                        <div className="flex items-start space-x-6">
+                            <div className="relative group w-24 h-24 rounded-2xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner flex-shrink-0">
+                                {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
+                                    <img src={getAvatarUrl(formData.avatarUrl)!} className="w-full h-full object-cover" alt="System Avatar" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-matrix-muted">
+                                        <Camera size={32} />
+                                    </div>
+                                )}
+                                <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl">
+                                    <Camera className="text-white" size={20} />
+                                    <input data-testid="system-avatar-upload" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
+                                </label>
+                            </div>
+                            
+                            <div className="flex-1 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-matrix-muted mb-1">System Name</label>
+                                    <input 
+                                        name="name"
+                                        className="matrix-input w-full" 
+                                        value={formData.name} 
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                                        placeholder="e.g. The Seraphim System"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
-                            <label className="block text-sm font-medium text-matrix-muted mb-1">System Name</label>
-                            <input 
-                                name="name"
-                                className="matrix-input" 
-                                value={formData.name} 
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-                                placeholder="e.g. The Seraphim System"
+                            <label className="block text-sm font-medium text-matrix-muted mb-1">System Description</label>
+                            <textarea
+                                name="description"
+                                className="matrix-input w-full h-24 resize-none"
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                placeholder="Describe your system..."
                             />
                         </div>
 

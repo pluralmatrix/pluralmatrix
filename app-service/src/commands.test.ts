@@ -444,6 +444,79 @@ describe('CommandHandler Tests', () => {
                 );
             });
         });
+
+        describe('pk;system commands', () => {
+            let sendRichTextSpy: jest.SpyInstance;
+            
+            beforeEach(() => {
+                sendRichTextSpy = jest.spyOn(commandHandler as any, 'sendRichText').mockResolvedValue(true);
+            });
+
+            const mockSystemExtended = {
+                id: 'sys1',
+                slug: 'testsys',
+                name: 'Test System',
+                description: 'A test system',
+                systemTag: '🚀',
+                members: [{ id: 'm1', slug: 'lily', name: 'Lily' }]
+            };
+            const sysEvent = { room_id: "!room:localhost", sender: "@alice:localhost" };
+
+            it('pk;system should show system info', async () => {
+                const parts = ["pk;system"];
+                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
+                expect(handled).toBe(true);
+                expect(sendRichTextSpy).toHaveBeenCalledWith(
+                    expect.anything(), 
+                    "!room:localhost", 
+                    expect.stringContaining("A test system")
+                );
+            });
+
+            it('pk;system rename should update system name', async () => {
+                const parts = ["pk;system", "rename", "New Name"];
+                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
+                expect(handled).toBe(true);
+                expect(mockPrisma.system.update).toHaveBeenCalledWith({
+                    where: { id: 'sys1' },
+                    data: { name: 'New Name' }
+                });
+            });
+
+            it('pk;system description should update system description', async () => {
+                const parts = ["pk;system", "description", "New desc"];
+                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
+                expect(handled).toBe(true);
+                expect(mockPrisma.system.update).toHaveBeenCalledWith({
+                    where: { id: 'sys1' },
+                    data: { description: 'New desc' }
+                });
+            });
+
+            it('pk;system tag should update system tag', async () => {
+                const parts = ["pk;system", "tag", "🔖"];
+                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
+                expect(handled).toBe(true);
+                expect(mockPrisma.system.update).toHaveBeenCalledWith({
+                    where: { id: 'sys1' },
+                    data: { systemTag: '🔖' }
+                });
+            });
+            
+            it('pk;system avatar should update system avatarUrl', async () => {
+                const parts = ["pk;system", "avatar", "mxc://example.com/123"];
+                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
+                expect(handled).toBe(true);
+                expect(mockPrisma.system.update).toHaveBeenCalledWith({
+                    where: { id: 'sys1' },
+                    data: { avatarUrl: 'mxc://example.com/123' }
+                });
+            });
+        });
     });
 
     describe('resolveGhostMessage', () => {

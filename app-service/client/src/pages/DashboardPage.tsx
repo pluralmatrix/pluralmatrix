@@ -10,6 +10,7 @@ import ImportTool from '../components/ImportTool';
 import SystemSettings from '../components/SystemSettings';
 import { LogOut, Plus, Upload, Search, LayoutGrid, List, Trash2, Download, ChevronDown, Database, Edit3, Loader2, Info, Archive, Users, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { getAvatarUrl } from '../utils/matrix';
 
 const DashboardPage: React.FC = () => {
     const { slug: urlSlug } = useParams<{ slug: string }>();
@@ -260,31 +261,43 @@ const DashboardPage: React.FC = () => {
             <main className="max-w-7xl mx-auto px-4 mt-12 space-y-12">
                 {/* Hero / Stats */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-                    <div className="space-y-2">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-3 group">
-                                <h2 data-testid="system-title" className="text-4xl font-bold tracking-tight text-white">
-                                    {system?.name || "Unnamed System"}
-                                </h2>
-                                {isOwner && (
-                                    <button 
-                                        onClick={() => setIsSettingsOpen(true)}
-                                        data-testid="system-settings-button"
-                                        className="p-2 hover:bg-white/5 rounded-full text-matrix-muted hover:text-matrix-primary transition-colors"
-                                        title="Edit System Settings"
-                                    >
-                                        <Edit3 size={20} />
-                                    </button>
+                    <div className="flex items-center gap-6">
+                        {system?.avatarUrl && (
+                            <img 
+                                src={getAvatarUrl(system.avatarUrl)!} 
+                                alt={system?.name || "System"} 
+                                className="w-24 h-24 rounded-3xl object-cover shadow-xl border-2 border-white/5"
+                            />
+                        )}
+                        <div className="space-y-2">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-3 group">
+                                    <h2 data-testid="system-title" className="text-4xl font-bold tracking-tight text-white">
+                                        {system?.name || "Unnamed System"}
+                                    </h2>
+                                    {isOwner && (
+                                        <button 
+                                            onClick={() => setIsSettingsOpen(true)}
+                                            data-testid="system-settings-button"
+                                            className="p-2 hover:bg-white/5 rounded-full text-matrix-muted hover:text-matrix-primary transition-colors"
+                                            title="Edit System Settings"
+                                        >
+                                            <Edit3 size={20} />
+                                        </button>
+                                    )}
+                                </div>
+                                {system?.systemTag && (
+                                    <div className="text-xl font-normal text-matrix-muted/80 flex items-center">
+                                        <span className="bg-white/5 px-2 py-0.5 rounded text-sm uppercase tracking-wider mr-2 text-xs font-bold font-mono">Suffix Tag</span>
+                                        {system.systemTag}
+                                    </div>
                                 )}
                             </div>
-                            {system?.systemTag && (
-                                <div className="text-xl font-normal text-matrix-muted/80 flex items-center">
-                                    <span className="bg-white/5 px-2 py-0.5 rounded text-sm uppercase tracking-wider mr-2 text-xs font-bold font-mono">Suffix Tag</span>
-                                    {system.systemTag}
-                                </div>
+                            <p className="text-matrix-muted font-medium mt-4">This system has {members.length} registered members.</p>
+                            {system?.description && (
+                                <p className="text-matrix-muted/80 text-sm italic max-w-2xl mt-2 line-clamp-3">{system.description}</p>
                             )}
                         </div>
-                        <p className="text-matrix-muted font-medium mt-4">This system has {members.length} registered members.</p>
                     </div>
                     
                     {isOwner && (

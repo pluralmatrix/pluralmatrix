@@ -27,5 +27,7 @@ export const SystemSchema = z.object({
     systemTag: z.string().max(50).optional().nullable(),
     slug: z.string().regex(/^[a-z0-9-]+$/).max(50).optional(),
     autoproxyId: z.string().uuid().optional().nullable(),
-    autoproxyMode: z.enum(["off", "latch", "member"]).optional()
+    autoproxyMode: z.enum(["off", "latch", "member"]).optional(),
+    description: z.preprocess(emptyToNull, z.string().max(1000).optional().nullable()),
+    avatarUrl: z.preprocess(emptyToNull, z.string().max(256).url().or(z.string().startsWith('mxc://')).optional().nullable())
 });

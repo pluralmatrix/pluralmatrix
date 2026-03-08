@@ -630,6 +630,7 @@ export class CommandHandler {
         // Handle explicit system creation first
         if (cmd === "system" || cmd === "s") {
             const subCmd = parts[1]?.toLowerCase();
+            
             if (subCmd === "new") {
                 if (system) {
                     await this.sendRichText(this.bridge.getIntent(), roomId, `You already have a system registered (\`${system.slug}\`).`);
@@ -671,6 +672,100 @@ ${webUrl}
                     await this.sendRichText(this.bridge.getIntent(), roomId, "❌ Failed to create system due to an internal error.");
                     return true;
                 }
+            }
+
+            if (!system) {
+                const webUrl = config.publicWebUrl;
+                await this.sendRichText(this.bridge.getIntent(), roomId, `❌ You do not have a system registered with PluralMatrix. To create one, type \`pk;system new\` or log in with your Matrix account at: ${webUrl}`);
+                return true;
+            }
+
+            if (!subCmd) {
+                // Display system info card
+                let card = `### ${system.name || "System"} (\`${system.slug}\`)\n`;
+                if (system.systemTag) card += `**Tag:** \`${system.systemTag}\`\n`;
+                if (system.pronouns) card += `**Pronouns:** ${system.pronouns}\n`;
+                card += `**Members:** ${system.members?.length || 0}\n`;
+                if (system.description) card += `\n*${system.description}*\n`;
+                
+                const webUrl = `${config.publicWebUrl}/s/${system.slug}`;
+                card += `\n[View Web Profile](${webUrl})`;
+                
+                await this.sendRichText(this.bridge.getIntent(), roomId, card);
+                return true;
+            }
+
+            if (subCmd === "rename") {
+                const newName = parts.slice(2).join(" ");
+                if (!newName) {
+                    await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Usage: `pk;system rename <new name>`");
+                    return true;
+                }
+                await this.prisma.system.update({
+                    where: { id: system.id },
+                    data: { name: newName }
+                });
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, `✅ System renamed to **${newName}**.`);
+                return true;
+            }
+
+            if (subCmd === "description" || subCmd === "desc") {
+                const newDesc = parts.slice(2).join(" ");
+                await this.prisma.system.update({
+                    where: { id: system.id },
+                    data: { description: newDesc || null }
+                });
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, newDesc ? `✅ System description updated.` : `✅ System description cleared.`);
+                return true;
+            }
+
+            if (subCmd === "tag") {
+                const newTag = parts.slice(2).join(" ");
+                await this.prisma.system.update({
+                    where: { id: system.id },
+                    data: { systemTag: newTag || null }
+                });
+                proxyCache.invalidate(sender);
+                emitSystemUpdate(sender);
+                await this.sendRichText(this.bridge.getIntent(), roomId, newTag ? `✅ System tag updated to \`${newTag}\`.` : `✅ System tag cleared.`);
+                return true;
+            }
+
+            if (subCmd === "avatar" || subCmd === "icon") {
+                const newAvatar = parts.slice(2).join(" ");
+                // Matrix media URLs are typically generated via UI. If the user passes an HTTP url, we can save it, but PluralMatrix expects mxc://
+                // We'll allow any URL string just for parity, though mxc:// is preferred for Matrix.
+                if (!newAvatar && !event.content?.url && !event.content?.info) {
+                    await this.prisma.system.update({
+                        where: { id: system.id },
+                        data: { avatarUrl: null }
+                    });
+                    emitSystemUpdate(sender);
+                    await this.sendRichText(this.bridge.getIntent(), roomId, `✅ System avatar cleared.`);
+                    return true;
+                }
+                
+                const avatarUrl = event.content?.url || newAvatar;
+                if (avatarUrl) {
+                    await this.prisma.system.update({
+                        where: { id: system.id },
+                        data: { avatarUrl: avatarUrl }
+                    });
+                    emitSystemUpdate(sender);
+                    await this.sendRichText(this.bridge.getIntent(), roomId, `✅ System avatar updated.`);
+                    return true;
+                }
+
+                await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Usage: `pk;system avatar <url>` or attach an image.");
+                return true;
+            }
+
+            if (subCmd === "delete") {
+                // To keep it safe via Bot, we just tell them to use UI for now
+                await this.sendRichText(this.bridge.getIntent(), roomId, `⚠️ To delete your system, please use the Web Dashboard Settings: ${config.publicWebUrl}`);
+                return true;
             }
         }
 

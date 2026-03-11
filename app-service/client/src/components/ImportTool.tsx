@@ -76,8 +76,8 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-matrix-light border border-white/10 rounded-2xl p-8 space-y-6 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex sm:items-center sm:justify-center p-0 sm:p-4">
+            <div className="max-w-md w-full bg-matrix-light sm:border border-white/10 sm:rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl overflow-hidden h-full sm:h-auto sm:max-h-[90vh] flex flex-col">
                 <div className="flex items-center justify-between shrink-0">
                     <h2 data-testid="import-modal-title" className="text-2xl font-bold">Import System</h2>
                     <button 

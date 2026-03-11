@@ -114,13 +114,13 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
 
     if (isReadOnly) {
         return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                <div className="bg-matrix-light rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="flex justify-between items-center mb-6">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex sm:items-center sm:justify-center p-0 sm:p-4">
+                <div className="bg-matrix-light sm:rounded-3xl p-6 w-full max-w-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
+                    <div className="flex justify-between items-center mb-6 shrink-0">
                         <h2 data-testid="group-editor-title" className="text-2xl font-bold text-white">{group.displayName || group.name}</h2>
                         <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted"><X /></button>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-4 overflow-y-auto flex-1 custom-scrollbar pb-4">
                         {group.description && <p className="text-matrix-muted">{group.description}</p>}
                         <h3 className="text-lg font-bold mt-4">Members</h3>
                         <div className="flex flex-wrap gap-2">
@@ -138,12 +138,12 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
     }
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-matrix-light rounded-3xl p-6 w-full max-w-2xl my-8 border border-white/10 shadow-2xl relative">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-6">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex sm:items-center sm:justify-center p-0 sm:p-4">
+            <div className="bg-matrix-light sm:rounded-3xl p-6 w-full max-w-2xl sm:border border-white/10 shadow-2xl relative flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
+                <div className="flex justify-between items-start sm:items-center mb-6 shrink-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                         <h2 data-testid="group-editor-title" className="text-2xl font-bold text-white">{isNew ? 'Create Group' : 'Edit Group'}</h2>
-                        <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5">
+                        <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5 w-max">
                             <button
                                 type="button"
                                 onClick={() => setActiveTab('profile')}
@@ -173,10 +173,11 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                     </div>
                 )}
 
-                <form onSubmit={handleSave} className="space-y-6">
-                    {activeTab === 'profile' ? (
-                        <>
-                            <div className="flex flex-col md:flex-row gap-8 items-start">
+                <form onSubmit={handleSave} className="flex flex-col overflow-hidden h-full flex-1">
+                    <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 pb-4">
+                        {activeTab === 'profile' ? (
+                            <>
+                                <div className="flex flex-col md:flex-row gap-8 items-start">
                                 <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
                                     <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
                                 {formData.icon && getAvatarUrl(formData.icon) ? (
@@ -187,7 +188,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                                     </div>
                                 )}
                                 {!isReadOnly && (
-                                    <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                    <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 transition-opacity cursor-pointer">
                                         <Camera className="text-white" size={24} />
                                         <input data-testid="icon-upload-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleIconUpload} className="hidden" />
                                     </label>
@@ -197,7 +198,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                                 <button
                                     type="button"
                                     onClick={() => setFormData({ ...formData, icon: '' })}
-                                    className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-0 group-hover:opacity-100"
+                                    className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100"
                                     title="Clear Icon"
                                 >
                                     <X size={14} />
@@ -333,8 +334,9 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                             </div>
                         </div>
                     )}
+                    </div>
 
-                    <div className="pt-4 flex justify-end space-x-3 border-t border-white/5">
+                    <div className="pt-4 flex justify-end space-x-3 border-t border-white/5 shrink-0">
                         <button
                             type="button"
                             data-testid="cancel-group-button"

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, MessageSquare, Info, Trash2, Edit3, Star } from 'lucide-react';
 import { getAvatarUrl } from '../utils/matrix';
@@ -26,6 +26,15 @@ interface MemberCardProps {
 }
 
 const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly, onEdit, onDelete, onToggleAutoproxy }) => {
+    const nameRef = useRef<HTMLSpanElement>(null);
+    const [isTruncated, setIsTruncated] = useState(false);
+
+    const handleMouseEnter = () => {
+        if (nameRef.current) {
+            setIsTruncated(nameRef.current.scrollWidth > nameRef.current.clientWidth);
+        }
+    };
+
     return (
         <motion.div 
             layout
@@ -57,8 +66,15 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                         </div>
                         <div>
                             <h3 data-testid="member-card-name" className="text-xl font-bold flex items-center gap-2">
-                                {member.displayName || member.name}
-                                {isAutoproxy && <span className="bg-yellow-500/20 text-yellow-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded flex items-center gap-1"><Star size={10} fill="currentColor"/> Autoproxy</span>}
+                                <span 
+                                    ref={nameRef}
+                                    onMouseEnter={handleMouseEnter}
+                                    title={isTruncated ? (member.displayName || member.name) : undefined}
+                                    className="truncate"
+                                >
+                                    {member.displayName || member.name}
+                                </span>
+                                {isAutoproxy && <span className="bg-yellow-500/20 text-yellow-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded flex items-center gap-1 shrink-0"><Star size={10} fill="currentColor"/> Autoproxy</span>}
                             </h3>
                             <p className="text-matrix-muted text-xs font-mono">{member.slug}</p>
                             {member.pronouns && (
@@ -69,7 +85,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                         </div>
                     </div>
                     {!isReadOnly && (
-                        <div className="flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex flex-col space-y-2 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 transition-opacity">
                             <button 
                                 data-testid={`toggle-autoproxy-${member.slug}`}
                                 onClick={() => onToggleAutoproxy?.(member.id)}

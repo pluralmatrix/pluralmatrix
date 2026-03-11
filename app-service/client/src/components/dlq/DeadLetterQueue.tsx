@@ -64,8 +64,8 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-slate-900 w-full max-w-2xl max-h-[80vh] rounded-2xl border border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex sm:items-center sm:justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-slate-900 w-full max-w-2xl h-full sm:h-auto sm:max-h-[80vh] sm:rounded-2xl border-0 sm:border border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
                     <div className="flex items-center gap-2">
@@ -122,7 +122,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                                             {letter.plaintext}
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center gap-2 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 transition-opacity">
                                         <button 
                                             onClick={(e) => handleDelete(e, letter.id)}
                                             data-testid={`dlq-delete-${letter.id}`}
@@ -144,15 +144,15 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
 
             {/* Detail Modal */}
             {selectedLetter && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-150">
-                    <div className="bg-slate-800 w-full max-w-lg rounded-2xl border border-slate-700 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                <div className="fixed inset-0 z-[70] flex sm:items-center sm:justify-center p-0 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-150">
+                    <div className="bg-slate-800 w-full max-w-lg h-full sm:h-auto sm:rounded-2xl border-0 sm:border border-slate-700 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
                             <h3 className="font-bold text-slate-100">Message Recovery</h3>
                             <button onClick={() => setSelectedLetter(null)} className="p-1 hover:bg-slate-700 rounded-lg text-slate-400">
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="p-5 space-y-4">
+                        <div className="p-5 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Original Content</label>
                                 <div className="relative group">
@@ -189,7 +189,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
                                 <span className="text-xs text-red-300/90 leading-relaxed italic">{selectedLetter.errorReason}</span>
                             </div>
                         </div>
-                        <div className="p-4 bg-slate-900/50 flex justify-end">
+                        <div className="p-4 bg-slate-900/50 flex justify-end shrink-0">
                             <button 
                                 onClick={() => setSelectedLetter(null)}
                                 data-testid="dlq-detail-done-button"

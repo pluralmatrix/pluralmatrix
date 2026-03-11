@@ -140,16 +140,16 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="max-w-2xl w-full bg-matrix-light border border-white/10 rounded-2xl shadow-2xl my-8">
-                <form onSubmit={isReadOnly ? (e) => e.preventDefault() : handleSubmit}>
-                    <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                        <div className="flex items-center gap-6">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex sm:items-center sm:justify-center p-0 sm:p-4">
+            <div className="max-w-2xl w-full bg-matrix-light sm:border border-white/10 sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
+                <form className="flex flex-col h-full overflow-hidden" onSubmit={isReadOnly ? (e) => e.preventDefault() : handleSubmit}>
+                    <div className="p-6 border-b border-white/5 flex items-start sm:items-center justify-between shrink-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                             <h2 data-testid="member-editor-title" className="text-2xl font-bold">
                                 {isReadOnly ? 'System Member Profile' : (member ? 'Edit System Member' : 'New System Member')}
                             </h2>
                             {!isReadOnly && (
-                                <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5">
+                                <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5 w-max">
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('profile')}
@@ -172,7 +172,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                         </button>
                     </div>
 
-                    <div className="p-8 space-y-8 text-slate-200">
+                    <div className="p-8 space-y-8 text-slate-200 overflow-y-auto flex-1 custom-scrollbar">
                         {activeTab === 'profile' && (
                             <>
                                 {/* Avatar & Basic Info */}
@@ -187,7 +187,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                         </div>
                                     )}
                                     {!isReadOnly && (
-                                        <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                        <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 transition-opacity cursor-pointer">
                                             <Camera className="text-white" size={24} />
                                             <input data-testid="avatar-upload-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
                                         </label>
@@ -197,7 +197,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, avatarUrl: '' })}
-                                        className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-0 group-hover:opacity-100"
+                                        className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100"
                                         title="Clear Avatar"
                                     >
                                         <X size={14} />
@@ -342,7 +342,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                             placeholder="suffix"
                                         />
                                         {!isReadOnly && formData.proxyTags.length > 1 && (
-                                            <button type="button" onClick={() => handleRemoveTag(index)} className="p-1.5 text-matrix-muted hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                                            <button type="button" onClick={() => handleRemoveTag(index)} className="p-1.5 text-matrix-muted hover:text-red-400 transition-colors opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100">
                                                 <Trash2 size={14} />
                                             </button>
                                         )}
@@ -418,7 +418,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                         )}
                     </div>
 
-                    <div className="p-6 border-t border-white/5 bg-matrix-dark/30 flex justify-end gap-3 rounded-b-2xl">
+                    <div className="p-6 border-t border-white/5 bg-matrix-dark/30 flex justify-end gap-3 sm:rounded-b-2xl shrink-0">
                         <button type="button" data-testid="cancel-member-button" onClick={handleCancel} className="px-6 py-2 rounded-xl text-sm font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-all">
                             {isReadOnly ? 'Close' : 'Cancel'}
                         </button>

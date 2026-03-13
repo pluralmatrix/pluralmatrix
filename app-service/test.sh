@@ -25,6 +25,34 @@ until [ "$(sudo docker inspect -f '{{.State.Health.Status}}' ${PROJECT_NAME}-syn
 done
 echo " Synapse is healthy!"
 
+echo "🛡️  Running ESLint (Backend)..."
+npm run lint
+LINT_BACKEND_EXIT_CODE=$?
+if [ $LINT_BACKEND_EXIT_CODE -ne 0 ]; then
+    echo "❌ Backend lint failed."
+fi
+
+echo "🛡️  Running ESLint (Frontend)..."
+(cd client && npm run lint)
+LINT_FRONTEND_EXIT_CODE=$?
+if [ $LINT_FRONTEND_EXIT_CODE -ne 0 ]; then
+    echo "❌ Frontend lint failed."
+fi
+
+echo "🛡️  Auditing Backend Dependencies..."
+npx audit-ci --config audit-ci.json
+AUDIT_BACKEND_EXIT_CODE=$?
+if [ $AUDIT_BACKEND_EXIT_CODE -ne 0 ]; then
+    echo "❌ Backend dependency audit failed."
+fi
+
+echo "🛡️  Auditing Frontend Dependencies..."
+(cd client && npm audit --audit-level=high)
+AUDIT_FRONTEND_EXIT_CODE=$?
+if [ $AUDIT_FRONTEND_EXIT_CODE -ne 0 ]; then
+    echo "❌ Frontend dependency audit failed."
+fi
+
 npm install --save-dev jest
 
 echo "🔄 Regenerating Prisma client..."
@@ -57,12 +85,18 @@ sudo docker compose -f ../docker-compose.yml up -d synapse
 sleep 5
 
 # Final verdict
-if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ]; then
+if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ] && [ $LINT_BACKEND_EXIT_CODE -eq 0 ] && [ $LINT_FRONTEND_EXIT_CODE -eq 0 ] && [ $AUDIT_BACKEND_EXIT_CODE -eq 0 ] && [ $AUDIT_FRONTEND_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "🏆 ALL TESTS PASSED SUCCESSFULLY! 🏅"
     exit 0
 else
     echo ""
     echo "🛑 TEST SUITE FAILED. Please review the errors above."
+    [ $LINT_BACKEND_EXIT_CODE -ne 0 ] && echo " - Backend Lint Failed"
+    [ $LINT_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Lint Failed"
+    [ $AUDIT_BACKEND_EXIT_CODE -ne 0 ] && echo " - Backend Audit Failed"
+    [ $AUDIT_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Audit Failed"
+    [ $JEST_EXIT_CODE -ne 0 ] && echo " - Backend Tests (Jest) Failed"
+    [ $PW_EXIT_CODE -ne 0 ] && echo " - UI Tests (Playwright) Failed"
     exit 1
 fi

@@ -270,7 +270,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         let attempts = 0;
         while (attempts < 5) {
             try {
-                let baseSlug = (isPluralMatrix && jsonData.id) 
+                const baseSlug = (isPluralMatrix && jsonData.id) 
                     ? jsonData.id 
                     : generateSlug(jsonData.name || localpart, localpart);
                 
@@ -308,7 +308,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         let attempts = 0;
         while (attempts < 5) {
             try {
-                let baseSlug = (isPluralMatrix && jsonData.id) 
+                const baseSlug = (isPluralMatrix && jsonData.id) 
                     ? jsonData.id 
                     : generateSlug(jsonData.name || localpart, localpart);
                 
@@ -409,7 +409,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
                 .map((t: any) => ({ prefix: t.prefix, suffix: t.suffix || "" }));
 
             const migrationResult = await migrateAvatar(pkMember.avatar_url);
-            let avatarUrl = migrationResult?.mxcUrl;
+            const avatarUrl = migrationResult?.mxcUrl;
             
             if (migrationResult?.error) {
                 failedAvatars.push({ slug, name: pkMember.name, error: migrationResult.error });

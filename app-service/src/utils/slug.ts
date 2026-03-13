@@ -14,7 +14,7 @@ export async function ensureUniqueSlug(prisma: PrismaClient, baseSlug: string, c
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
     
-    let slug = cleaned || "system";
+    const slug = cleaned || "system";
 
     let candidate = slug.substring(0, 50);
     let counter = 2; // Start appending from -2 if the base slug is taken
@@ -43,7 +43,7 @@ export async function ensureUniqueGroupSlug(prisma: PrismaClient, systemId: stri
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
     
-    let slug = cleaned || "group";
+    const slug = cleaned || "group";
 
     let candidate = slug.substring(0, 50);
     let counter = 2; 

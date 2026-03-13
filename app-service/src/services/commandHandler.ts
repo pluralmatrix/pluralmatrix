@@ -1177,7 +1177,7 @@ ${webUrl}
                 }
                 
                 const { generateSlug } = require('../import');
-                let baseSlug = generateSlug(name, "group");
+                const baseSlug = generateSlug(name, "group");
                 const newSlug = await ensureUniqueGroupSlug(this.prisma, system.id, baseSlug);
                 
                 await this.prisma.group.create({

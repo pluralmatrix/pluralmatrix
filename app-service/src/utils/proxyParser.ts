@@ -91,7 +91,7 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
     let finalFormattedBody: string | undefined = undefined;
     if (rawFormattedBody) {
         if (matchedPrefixLength > 0 && rawFormattedBody.startsWith(rawBody.substring(0, matchedPrefixLength))) {
-            let stripped = rawFormattedBody.slice(matchedPrefixLength, rawFormattedBody.length - matchedSuffixLength).trim();
+            const stripped = rawFormattedBody.slice(matchedPrefixLength, rawFormattedBody.length - matchedSuffixLength).trim();
             finalFormattedBody = formattedFallback + stripped;
         } else {
             finalFormattedBody = formattedFallback + rawFormattedBody;

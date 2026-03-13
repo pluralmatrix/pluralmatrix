@@ -98,7 +98,7 @@ describe('PluralKit Roundtrip', () => {
         };
 
         let savedSystem: any;
-        let savedMembers: any[] = [];
+        const savedMembers: any[] = [];
 
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
@@ -164,7 +164,7 @@ describe('PluralKit Roundtrip', () => {
         };
 
         let savedSystem: any;
-        let savedMembers: any[] = [];
+        const savedMembers: any[] = [];
 
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);

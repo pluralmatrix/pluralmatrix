@@ -33,20 +33,6 @@ jobs:
         cd client
         npm ci
 
-    - name: Audit Backend Dependencies
-      # Uses audit-ci to allowlist known-unfixable advisories in matrix-appservice-bridge's
-      # transitive deps (nedb prototype pollution, underscore code exec, request SSRF).
-      # Any NEW high/critical vulnerability not in the allowlist will fail this step.
-      # Allowlist defined in app-service/audit-ci.json.
-      run: |
-        cd app-service
-        npx audit-ci --config audit-ci.json
-
-    - name: Audit Frontend Dependencies
-      run: |
-        cd app-service/client
-        npm audit --audit-level=high
-
     - name: Run Setup Wizard (Non-Interactive)
       run: ./setup.sh --ci
 
@@ -70,3 +56,31 @@ jobs:
       run: |
         cd app-service
         ./test.sh
+
+    - name: Run Backend Lint
+      if: always()
+      run: |
+        cd app-service
+        npm run lint
+
+    - name: Run Frontend Lint
+      if: always()
+      run: |
+        cd app-service/client
+        npm run lint
+
+    - name: Audit Backend Dependencies
+      if: always()
+      # Uses audit-ci to allowlist known-unfixable advisories in matrix-appservice-bridge's
+      # transitive deps (nedb prototype pollution, underscore code exec, request SSRF).
+      # Any NEW high/critical vulnerability not in the allowlist will fail this step.
+      # Allowlist defined in app-service/audit-ci.json.
+      run: |
+        cd app-service
+        npx audit-ci --config audit-ci.json
+
+    - name: Audit Frontend Dependencies
+      if: always()
+      run: |
+        cd app-service/client
+        npm audit --audit-level=high

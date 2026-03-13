@@ -98,7 +98,7 @@ describe('Seraphim PK Roundtrip', () => {
             createdAt: new Date(),
             updatedAt: new Date()
         };
-        let storedMembers: Map<string, any> = new Map();
+        const storedMembers: Map<string, any> = new Map();
 
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 

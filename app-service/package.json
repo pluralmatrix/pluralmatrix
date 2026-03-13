@@ -7,6 +7,7 @@
     "test": "jest --forceExit",
     "test:ui": "playwright test",
     "test:ui:coverage": "rm -rf .nyc_output && VITE_COVERAGE=true playwright test && node remap-coverage.js && nyc report",
+    "lint": "eslint .",
     "start": "ts-node src/index.ts"
   },
   "keywords": [],
@@ -49,10 +50,14 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "dotenv": "^17.3.1",
+    "eslint": "^10.0.3",
+    "globals": "^17.4.0",
     "jest": "^30.3.0",
-    "nyc": "^18.0.0"
+    "nyc": "^18.0.0",
+    "typescript-eslint": "^8.57.0"
   },
   "overrides": {
     "form-data": ">=2.5.4",

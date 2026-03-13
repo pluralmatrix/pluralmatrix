@@ -20,7 +20,7 @@ import { authenticateGatekeeper } from './auth';
 describe('authenticateGatekeeper Middleware', () => {
     let mockReq: Partial<Request>;
     let mockRes: Partial<Response>;
-    let nextFunction: NextFunction = jest.fn();
+    const nextFunction: NextFunction = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();

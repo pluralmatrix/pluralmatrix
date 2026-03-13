@@ -181,11 +181,15 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
                                 const ghostIntent = bridgeInstance.getIntent(ghostInRoom);
                                 await ghostIntent.setRoomTopic(roomId, "");
                                 console.log(`[Ghost] Cleared room topic in ${roomId} as primary user ${targetUserId} has joined.`);
-                            } catch (topicErr: any) {}
+                            } catch (topicErr: any) {
+                                // Ignore topic errors
+                            }
                         }
                     }
                 }
-            } catch (e) {}
+            } catch (e) {
+                // Ignore errors
+            }
         }
     }
 
@@ -250,7 +254,9 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             originalEvent = await (bridgeInstance.getBot().getClient() as any).getEvent(roomId, originalEventId);
             const redactedBy = originalEvent?.unsigned?.redacted_by;
             if (redactedBy === botUserId || redactedBy?.startsWith("@_plural_")) return;
-        } catch (e) { }
+        } catch (e) {
+            // Ignore errors
+        }
     }
 
     // --- ZERO-FLASH: REDACT EMPTY MESSAGES (MOD-CLEARED) ---
@@ -297,13 +303,17 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
 
             await intent.ensureRegistered();
             try { await intent.join(roomId); } catch (e) {
-                try { await bridgeInstance.getIntent().invite(roomId, ghostUserId); await intent.join(roomId); } catch (e2) {}
+                try { await bridgeInstance.getIntent().invite(roomId, ghostUserId); await intent.join(roomId); } catch (e2) {
+                    // Ignore errors
+                }
             }
 
             const machine = await cryptoManager.getMachine(ghostUserId);
             await registerDevice(intent, machine.deviceId.toString(), prismaClient, targetMember.id);
 
-            try { await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch (e) {}
+            try { await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch (e) {
+                // Ignore errors
+            }
 
             let relatesTo: any = undefined;
             // If it's an edit, we want the *original* event's relations (e.g. what it was replying to)
@@ -317,7 +327,9 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             }
 
             messageQueue.enqueue(roomId, sender, intent, cleanBody, relatesTo, prismaClient, system.slug, format, cleanFormattedBody, proxyMatch.fullContent);
-        } catch (e) {}
+        } catch (e) {
+                // Ignore errors
+            }
         return;
     }
 };
@@ -445,8 +457,12 @@ const joinPendingInvites = async (bridgeInstance: Bridge) => {
         const syncData = await botClient.doRequest("GET", "/_matrix/client/v3/sync", { filter: '{"room":{"timeline":{"limit":1}}}' });
         if (syncData.rooms?.invite) {
             for (const roomId of Object.keys(syncData.rooms.invite)) {
-                try { await bridgeInstance.getIntent().join(roomId); } catch (e) {}
+                try { await bridgeInstance.getIntent().join(roomId); } catch (e) {
+                // Ignore errors
+            }
             }
         }
-    } catch (e) {}
+    } catch (e) {
+                // Ignore errors
+            }
 };

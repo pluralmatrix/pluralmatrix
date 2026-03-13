@@ -18,7 +18,7 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-require-imports": "off",
-      "no-empty": "off",
+      "no-empty": "error",
       "no-control-regex": "off",
       "no-case-declarations": "off",
       "prefer-const": "off",

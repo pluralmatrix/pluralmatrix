@@ -233,7 +233,7 @@ export class CommandHandler {
                         if (decrypted.event) {
                             content = JSON.parse(decrypted.event).content;
                         }
-                    } catch (err: any) {}
+                    } catch { /* Ignore */ }
                 }
                 
                 const rel = content["m.relates_to"];
@@ -270,7 +270,7 @@ export class CommandHandler {
                             if (decrypted.event) {
                                 content = JSON.parse(decrypted.event).content;
                             }
-                        } catch (err) {}
+                        } catch { /* Ignore */ }
                     }
                     latestContent = content;
                     rootId = e.event_id || e.id;
@@ -297,7 +297,7 @@ export class CommandHandler {
                         if (decrypted.event) {
                             content = JSON.parse(decrypted.event).content;
                         }
-                    } catch (err) {}
+                    } catch { /* Ignore */ }
                 }
                 latestContent = content;
                 break;

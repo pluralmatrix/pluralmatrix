@@ -73,7 +73,7 @@ describe('PluralMatrix E2E Roundtrip', () => {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${jwt}` }
             });
-        } catch (e) {}
+        } catch { /* Ignore */ }
 
         // 2. Stop clients
         if (client) {

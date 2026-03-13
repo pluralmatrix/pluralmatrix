@@ -171,7 +171,7 @@ export async function registerDevice(intent: Intent, deviceId: string, prisma?: 
                     try {
                         const parsedBody = typeof e.body === 'string' ? JSON.parse(e.body) : e.body;
                         isRateLimit = parsedBody.errcode === "M_LIMIT_EXCEEDED";
-                    } catch (parseErr) {}
+                    } catch { /* Ignore */ }
                 }
                 
                 if (isRateLimit) {

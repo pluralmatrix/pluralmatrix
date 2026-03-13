@@ -238,7 +238,7 @@ export const decommissionGhost = async (member: any, system: any) => {
         for (const roomId of rooms) {
             try {
                 await intent.leave(roomId);
-            } catch (e) {}
+            } catch { /* Ignore */ }
         }
 
         console.log(`[Ghost] ${ghostUserId} has left all rooms.`);
@@ -912,7 +912,7 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
         setTimeout(() => {
             try {
                 fs.rmSync(tmpExportDir, { recursive: true, force: true });
-            } catch (e) {}
+            } catch { /* Ignore */ }
         }, 5000);
     }
 };

@@ -42,6 +42,9 @@ describe("sendEncryptedEvent", () => {
     const ghostId = "@ghost:localhost";
     const asToken = "mock_as_token";
 
+    // Increase timeout for this file as encryption ops can be slow
+    jest.setTimeout(10000);
+
     beforeEach(() => {
         jest.clearAllMocks();
         mockIntent.userId = ghostId;

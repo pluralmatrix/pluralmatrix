@@ -28,6 +28,7 @@ export default defineConfig([
       "prefer-const": "off",
       "react-hooks/immutability": "off",
       "react-hooks/refs": "off",
+      "no-empty": "error",
     },
   },
 ])

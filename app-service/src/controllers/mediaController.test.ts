@@ -1,26 +1,27 @@
 import express from 'express';
 import request from 'supertest';
 
-// Create a stable mock config object that we can modify
-const mockConfig = {
-    projectName: 'test',
-    synapseUrl: 'http://test-synapse:8008',
-    asToken: 'test_token',
-    appPort: 9000,
-    synapseDomain: 'localhost',
-    cacheTtlSeconds: 300,
-    cryptoDeviceId: 'PLURAL_CTX_V10',
-    rustHelperPath: '/usr/local/bin/rust-crypto-helper',
-    jwtSecret: 'test_jwt_secret',
-    gatekeeperSecret: 'test_gatekeeper_secret',
-    databaseUrl: 'postgresql://...'
-};
-
-// Mock config module to return our stable object
+// Mock config module completely first
 jest.mock('../config', () => ({
-    config: mockConfig,
+    config: {
+        projectName: 'test',
+        synapseUrl: 'http://test-synapse:8008',
+        asToken: 'test_token',
+        appPort: 9000,
+        synapseDomain: 'localhost',
+        cacheTtlSeconds: 300,
+        cryptoDeviceId: 'PLURAL_CTX_V10',
+        rustHelperPath: '/usr/local/bin/rust-crypto-helper',
+        jwtSecret: 'test_jwt_secret',
+        gatekeeperSecret: 'test_gatekeeper_secret',
+        databaseUrl: 'postgresql://...'
+    },
     validateConfig: jest.fn()
 }));
+
+// Now import the mocked config and the controller
+import { config } from '../config';
+import { uploadMedia, downloadMedia } from './mediaController';
 
 describe('Media Controller', () => {
     let fetchMock: jest.Mock;
@@ -28,20 +29,18 @@ describe('Media Controller', () => {
 
     beforeEach(() => {
         // Reset properties to default for each test
-        mockConfig.asToken = 'test_token';
-        mockConfig.synapseUrl = 'http://test-synapse:8008';
+        config.asToken = 'test_token';
+        config.synapseUrl = 'http://test-synapse:8008';
 
         // Mock global fetch
         fetchMock = jest.fn();
         global.fetch = fetchMock;
 
-        // Re-require the controller to ensure it uses the mock
-        const { uploadMedia, downloadMedia } = require('./mediaController');
-        
         app = express();
         app.post('/upload', express.raw({ type: 'image/*', limit: '10mb' }), uploadMedia);
         app.get('/download/:server/:mediaId', downloadMedia);
     });
+
 
     afterAll(() => {
         jest.restoreAllMocks();
@@ -99,7 +98,7 @@ describe('Media Controller', () => {
 
         it('should fail if AS_TOKEN is missing', async () => {
             // Modify config for this test only
-            mockConfig.asToken = '';
+            config.asToken = '';
             
             // Still mock fetch just in case it doesn't return early
             fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
@@ -165,7 +164,7 @@ describe('Media Controller', () => {
         });
 
         it('should fail if AS_TOKEN is missing during download', async () => {
-            mockConfig.asToken = '';
+            config.asToken = '';
             
             const response = await request(app)
                 .get('/download/localhost/123');

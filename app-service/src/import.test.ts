@@ -1,4 +1,5 @@
-import { generateSlug, getCleanPrefix, extractNameFromDescription, decommissionGhost } from './import';
+import { generateSlug, getCleanPrefix, extractNameFromDescription, decommissionGhost, generatePkJson, migrateAvatar } from './import';
+import { prisma } from './bot';
 
 // Mock Bridge
 const mockIntent = {
@@ -102,18 +103,16 @@ describe('Importer Logic', () => {
                 ]
             };
 
-            const { prisma } = require('./bot');
             (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
 
-            const { generatePkJson } = require('./import');
             const result = await generatePkJson('@user:localhost');
 
-            expect(result.version).toBe(2);
-            expect(result.name).toBe('My System');
-            expect(result.tag).toBe('[Tag]');
-            expect(result.members).toHaveLength(1);
+            expect(result!.version).toBe(2);
+            expect(result!.name).toBe('My System');
+            expect(result!.tag).toBe('[Tag]');
+            expect(result!.members).toHaveLength(1);
             
-            const m = result.members[0];
+            const m = result!.members[0];
             expect(m.name).toBe('Lily');
             expect(m.display_name).toBe('Lily Override');
             expect(m.id).toMatch(/^[a-z]{5}$/); 
@@ -125,7 +124,6 @@ describe('Importer Logic', () => {
 
     describe('migrateAvatar', () => {
         it('should return mxc:// URLs as-is', async () => {
-            const { migrateAvatar } = require('./import');
             const url = 'mxc://localhost/12345';
             const result = await migrateAvatar(url);
             expect(result).toEqual({ mxcUrl: url });

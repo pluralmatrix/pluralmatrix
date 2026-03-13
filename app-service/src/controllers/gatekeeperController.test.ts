@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { checkMessage } from './gatekeeperController';
 import { proxyCache } from '../services/cache';
-import { prisma, cryptoManager, commandHandler } from '../bot';
+import { prisma, cryptoManager, commandHandler, getBridge } from '../bot';
 import { sendGhostMessage } from '../services/ghostService';
 import { emitSystemUpdate } from '../services/events';
 
@@ -256,8 +256,7 @@ describe('GatekeeperController', () => {
             })
         };
 
-        const { getBridge } = require('../bot');
-        getBridge.mockReturnValue({
+        (getBridge as jest.Mock).mockReturnValue({
             getBot: () => ({ getUserId: () => '@bot:localhost', getClient: () => mockClient })
         });
 

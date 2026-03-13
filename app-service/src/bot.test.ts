@@ -18,6 +18,7 @@ jest.mock('@prisma/client', () => ({
 }));
 
 import { handleEvent, prisma, setAsToken, cryptoManager, initCommandHandler } from './bot';
+import * as botModule from './bot';
 import { Request } from 'matrix-appservice-bridge';
 
 const mockBotClient = {
@@ -197,8 +198,8 @@ describe('Bot Event Handler', () => {
                 }
             };
 
-            const infoSpy = jest.spyOn(require('./bot').commandHandler, 'handleMessageInfoRequest').mockResolvedValue(undefined);
-            const redactSpy = jest.spyOn(require('./bot').commandHandler, 'safeRedact').mockResolvedValue(undefined);
+            const infoSpy = jest.spyOn(botModule.commandHandler, 'handleMessageInfoRequest').mockResolvedValue(undefined);
+            const redactSpy = jest.spyOn(botModule.commandHandler, 'safeRedact').mockResolvedValue(undefined);
 
             await handleEvent(createMockRequest(event), mockBridge as any, prisma);
 
@@ -224,8 +225,8 @@ describe('Bot Event Handler', () => {
                 }
             };
 
-            const pingSpy = jest.spyOn(require('./bot').commandHandler, 'handleMessagePingRequest').mockResolvedValue(undefined);
-            const redactSpy = jest.spyOn(require('./bot').commandHandler, 'safeRedact').mockResolvedValue(undefined);
+            const pingSpy = jest.spyOn(botModule.commandHandler, 'handleMessagePingRequest').mockResolvedValue(undefined);
+            const redactSpy = jest.spyOn(botModule.commandHandler, 'safeRedact').mockResolvedValue(undefined);
 
             await handleEvent(createMockRequest(event), mockBridge as any, prisma);
 
@@ -258,7 +259,7 @@ describe('Bot Event Handler', () => {
                 type: "m.room.message"
             });
 
-            const redactSpy = jest.spyOn(require('./bot').commandHandler, 'safeRedact').mockResolvedValue(undefined);
+            const redactSpy = jest.spyOn(botModule.commandHandler, 'safeRedact').mockResolvedValue(undefined);
 
             await handleEvent(createMockRequest(event), mockBridge as any, prisma);
 

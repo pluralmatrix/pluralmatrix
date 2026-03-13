@@ -10,6 +10,7 @@ import { emitSystemUpdate } from "./events";
 import { ensureUniqueSlug, ensureUniqueGroupSlug } from "../utils/slug";
 import { buildWebUrl } from "../utils/url";
 import { parseCommand } from "../utils/commandParser";
+import { generateSlug } from "../import";
 
 export class CommandHandler {
     private permissionWarnedRooms = new Set<string>();
@@ -1172,7 +1173,6 @@ ${webUrl}
                     return true;
                 }
                 
-                const { generateSlug } = require('../import');
                 const baseSlug = generateSlug(name, "group");
                 const newSlug = await ensureUniqueGroupSlug(this.prisma, system.id, baseSlug);
                 

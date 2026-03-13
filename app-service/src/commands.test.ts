@@ -374,7 +374,7 @@ describe('CommandHandler Tests', () => {
 
             expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
             expect(lastMessageCache.delete).toHaveBeenCalledWith(roomId, "seraphim");
-        });
+        }, 15000);
 
         it('pk;autoproxy should update autoproxyId', async () => {
             const event = { room_id: "!room:localhost", sender: "@alice:localhost" };

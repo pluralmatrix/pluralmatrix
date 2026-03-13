@@ -16,7 +16,6 @@ export default tseslint.config(
     rules: {
       // Aggressively ignoring existing categories of errors
       "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-require-imports": "off",
       // We use @typescript-eslint/no-unused-vars instead (enabled by default in recommended config)
       "no-unused-vars": "off",
     },

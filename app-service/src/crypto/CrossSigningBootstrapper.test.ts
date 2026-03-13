@@ -14,7 +14,8 @@ jest.mock('fs', () => ({
     existsSync: jest.fn()
 }));
 
-const { _mockExecFileAsync } = require('util');
+import * as util from 'util';
+const { _mockExecFileAsync } = util as any;
 
 describe('CrossSigningBootstrapper', () => {
     let fetchMock: jest.Mock;

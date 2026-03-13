@@ -5,6 +5,7 @@ import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
 import { parseCommand } from '../utils/commandParser';
 import { parseProxyMatch } from '../utils/proxyParser';
+import { applyAutoproxyLatch } from '../services/autoproxyService';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 
 export const checkMessage = async (req: Request, res: Response) => {
@@ -133,22 +134,7 @@ export const checkMessage = async (req: Request, res: Response) => {
 
                         const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch as any;
 
-                        // If latch mode is enabled and this was NOT an autoproxy (i.e. they explicitly used a tag), latch them
-                        if (system.autoproxyMode === "latch" && !wasAutoproxied) {
-                            if (system.autoproxyId !== targetMember.id) {
-                                try {
-                                    await prisma.system.update({
-                                        where: { id: system.id },
-                                        data: { autoproxyId: targetMember.id }
-                                    });
-                                    proxyCache.invalidate(sender);
-                                    // Normally we'd emitSystemUpdate here but gatekeeper doesn't have it imported,
-                                    // and it'll get caught on the next full sync anyway, or we can just import it.
-                                } catch (e) {
-                                    console.error("[Gatekeeper] Failed to latch autoproxy:", e);
-                                }
-                            }
-                        }
+                        await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prisma);
                         
                         let relatesTo: any = undefined;
                         const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : content;

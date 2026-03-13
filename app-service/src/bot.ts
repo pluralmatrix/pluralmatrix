@@ -15,6 +15,7 @@ import { messageQueue } from "./services/queue/MessageQueue";
 import { CommandHandler } from "./services/commandHandler";
 import { parseCommand } from "./utils/commandParser";
 import { parseProxyMatch } from "./utils/proxyParser";
+import { applyAutoproxyLatch } from "./services/autoproxyService";
 
 // Configuration
 const REGISTRATION_PATH = "/data/app-service-registration.yaml";
@@ -282,22 +283,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
         const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = proxyMatch as any;
         const format = cleanFormattedBody ? "org.matrix.custom.html" : undefined;
 
-        // If latch mode is enabled and this was NOT an autoproxy (i.e. they explicitly used a tag), latch them
-        if (system.autoproxyMode === "latch" && !wasAutoproxied) {
-            // Only update if it's actually a change to avoid unnecessary DB writes
-            if (system.autoproxyId !== targetMember.id) {
-                try {
-                    await prismaClient.system.update({
-                        where: { id: system.id },
-                        data: { autoproxyId: targetMember.id }
-                    });
-                    proxyCache.invalidate(sender);
-                    emitSystemUpdate(sender);
-                } catch (e) {
-                    console.error("[Bot] Failed to latch autoproxy:", e);
-                }
-            }
-        }
+        await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prismaClient);
 
         // If it's an edit, redact the original root event (Matrix server will cascade redact all associated m.replace edits)
         // If it's a new message, redact the event itself

@@ -27,6 +27,9 @@ echo " Synapse is healthy!"
 
 npm install --save-dev jest
 
+echo "🔄 Regenerating Prisma client..."
+npx prisma generate --schema=prisma/schema.prisma 2>&1 | tail -1
+
 echo "🏗️  Starting PluralMatrix Backend Tests (Jest)..."
 npx jest --forceExit "$@"
 JEST_EXIT_CODE=$?

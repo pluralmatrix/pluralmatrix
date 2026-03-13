@@ -3,6 +3,7 @@ import { checkMessage } from './gatekeeperController';
 import { proxyCache } from '../services/cache';
 import { prisma, cryptoManager, commandHandler } from '../bot';
 import { sendGhostMessage } from '../services/ghostService';
+import { emitSystemUpdate } from '../services/events';
 
 jest.mock('../bot', () => ({
     prisma: {},
@@ -28,6 +29,10 @@ jest.mock('../services/cache', () => ({
 
 jest.mock('../services/ghostService', () => ({
     sendGhostMessage: jest.fn().mockResolvedValue({})
+}));
+
+jest.mock('../services/events', () => ({
+    emitSystemUpdate: jest.fn()
 }));
 
 describe('GatekeeperController', () => {
@@ -223,6 +228,7 @@ describe('GatekeeperController', () => {
             data: { autoproxyId: 'm1' }
         });
         expect(proxyCache.invalidate).toHaveBeenCalledWith('@alice:localhost');
+        expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
     });
 
     it('should handle edit events and fetch original event', async () => {

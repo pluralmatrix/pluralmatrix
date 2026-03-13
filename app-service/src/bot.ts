@@ -70,8 +70,8 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                 try {
                     await bridgeInstance.getIntent().join(roomId);
                     console.log(`[Bot] Successfully joined ${roomId}`);
-                } catch (e: any) {
-                    console.error(`[Bot] Failed to join ${roomId}:`, e.message);
+                } catch (e: unknown) {
+                    console.error(`[Bot] Failed to join ${roomId}:`, (e as Error).message);
                 }
                 return;
             }
@@ -101,8 +101,9 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                         if (primaryLink) {
                             // 1. Set Room Name: "[Sender Name], [Ghost Name]"
                             try {
-                                const senderProfile = await (ghostIntent as any).matrixClient.getUserProfile(sender);
-                                const ghostProfile = await (ghostIntent as any).matrixClient.getUserProfile(targetUserId);
+                                const intentClient = ghostIntent as unknown as { matrixClient: { getUserProfile: (id: string) => Promise<{ displayname?: string }> } };
+                                const senderProfile = await intentClient.matrixClient.getUserProfile(sender);
+                                const ghostProfile = await intentClient.matrixClient.getUserProfile(targetUserId);
                                 const senderName = senderProfile.displayname || sender;
                                 const ghostName = ghostProfile.displayname || targetUserId;
                                 const roomName = `${senderName}, ${ghostName}`;
@@ -110,16 +111,16 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                                 // Match found: Setting room name
                                 console.log(`[Ghost] Setting room name in ${roomId}`);
                                 await ghostIntent.setRoomName(roomId, roomName);
-                            } catch (e: any) {
-                                console.warn(`[Ghost] Failed to set room name in ${roomId}:`, e.message);
+                            } catch (e: unknown) {
+                                console.warn(`[Ghost] Failed to set room name in ${roomId}:`, (e as Error).message);
                             }
 
                             if (!isOwnerInviting) {
                                 console.log(`[Ghost] Inviting primary account ${primaryLink.matrixId} and bot to ${roomId}`);
                                 try {
                                     await ghostIntent.invite(roomId, primaryLink.matrixId);
-                                } catch (e: any) {
-                                    console.warn(`[Ghost] Failed to invite primary account (already in room?):`, e.message);
+                                } catch (e: unknown) {
+                                    console.warn(`[Ghost] Failed to invite primary account (already in room?):`, (e as Error).message);
                                 }
                             } else {
                                 console.log(`[Ghost] Owner ${maskMxid(sender)} invited managed ghost. Skipping owner invite, inviting bot.`);
@@ -133,8 +134,8 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                                 try {
                                     await bridgeInstance.getIntent().join(roomId);
                                     console.log(`[Bot] Joined ${roomId} via ghost-triggered join.`);
-                                } catch (e: any) {
-                                    console.warn(`[Bot] Immediate join failed (might already be in room):`, e.message);
+                                } catch (e: unknown) {
+                                    console.warn(`[Bot] Immediate join failed (might already be in room):`, (e as Error).message);
                                 }
                             }, 500);
     
@@ -145,14 +146,14 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                                 // 4. Set Room Topic: Temporary notice until owner arrives
                                 try {
                                     await ghostIntent.setRoomTopic(roomId, "PluralMatrix: Waiting for account owner to join...");
-                                } catch (e: any) {
-                                    console.warn(`[Ghost] Failed to set room topic in ${roomId}:`, e.message);
+                                } catch (e: unknown) {
+                                    console.warn(`[Ghost] Failed to set room topic in ${roomId}:`, (e as Error).message);
                                 }
                             }
                         }
                     }
-                } catch (e: any) {
-                    console.error(`[Ghost] Auto-forwarding failed for ${targetUserId} in ${roomId}:`, e.message);
+                } catch (e: unknown) {
+                    console.error(`[Ghost] Auto-forwarding failed for ${targetUserId} in ${roomId}:`, (e as Error).message);
                 }
                 return;
             }
@@ -161,7 +162,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
         // 2. Case: Join Handling (Power level promotion & Topic clearing)
         if (membership === "join") {
             try {
-                const members = await (bridgeInstance.getBot().getClient() as any).getJoinedRoomMembers(roomId);
+                const members = (await bridgeInstance.getBot().getClient().getJoinedRoomMembers(roomId)) as string[];
                 const ghostInRoom = members.find((m: string) => m.startsWith("@_plural_"));
                 
                 if (ghostInRoom) {
@@ -193,30 +194,30 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
 
     // Reaction handling logic
     if (event.type === "m.reaction") {
-        const relatesTo = event.content?.["m.relates_to"] as any;
+        const relatesTo = event.content?.["m.relates_to"] as Record<string, unknown>;
         if (relatesTo?.rel_type === "m.annotation") {
-            const reaction = relatesTo.key;
+            const reaction = relatesTo.key as string | undefined;
             if (reaction?.includes("❌") || reaction?.toLowerCase() === "x" || reaction?.toLowerCase() === ":x:") {
-                const targetEventId = relatesTo.event_id;
+                const targetEventId = relatesTo.event_id as string;
                 const system = await proxyCache.getSystemRules(sender, prismaClient);
                 if (!system) return;
 
                 try {
-                    const targetEvent = await (bridgeInstance.getBot().getClient() as any).getEvent(roomId, targetEventId);
+                    const targetEvent = (await bridgeInstance.getBot().getClient().getEvent(roomId, targetEventId)) as { sender: string };
                     if (targetEvent && targetEvent.sender.startsWith(`@_plural_${system.slug}_`)) {
                         console.log(`[Janitor] Deleting message ${targetEventId} via reaction from ${maskMxid(sender)}`);
                         await commandHandler.safeRedact(roomId, targetEventId, "UserRequest", bridgeInstance.getIntent(targetEvent.sender));
                         await commandHandler.safeRedact(roomId, eventId, "Cleanup");
                     }
-                } catch (e: any) {
-                    console.error(`[Janitor] Error handling reaction deletion:`, e.message);
+                } catch (e: unknown) {
+                    console.error(`[Janitor] Error handling reaction deletion:`, (e as Error).message);
                 }
             } else if (reaction?.includes("❓") || reaction?.includes("❔") || reaction?.includes("ℹ️")) {
-                const targetEventId = relatesTo.event_id;
+                const targetEventId = relatesTo.event_id as string;
                 await commandHandler.handleMessageInfoRequest(roomId, sender, targetEventId, false);
                 await commandHandler.safeRedact(roomId, eventId, "Cleanup");
             } else if (reaction?.includes("🔔") || reaction?.includes("🛎") || reaction?.includes("❗️") || reaction?.includes("🏓")) {
-                const targetEventId = relatesTo.event_id;
+                const targetEventId = relatesTo.event_id as string;
                 await commandHandler.handleMessagePingRequest(roomId, sender, targetEventId);
                 await commandHandler.safeRedact(roomId, eventId, "Cleanup");
             }
@@ -227,18 +228,18 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     if (event.type === "m.room.encrypted" && !isDecrypted) return;
     if (event.type !== "m.room.message" && !isDecrypted) return;
     
-    const content = event.content as any;
+    const content = event.content as Record<string, unknown>;
     if (!content) return;
 
     let body = content.body as string; 
     let isEdit = false;
     let originalEventId = eventId;
-    let originalEvent: any = null;
+    let originalEvent: { unsigned?: { redacted_by?: string }, content?: Record<string, unknown> } | null = null;
 
-    if (content["m.new_content"] && content["m.relates_to"]?.rel_type === "m.replace") {
-        body = content["m.new_content"].body;
+    if (content["m.new_content"] && (content["m.relates_to"] as Record<string, unknown>)?.rel_type === "m.replace") {
+        body = (content["m.new_content"] as Record<string, unknown>).body as string;
         isEdit = true;
-        originalEventId = content["m.relates_to"].event_id || content["m.relates_to"].id;
+        originalEventId = ((content["m.relates_to"] as Record<string, unknown>).event_id || (content["m.relates_to"] as Record<string, unknown>).id) as string;
     }
 
     if (body === undefined || body === null) return;
@@ -249,7 +250,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     // Edit Loop Prevention
     if (isEdit) {
         try {
-            originalEvent = await (bridgeInstance.getBot().getClient() as any).getEvent(roomId, originalEventId);
+            originalEvent = (await bridgeInstance.getBot().getClient().getEvent(roomId, originalEventId)) as { unsigned?: { redacted_by?: string }, content?: Record<string, unknown> };
             const redactedBy = originalEvent?.unsigned?.redacted_by;
             if (redactedBy === botUserId || redactedBy?.startsWith("@_plural_")) return;
         } catch {
@@ -265,7 +266,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     }
 
     // --- Command handling ---
-    const parsedCommand = parseCommand(body, content?.formatted_body);
+    const parsedCommand = parseCommand(body, content?.formatted_body as string | undefined);
     if (parsedCommand) {
         const { cmd, parts } = parsedCommand;
         const system = await proxyCache.getSystemRules(sender, prismaClient);
@@ -284,7 +285,13 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     const proxyMatch = parseProxyMatch(content, system, isEdit ? originalEvent?.content : undefined);
     
     if (proxyMatch) {
-        const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = proxyMatch as any;
+        const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = proxyMatch as {
+            targetMember: { id: string, slug?: string, name?: string, displayName?: string, avatarUrl?: string },
+            cleanBody: string,
+            cleanFormattedBody?: string,
+            wasAutoproxied: boolean,
+            fullContent: Record<string, unknown>
+        };
         const format = cleanFormattedBody ? "org.matrix.custom.html" : undefined;
 
         await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prismaClient);
@@ -309,17 +316,17 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
             const machine = await cryptoManager.getMachine(ghostUserId);
             await registerDevice(intent, machine.deviceId.toString(), prismaClient, targetMember.id);
 
-            try { await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch {
+            try { if (finalDisplayName) await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch {
                 // Ignore errors
             }
 
-            let relatesTo: any = undefined;
+            let relatesTo: Record<string, unknown> | undefined = undefined;
             // If it's an edit, we want the *original* event's relations (e.g. what it was replying to)
             // since the edit event itself only contains the m.replace relation.
             const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : event.content;
             
             if (sourceContent["m.relates_to"]) {
-                relatesTo = { ...sourceContent["m.relates_to"] } as any;
+                relatesTo = { ...(sourceContent["m.relates_to"] as Record<string, unknown>) };
                 if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
                 if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
             }
@@ -334,7 +341,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
 
 export const startMatrixBot = async () => {
     const reg = yaml.load(fs.readFileSync(REGISTRATION_PATH, 'utf8')) as AppServiceRegistration;
-    asToken = (reg as any).as_token;
+    asToken = (reg as unknown as Record<string, unknown>).as_token as string;
 
     bridge = new Bridge({
         homeserverUrl: HOMESERVER_URL,
@@ -369,7 +376,8 @@ export const startMatrixBot = async () => {
             await processCryptoRequests(machine, intent, asToken);
         },
         async (decryptedEvent) => {
-            await handleEvent({ getData: () => decryptedEvent } as any, bridge, prisma, true);
+            // @ts-expect-error Mocking Request for handleEvent
+            await handleEvent({ getData: () => decryptedEvent }, bridge, prisma, true);
         }
     );
 
@@ -386,7 +394,7 @@ export const startMatrixBot = async () => {
     // Explicitly register the bot as an AS user
     const botLocalpart = botUserId.split(":")[0].substring(1);
     try {
-        await (botIntent as any).botSdkIntent.underlyingClient.doRequest(
+        await botIntent.botSdkIntent.underlyingClient.doRequest(
             "POST",
             "/_matrix/client/v3/register",
             null,
@@ -396,11 +404,11 @@ export const startMatrixBot = async () => {
             }
         );
         console.log(`[Bot] Registered ${botUserId} as Application Service user`);
-    } catch (e: any) {
-        if (e.message?.includes("M_USER_IN_USE")) {
+    } catch (e: unknown) {
+        if ((e as Error).message?.includes("M_USER_IN_USE")) {
             console.log(`[Bot] ${botUserId} is already registered`);
         } else {
-            console.warn(`[Bot] Registration attempt failed: ${e.message}`);
+            console.warn(`[Bot] Registration attempt failed: ${(e as Error).message}`);
         }
     }
 
@@ -423,16 +431,16 @@ export const startMatrixBot = async () => {
             } else {
                 console.log(`[Bot] Bot already has an avatar set (${profile.avatar_url}). Skipping auto-upload.`);
             }
-        } catch (e: any) {
-            console.warn(`[Bot] Failed to check/set bot avatar: ${e.message}`);
+        } catch (e: unknown) {
+            console.warn(`[Bot] Failed to check/set bot avatar: ${(e as Error).message}`);
         }
     }
 
-    const appServiceInstance = new AppService({ homeserverToken: (reg as any).hs_token });
-    const app = appServiceInstance.app as any;
-    app.use(async (req: any, res: any, next: any) => {
+    const appServiceInstance = new AppService({ homeserverToken: (reg as unknown as Record<string, unknown>).hs_token as string });
+    const app = appServiceInstance.app;
+    app.use(async (req: { method: string, path: string, body: unknown }, res: unknown, next: () => void) => {
         if (req.method === 'PUT' && req.path.includes('/transactions/')) {
-            try { await router.processTransaction(req.body); } catch (e) { console.error("[Router] Error:", e); }
+            try { await router.processTransaction(req.body as never); } catch (e: unknown) { console.error("[Router] Error:", e); }
         }
         next();
     });
@@ -440,7 +448,7 @@ export const startMatrixBot = async () => {
     if (app._router?.stack) {
         const stack = app._router.stack;
         const myLayer = stack.pop();
-        const insertionIndex = stack.findIndex((l: any) => l.route);
+        const insertionIndex = stack.findIndex((l: { route?: unknown }) => l.route);
         if (insertionIndex !== -1) stack.splice(insertionIndex, 0, myLayer);
         else stack.unshift(myLayer);
     }

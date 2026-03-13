@@ -64,7 +64,8 @@ export const generateSlug = (name: string, defaultId: string): string => {
     const transliterated = transliterate(name);
 
     const clean = transliterated
-        .replace(/[^\x00-\x7F]/g, '') 
+        .replace(/[\x80-\uffff]/g, '')
+ 
         .trim()
         .toLowerCase()
         .replace(/\s+/g, '-') 
@@ -561,7 +562,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
  * using \uXXXX sequences for maximum compatibility.
  */
 export const stringifyWithEscapedUnicode = (obj: any): string => {
-    return JSON.stringify(obj, null, 4).replace(/[^\x00-\x7f]/g, (c) => {
+    return JSON.stringify(obj, null, 4).replace(/[\x80-\uffff]/g, (c) => {
         return "\\u" + c.charCodeAt(0).toString(16).padStart(4, '0');
     });
 };

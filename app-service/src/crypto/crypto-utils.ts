@@ -276,19 +276,21 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
                 }
                 break;
 
-            case RequestType.KeysQuery:
+            case RequestType.KeysQuery: {
                 const queryBody = JSON.parse(req.body);
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/query", queryBody);
                 const devCount = Object.keys(response.device_keys || {}).length;
                 console.log(`[KEY_EXCHANGE] KeysQuery success for ${userId}. Found ${devCount} users.`);
                 break;
+            }
 
-            case RequestType.KeysClaim:
+            case RequestType.KeysClaim: {
                 const claimBody = JSON.parse(req.body);
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/claim", claimBody);
                 const OTKCount = response.one_time_keys ? Object.keys(response.one_time_keys).length : 0;
                 console.log(`[KEY_EXCHANGE] KeysClaim success for ${userId}. Obtained OTKs for ${OTKCount} users.`);
                 break;
+            }
             
             case RequestType.SignatureUpload:
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/signatures/upload", JSON.parse(req.body));

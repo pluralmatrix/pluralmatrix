@@ -10,7 +10,9 @@ const DOMAIN = config.synapseDomain;
 
 export const login = async (req: Request, res: Response) => {
     try {
-        let { mxid, password } = LoginSchema.parse(req.body);
+        const parsed = LoginSchema.parse(req.body);
+        let mxid = parsed.mxid;
+        const password = parsed.password;
 
         const success = await loginToMatrix(mxid, password);
 

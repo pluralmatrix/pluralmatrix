@@ -11,7 +11,7 @@ const files = fs.readdirSync(outputDir).filter(f => f.endsWith('.json'));
 
 files.forEach(file => {
     const filePath = path.join(outputDir, file);
-    let content = fs.readFileSync(filePath, 'utf8');
+    const content = fs.readFileSync(filePath, 'utf8');
     
     // Remap /app/client/src/ to client/src/
     // Since nyc runs from app-service/, we want the paths to be relative to that or absolute local.

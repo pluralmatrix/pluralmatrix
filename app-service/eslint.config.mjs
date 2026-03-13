@@ -19,7 +19,6 @@ export default tseslint.config(
       "@typescript-eslint/no-require-imports": "off",
       // We use @typescript-eslint/no-unused-vars instead (enabled by default in recommended config)
       "no-unused-vars": "off",
-      "prefer-const": "off",
     },
   },
   {

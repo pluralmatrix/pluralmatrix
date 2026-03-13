@@ -24,7 +24,6 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
       "react-hooks/exhaustive-deps": "off",
       "react-refresh/only-export-components": "off",
-      "prefer-const": "off",
       "react-hooks/immutability": "off",
       "react-hooks/refs": "off",
       // We use @typescript-eslint/no-unused-vars instead (enabled by default in recommended config)

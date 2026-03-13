@@ -1,4 +1,3 @@
-import { Request, Response } from 'express';
 import * as importController from './importController';
 import { prisma } from '../bot';
 import { proxyCache } from '../services/cache';

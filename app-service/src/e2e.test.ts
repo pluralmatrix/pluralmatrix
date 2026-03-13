@@ -169,7 +169,7 @@ describe('PluralMatrix E2E Roundtrip', () => {
                     break;
                 }
                 console.log(`[E2E-Redact] Attempt ${i+1} (${label}): Message still visible, retrying...`);
-            } catch (e: any) {
+            } catch {
                 // 404/NotFound is also a success for redaction
                 hidden = true;
                 break;
@@ -342,7 +342,7 @@ describe('PluralMatrix E2E Roundtrip', () => {
         // 1. Send initial proxy message
         const ghost1Promise = waitForGhostMessage(client, roomId);
         const originalText = `${proxyPrefix} This is the original text`;
-        const msgId = await client.sendMessage(roomId, {
+        await client.sendMessage(roomId, {
             msgtype: "m.text",
             body: originalText,
         });
@@ -362,7 +362,7 @@ describe('PluralMatrix E2E Roundtrip', () => {
         const replyHtml = `<mx-reply><blockquote>Ghost text</blockquote></mx-reply>${cmdHtml}`;
         const replyText = `> <@ghost> Ghost text\n\n${cmdText}`;
 
-        const cmdEventId = await client.sendMessage(roomId, {
+        await client.sendMessage(roomId, {
             msgtype: "m.text",
             body: replyText,
             format: "org.matrix.custom.html",
@@ -401,7 +401,7 @@ describe('PluralMatrix E2E Roundtrip', () => {
         // 1. Send initial proxy message
         const ghost1Promise = waitForGhostMessage(client, roomId);
         const originalText = `${proxyPrefix} This is the original text`;
-        const msgId = await client.sendMessage(roomId, {
+        await client.sendMessage(roomId, {
             msgtype: "m.text",
             body: originalText,
         });
@@ -429,7 +429,7 @@ describe('PluralMatrix E2E Roundtrip', () => {
             client.on("room.message", onEvent);
         });
 
-        const cmdEventId = await client.sendMessage(roomId, {
+        await client.sendMessage(roomId, {
             msgtype: "m.text",
             body: cmdText,
             "m.relates_to": {

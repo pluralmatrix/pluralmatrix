@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { config } from './config';
 
 // Create a stable mock config object
 const mockConfig = {

@@ -1,4 +1,3 @@
-import { execSync } from 'child_process';
 import { MatrixClient, RustSdkCryptoStorageProvider, MemoryStorageProvider, AutojoinRoomsMixin } from '@vector-im/matrix-bot-sdk';
 import * as path from 'path';
 import * as fs from 'fs';

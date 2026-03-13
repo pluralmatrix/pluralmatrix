@@ -84,7 +84,7 @@ export const loginToMatrix = async (mxid: string, password: string): Promise<boo
                         }
                     }
                 }
-            } catch (err) {
+            } catch {
                 console.log(`[Auth] .well-known discovery failed for ${domain}, falling back to https://${domain}`);
             }
         }

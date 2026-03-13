@@ -3,7 +3,6 @@ import { getBridge } from './bot';
 import archiver from 'archiver';
 import AdmZip from 'adm-zip';
 import { maskMxid } from './utils/privacy';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import imageSize from 'image-size';
@@ -107,7 +106,7 @@ export const extractNameFromDescription = (description: string | null): string |
 /**
  * Validates an image buffer against avatar limits.
  */
-export const validateImageBuffer = (buffer: Buffer, filename: string): { valid: boolean, error?: string } => {
+export const validateImageBuffer = (buffer: Buffer): { valid: boolean, error?: string } => {
     // 1. Size Check (1024 KB)
     const maxSize = 1024 * 1024;
     if (buffer.length > maxSize) {
@@ -133,7 +132,7 @@ export const validateImageBuffer = (buffer: Buffer, filename: string): { valid: 
         if (largestAxis > 4000) {
             return { valid: false, error: `Resolution too high (${dimensions.width}x${dimensions.height}). Largest axis must be 4000px or fewer.` };
         }
-    } catch (e) {
+    } catch {
         return { valid: false, error: "Failed to parse image dimensions or format." };
     }
 
@@ -170,7 +169,7 @@ export const migrateAvatar = async (url: string): Promise<{ mxcUrl?: string, err
         const contentType = response.headers.get('content-type') || 'image/png';
 
         // 2. Validate Image Content
-        const validation = validateImageBuffer(buffer, 'avatar');
+        const validation = validateImageBuffer(buffer);
         if (!validation.valid) {
             return { error: validation.error };
         }
@@ -783,7 +782,6 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
     const bridge = getBridge();
     if (!bridge) throw new Error("Bridge not initialized");
 
-    const PROJECT_NAME = config.projectName;
     const homeserverUrl = config.synapseUrl;
     const asToken = config.asToken;
 
@@ -1008,7 +1006,7 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
             const data = entry.getData();
             
             // Validate Image Content
-            const validation = validateImageBuffer(data, filename);
+            const validation = validateImageBuffer(data);
             if (!validation.valid) {
                 for (const member of affectedMembers) {
                     failedAvatars.push({ slug: member.slug, name: member.name, error: validation.error! });

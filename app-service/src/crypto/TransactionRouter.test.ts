@@ -1,16 +1,15 @@
 import { TransactionRouter } from "./TransactionRouter";
-import { RoomId, UserId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 
 // Define mocks BEFORE the jest.mock call to avoid hoisting issues
 class MockDeviceLists {
-    constructor(public changed: any[] = [], public left: any[] = []) {}
+    constructor() {}
 }
 
 jest.mock("@matrix-org/matrix-sdk-crypto-nodejs", () => {
     return {
         RoomId: jest.fn().mockImplementation((id) => ({ toString: () => id })),
         UserId: jest.fn().mockImplementation((id) => ({ toString: () => id })),
-        DeviceLists: jest.fn().mockImplementation((changed, left) => new MockDeviceLists(changed, left))
+        DeviceLists: jest.fn().mockImplementation(() => new MockDeviceLists())
     };
 });
 

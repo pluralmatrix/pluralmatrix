@@ -1,5 +1,4 @@
 import { getBridge, cryptoManager, prisma } from '../bot';
-import { sendEncryptedEvent } from '../crypto/encryption';
 import { messageQueue } from './queue/MessageQueue';
 import { registerDevice } from '../crypto/crypto-utils';
 import { config } from '../config';
@@ -23,12 +22,11 @@ export interface GhostMessageOptions {
         displayName?: string | null;
         avatarUrl?: string | null;
     };
-    asToken: string;
     senderId: string;
 }
 
 export const sendGhostMessage = async (options: GhostMessageOptions) => {
-    const { roomId, cleanContent, format, formattedBody, relatesTo, fullContent, system, member, asToken, senderId } = options;
+    const { roomId, cleanContent, format, formattedBody, relatesTo, fullContent, system, member, senderId } = options;
 
     try {
         const bridge = getBridge();
@@ -44,12 +42,12 @@ export const sendGhostMessage = async (options: GhostMessageOptions) => {
         await intent.ensureRegistered();
         try {
             await intent.join(roomId);
-        } catch (e) {
+        } catch {
             // If join fails, try to have the bot invite the ghost then join again
             try {
                 await bridge.getIntent().invite(roomId, ghostUserId);
                 await intent.join(roomId);
-            } catch (e2) {
+            } catch {
                 // Ignore join failures (might lack permissions)
             }
         }
@@ -62,7 +60,7 @@ export const sendGhostMessage = async (options: GhostMessageOptions) => {
             if (member.avatarUrl) {
                 await intent.setAvatarUrl(member.avatarUrl);
             }
-        } catch (e) {
+        } catch {
             // Ignore profile update failures
         }
 

@@ -7,7 +7,6 @@ import { prisma } from '../bot';
 import { 
     importFromPluralKit, 
     generatePkJson, 
-    generateBackupJson, 
     stringifyWithEscapedUnicode, 
     exportSystemZip, 
     importSystemZip 

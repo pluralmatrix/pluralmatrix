@@ -1,4 +1,4 @@
-import { OlmMachine, RequestType, KeysUploadRequest, KeysQueryRequest, KeysClaimRequest, SignatureUploadRequest, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
+import { OlmMachine, RequestType } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { Intent } from "matrix-appservice-bridge";
 import { PrismaClient } from "@prisma/client";
 import { sleep } from "../utils/timer";
@@ -241,7 +241,7 @@ export async function waitForDeviceVisibility(
             if (devices[targetDeviceId]) {
                 return true;
             }
-        } catch (e) {
+        } catch {
             // Ignore query errors during polling
         }
 

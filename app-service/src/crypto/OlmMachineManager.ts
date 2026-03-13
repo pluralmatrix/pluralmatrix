@@ -1,9 +1,9 @@
-import { OlmMachine, UserId, DeviceId, RequestType } from "@matrix-org/matrix-sdk-crypto-nodejs";
+import { OlmMachine, UserId, DeviceId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import * as fs from "fs";
 import * as path from "path";
 import { Mutex } from "async-mutex";
 import { config } from "../config";
-import { bootstrapCrossSigning, BootstrapResult } from "./CrossSigningBootstrapper";
+import { bootstrapCrossSigning } from "./CrossSigningBootstrapper";
 
 export class OlmMachineManager {
     private machines: Map<string, OlmMachine> = new Map();
@@ -69,9 +69,8 @@ export class OlmMachineManager {
 
             // Automated Cross-Signing Bootstrapping via Rust Sidecar
             // Must happen BEFORE OlmMachine.initialize to avoid sqlite locks
-            let bootstrapResult: BootstrapResult | null = null;
             if (this.bridge && this.asToken) {
-                bootstrapResult = await bootstrapCrossSigning(
+                await bootstrapCrossSigning(
                     userId,
                     deviceId,
                     storePath,

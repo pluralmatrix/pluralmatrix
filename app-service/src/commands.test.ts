@@ -1,5 +1,4 @@
 import { CommandHandler } from './services/commandHandler';
-import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 import { lastMessageCache } from './services/cache';
 
 jest.mock('./services/cache', () => ({

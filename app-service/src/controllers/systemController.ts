@@ -363,7 +363,7 @@ export const getLinks = async (req: AuthRequest, res: Response) => {
         });
 
         res.json(links);
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to fetch links' });
     }
 };
@@ -498,7 +498,7 @@ export const deleteLink = async (req: AuthRequest, res: Response) => {
         emitSystemUpdate(targetMxid);
         emitSystemUpdate(mxid);
         res.json({ success: true });
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to delete link' });
     }
 };
@@ -541,7 +541,7 @@ export const setPrimaryAccount = async (req: AuthRequest, res: Response) => {
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
         res.json({ success: true });
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to set primary account' });
     }
 };
@@ -562,7 +562,7 @@ export const getDeadLetters = async (req: AuthRequest, res: Response) => {
         const userDl = allDl.filter(dl => dl.ghostUserId.startsWith(`@_plural_${link.system.slug}_`));
         
         res.json(userDl);
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to fetch dead letters' });
     }
 };
@@ -573,4 +573,3 @@ export const deleteDeadLetter = async (req: AuthRequest, res: Response) => {
     messageQueue.deleteDeadLetter(id as string);
     res.json({ success: true });
 };
-

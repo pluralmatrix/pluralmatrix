@@ -1,7 +1,6 @@
 import { exportSystemZip, importSystemZip } from './import';
 import { prisma } from './bot';
 import { PassThrough } from 'stream';
-import AdmZip from 'adm-zip';
 import * as importModule from './import';
 
 const mockBotClient = {
@@ -40,11 +39,10 @@ jest.mock('./bot', () => ({
 }));
 
 describe('PluralMatrix Backup Roundtrip', () => {
-    let imageValidationSpy: jest.SpyInstance;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        imageValidationSpy = jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
+        jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
         global.fetch = jest.fn().mockImplementation(() => Promise.resolve({
             ok: true,
             headers: { get: () => 'image/png' },

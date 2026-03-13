@@ -15,7 +15,7 @@ export const listMembers = async (req: AuthRequest, res: Response) => {
             include: { system: { include: { members: { include: { groups: true } } } } }
         });
         res.json(link?.system?.members || []);
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to fetch members' });
     }
 };
@@ -157,7 +157,7 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
         res.json({ success: true });
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to delete member' });
     }
 };
@@ -187,7 +187,7 @@ export const deleteAllMembers = async (req: AuthRequest, res: Response) => {
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
         res.json({ success: true });
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to delete all members' });
     }
 };

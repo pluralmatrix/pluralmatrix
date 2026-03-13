@@ -4,12 +4,10 @@ import { marked } from "marked";
 import { RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { OlmMachineManager } from "../crypto/OlmMachineManager";
 import { sendEncryptedEvent } from "../crypto/encryption";
-import { registerDevice, processCryptoRequests } from "../crypto/crypto-utils";
+import { registerDevice } from "../crypto/crypto-utils";
 import { proxyCache, lastMessageCache } from "./cache";
 import { emitSystemUpdate } from "./events";
 import { ensureUniqueSlug, ensureUniqueGroupSlug } from "../utils/slug";
-import { maskMxid } from "../utils/privacy";
-import { config } from "../config";
 import { buildWebUrl } from "../utils/url";
 import { parseCommand } from "../utils/commandParser";
 
@@ -244,7 +242,7 @@ export class CommandHandler {
                 targetRoot = { ...explicitEvent, sender: eventSender, type: eventType, content };
                 latestContent = content;
                 if (!eventSender || !eventSender.startsWith(ghostPrefix)) return null;
-            } catch (e: any) {
+            } catch {
                 return null;
             }
         } else {
@@ -916,7 +914,7 @@ ${webUrl}
             // Issue #5: Verify user existence before linking
             try {
                 await (this.bridge.getIntent() as any).matrixClient.getUserProfile(targetMxid);
-            } catch (e: any) {
+            } catch {
                 await this.sendRichText(this.bridge.getIntent(), roomId, `❌ Could not verify Matrix ID **${targetMxid}**. Please ensure the ID is correct and the user exists.`);
                 return true;
             }
@@ -1050,7 +1048,6 @@ ${webUrl}
 
             let member = system?.members.find((m: any) => m.slug === slug || m.pkId === slug);
             let isOwnMember = !!member;
-            let targetSystem = system;
 
             if (!member) {
                 // Try global search by pkId
@@ -1062,7 +1059,6 @@ ${webUrl}
                     if (members.length === 1) {
                         member = members[0];
                         isOwnMember = false;
-                        targetSystem = member.system;
                     }
                 }
             }

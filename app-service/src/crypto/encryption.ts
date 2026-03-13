@@ -45,7 +45,7 @@ export async function sendEncryptedEvent(
         if (encryptionState && encryptionState.algorithm === "m.megolm.v1.aes-sha2") {
             isEncrypted = true;
         }
-    } catch (e) {
+    } catch {
         // Not encrypted
     }
 

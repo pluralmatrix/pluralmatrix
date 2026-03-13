@@ -54,19 +54,19 @@ async function streamToBuffer(stream: PassThrough): Promise<Buffer> {
     const chunks: any[] = [];
     return new Promise((resolve, reject) => {
         stream.on('data', (chunk) => chunks.push(chunk));
-        stream.on('error', (err) => reject(err));
+        stream.on('error', (_err) => reject(_err));
         stream.on('end', () => resolve(Buffer.concat(chunks)));
     });
 }
 
 describe('PluralKit Roundtrip', () => {
-    let imageValidationSpy: jest.SpyInstance;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        imageValidationSpy = jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
+        jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
         // Mock fetch for avatar migration globally
-        global.fetch = jest.fn().mockImplementation((url) => {
+        global.fetch = jest.fn().mockImplementation(() => {
+
             return Promise.resolve({
                 ok: true,
                 headers: {

@@ -3,7 +3,6 @@ import { prisma } from '../bot';
 import { loginToMatrix, generateToken, AuthRequest } from '../auth';
 import { proxyCache } from '../services/cache';
 import { LoginSchema } from '../schemas/auth';
-import { ensureUniqueSlug } from '../utils/slug';
 import { z } from 'zod';
 import { config } from '../config';
 

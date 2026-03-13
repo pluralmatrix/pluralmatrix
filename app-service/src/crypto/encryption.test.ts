@@ -1,5 +1,4 @@
 import { sendEncryptedEvent } from "./encryption";
-import { OlmMachineManager } from "./OlmMachineManager";
 
 // Mock dependencies
 const mockIntent = {

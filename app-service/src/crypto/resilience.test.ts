@@ -83,7 +83,7 @@ describe('Crypto Resilience Utilities', () => {
             const mockDoRequest = mockIntent.matrixClient.doRequest as jest.Mock;
             
             // To avoid infinite loops in the test, we mock sleep to actually pause execution briefly
-            (timer.sleep as jest.Mock).mockImplementation((ms) => new Promise(r => setTimeout(r, 10)));
+            (timer.sleep as jest.Mock).mockImplementation(() => new Promise(r => setTimeout(r, 10)));
             
             // Fast mock response
             mockDoRequest.mockResolvedValue({});

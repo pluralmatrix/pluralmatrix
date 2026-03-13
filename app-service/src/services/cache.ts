@@ -1,4 +1,4 @@
-import { PrismaClient, System, Member } from '@prisma/client';
+import { PrismaClient, Member } from '@prisma/client';
 import { config } from '../config';
 
 interface CachedSystem {

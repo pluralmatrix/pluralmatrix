@@ -1,6 +1,5 @@
 import express from 'express';
 import request from 'supertest';
-import { config } from '../config';
 
 // Create a stable mock config object that we can modify
 const mockConfig = {

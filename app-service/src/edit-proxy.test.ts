@@ -29,7 +29,7 @@ const mockBridge = {
         getUserId: () => "@plural_bot:localhost",
         getClient: () => mockBotClient
     }),
-    getIntent: (userId?: string) => mockIntent
+    getIntent: () => mockIntent
 };
 
 jest.mock('./services/cache', () => ({

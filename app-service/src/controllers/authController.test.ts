@@ -1,7 +1,6 @@
 import { login } from './authController';
 import { prisma } from '../bot';
 import * as auth from '../auth';
-import { ensureUniqueSlug } from '../utils/slug';
 
 jest.mock('../bot', () => ({
     prisma: {

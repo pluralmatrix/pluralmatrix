@@ -2,7 +2,6 @@ import express from 'express';
 import request from 'supertest';
 import bodyParser from 'body-parser';
 import * as memberController from './memberController';
-import { z } from 'zod';
 
 // Mock dependencies
 jest.mock('../bot', () => ({

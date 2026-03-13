@@ -1,11 +1,10 @@
-import { AppServiceRegistration, Bridge, Request, WeakEvent, BridgeContext, Intent, AppService } from "matrix-appservice-bridge";
+import { AppServiceRegistration, Bridge, Request, WeakEvent, BridgeContext, AppService } from "matrix-appservice-bridge";
 import { PrismaClient } from "@prisma/client";
 import * as yaml from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
 import { config } from "./config";
 import { proxyCache } from "./services/cache";
-import { emitSystemUpdate } from "./services/events";
 import { maskMxid } from "./utils/privacy";
 import { OlmMachineManager } from "./crypto/OlmMachineManager";
 import { TransactionRouter } from "./crypto/TransactionRouter";
@@ -50,9 +49,8 @@ export const initCommandHandler = (bridgeInstance: Bridge, prismaClient: PrismaC
     commandHandler = new CommandHandler(bridgeInstance, prismaClient, cryptoManagerInstance, token, domainStr);
 };
 
-export const handleEvent = async (request: Request<WeakEvent>, context: BridgeContext | undefined, bridgeInstance: Bridge, prismaClient: PrismaClient, isDecrypted: boolean = false, asTokenArg?: string) => {
+export const handleEvent = async (request: Request<WeakEvent>, _context: BridgeContext | undefined, bridgeInstance: Bridge, prismaClient: PrismaClient, isDecrypted: boolean = false) => {
 
-    const currentAsToken = asTokenArg || asToken;
     const event = request.getData();
     const eventId = event.event_id!;
     const roomId = event.room_id!;
@@ -181,13 +179,13 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
                                 const ghostIntent = bridgeInstance.getIntent(ghostInRoom);
                                 await ghostIntent.setRoomTopic(roomId, "");
                                 console.log(`[Ghost] Cleared room topic in ${roomId} as primary user ${targetUserId} has joined.`);
-                            } catch (topicErr: any) {
+                            } catch {
                                 // Ignore topic errors
                             }
                         }
                     }
                 }
-            } catch (e) {
+            } catch {
                 // Ignore errors
             }
         }
@@ -254,7 +252,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             originalEvent = await (bridgeInstance.getBot().getClient() as any).getEvent(roomId, originalEventId);
             const redactedBy = originalEvent?.unsigned?.redacted_by;
             if (redactedBy === botUserId || redactedBy?.startsWith("@_plural_")) return;
-        } catch (e) {
+        } catch {
             // Ignore errors
         }
     }
@@ -302,8 +300,8 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             const finalDisplayName = system.systemTag ? `${targetMember.displayName || targetMember.name} ${system.systemTag}` : (targetMember.displayName || targetMember.name);
 
             await intent.ensureRegistered();
-            try { await intent.join(roomId); } catch (e) {
-                try { await bridgeInstance.getIntent().invite(roomId, ghostUserId); await intent.join(roomId); } catch (e2) {
+            try { await intent.join(roomId); } catch {
+                try { await bridgeInstance.getIntent().invite(roomId, ghostUserId); await intent.join(roomId); } catch {
                     // Ignore errors
                 }
             }
@@ -311,7 +309,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             const machine = await cryptoManager.getMachine(ghostUserId);
             await registerDevice(intent, machine.deviceId.toString(), prismaClient, targetMember.id);
 
-            try { await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch (e) {
+            try { await intent.setDisplayName(finalDisplayName); if (targetMember.avatarUrl) await intent.setAvatarUrl(targetMember.avatarUrl); } catch {
                 // Ignore errors
             }
 
@@ -327,7 +325,7 @@ export const handleEvent = async (request: Request<WeakEvent>, context: BridgeCo
             }
 
             messageQueue.enqueue(roomId, sender, intent, cleanBody, relatesTo, prismaClient, system.slug, format, cleanFormattedBody, proxyMatch.fullContent);
-        } catch (e) {
+        } catch {
                 // Ignore errors
             }
         return;
@@ -371,7 +369,7 @@ export const startMatrixBot = async () => {
             await processCryptoRequests(machine, intent, asToken);
         },
         async (decryptedEvent) => {
-            await handleEvent({ getData: () => decryptedEvent } as any, undefined, bridge, prisma, true, asToken);
+            await handleEvent({ getData: () => decryptedEvent } as any, undefined, bridge, prisma, true);
         }
     );
 
@@ -457,12 +455,12 @@ const joinPendingInvites = async (bridgeInstance: Bridge) => {
         const syncData = await botClient.doRequest("GET", "/_matrix/client/v3/sync", { filter: '{"room":{"timeline":{"limit":1}}}' });
         if (syncData.rooms?.invite) {
             for (const roomId of Object.keys(syncData.rooms.invite)) {
-                try { await bridgeInstance.getIntent().join(roomId); } catch (e) {
+                try { await bridgeInstance.getIntent().join(roomId); } catch {
                 // Ignore errors
             }
             }
         }
-    } catch (e) {
+    } catch {
                 // Ignore errors
             }
 };

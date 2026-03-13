@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma, asToken, cryptoManager, getBridge, commandHandler } from '../bot';
+import { prisma, cryptoManager, getBridge, commandHandler } from '../bot';
 import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
@@ -123,7 +123,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                             try {
                                 originalEvent = await (getBridge()?.getBot().getClient() as any).getEvent(room_id, originalEventId);
                                 console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
-                            } catch (e) {
+                            } catch {
                                 console.warn(`[Gatekeeper] Could not fetch original event ${originalEventId} for edit proxying.`);
                             }
                         }
@@ -161,7 +161,6 @@ export const checkMessage = async (req: Request, res: Response) => {
                                 displayName: targetMember.displayName,
                                 avatarUrl: targetMember.avatarUrl
                             },
-                            asToken: asToken,
                             senderId: sender
                         });
                     } catch (err: any) {

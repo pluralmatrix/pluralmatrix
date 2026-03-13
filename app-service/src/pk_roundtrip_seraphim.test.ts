@@ -1,5 +1,5 @@
 import { importFromPluralKit, generatePkJson } from './import';
-import { prisma, getBridge } from './bot';
+import { prisma } from './bot';
 import * as importModule from './import';
 import fs from 'fs';
 import path from 'path';

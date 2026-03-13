@@ -1,5 +1,5 @@
 import { OlmMachineManager } from "./OlmMachineManager";
-import { OlmMachine, UserId, RoomId, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
+import { UserId, RoomId, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { maskMxid } from "../utils/privacy";
 
 // Minimal event interface

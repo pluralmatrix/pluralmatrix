@@ -13,7 +13,7 @@ export const listGroups = async (req: AuthRequest, res: Response) => {
             include: { system: { include: { groups: { include: { members: true } } } } }
         });
         res.json(link?.system?.groups || []);
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Failed to fetch groups' });
     }
 };

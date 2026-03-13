@@ -28,6 +28,14 @@ export default defineConfig([
       "prefer-const": "off",
       "react-hooks/immutability": "off",
       "react-hooks/refs": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_"
+        }
+      ],
       "no-unused-vars": "off",
     },
   },

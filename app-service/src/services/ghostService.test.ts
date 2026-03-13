@@ -1,8 +1,7 @@
 import { sendGhostMessage } from './ghostService';
-import { getBridge, cryptoManager, prisma } from '../bot';
+import { getBridge, cryptoManager } from '../bot';
 import { messageQueue } from './queue/MessageQueue';
 import { registerDevice } from '../crypto/crypto-utils';
-import { config } from '../config';
 
 jest.mock('../bot', () => ({
     getBridge: jest.fn(),

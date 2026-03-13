@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSSE } from '../hooks/useSSE';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { memberService, systemService, groupService } from '../services/api';
@@ -126,22 +127,12 @@ const DashboardPage: React.FC = () => {
         fetchData();
     }, [urlSlug, token]);
 
-    useEffect(() => {
-        if (!token || !isOwner) return;
-
-        const API_BASE = import.meta.env.VITE_API_URL || '/api';
-        const sseUrl = `${API_BASE}/system/events?token=${token}`;
-        const eventSource = new EventSource(sseUrl);
-
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'SYSTEM_UPDATE') {
-                fetchData(true);
-            }
-        };
-
-        return () => eventSource.close();
-    }, [token, isOwner, urlSlug]);
+    const API_BASE = import.meta.env.VITE_API_URL || '/api';
+    const sseUrl = (token && isOwner) ? `${API_BASE}/system/events?token=${token}` : null;
+    const sseStatus = useSSE(sseUrl, (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'SYSTEM_UPDATE') fetchData(true);
+    });
 
     const handleDelete = async (id: string) => {
         if (!isOwner) return;
@@ -244,6 +235,16 @@ const DashboardPage: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center space-x-4">
+                        {sseStatus === 'reconnecting' && (
+                            <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 animate-pulse">
+                                Reconnecting…
+                            </span>
+                        )}
+                        {sseStatus === 'error' && (
+                            <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+                                Live updates unavailable
+                            </span>
+                        )}
                         {token ? (
                             <>
                                 {!isOwner && (

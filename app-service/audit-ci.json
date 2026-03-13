@@ -1,0 +1,9 @@
+{
+  "high": true,
+  "allowlist": [
+    "GHSA-339j-hqgx-qrrx",
+    "GHSA-cf4h-3jhx-xvhq",
+    "GHSA-qpx9-hpmf-5gmw",
+    "GHSA-p8p7-x288-28g6"
+  ]
+}

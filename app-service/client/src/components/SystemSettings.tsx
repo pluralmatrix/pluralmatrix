@@ -68,7 +68,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
             try {
                 const res = await memberService.uploadMedia(file);
                 setFormData({ ...formData, avatarUrl: res.data.content_uri });
-            } catch (err) {
+            } catch {
                 alert('Avatar upload failed.');
             } finally {
                 setSaving(false);
@@ -80,7 +80,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
         try {
             const res = await systemService.getLinks();
             setLinks(res.data);
-        } catch (err) {
+        } catch {
             console.error('Failed to fetch links');
         }
     };
@@ -111,7 +111,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                 
                 const dlqRes = await systemService.getDeadLetters();
                 setDlqCount(dlqRes.data.length);
-            } catch (err) {
+            } catch {
                 alert('Failed to load system settings.');
             } finally {
                 setLoading(false);

@@ -63,7 +63,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                 // Using memberService.uploadMedia here since media upload is generic 
                 const res = await memberService.uploadMedia(file);
                 setFormData({ ...formData, icon: res.data.content_uri });
-            } catch (err) {
+            } catch {
                 alert('Icon upload failed.');
             } finally {
                 setSaving(false);

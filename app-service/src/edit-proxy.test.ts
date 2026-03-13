@@ -113,7 +113,7 @@ describe('Proxy on Edit', () => {
         });
 
         // 3. Handle the event
-        await handleEvent(req, undefined, mockBridge as any, prisma);
+        await handleEvent(req, mockBridge as any, prisma);
 
         // 4. Verify original event was redacted (Matrix server cascades to edit)
         expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, originalId, "PluralProxy");

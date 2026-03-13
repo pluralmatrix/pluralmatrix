@@ -45,7 +45,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                         if (!res.data.failedAvatars?.length) {
                             setTimeout(() => onComplete(res.data.systemSlug), 2000);
                         }
-                    } catch (err: any) {
+                    } catch {
                         setError('Invalid JSON file or server error.');
                         setStatus('error');
                     }
@@ -61,7 +61,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                     if (!res.data.failedAvatars?.length) {
                         setTimeout(() => onComplete(res.data.systemSlug), 2000);
                     }
-                } catch (err: any) {
+                } catch {
                     setError('Failed to process ZIP backup.');
                     setStatus('error');
                 }
@@ -69,7 +69,7 @@ const ImportTool: React.FC<ImportToolProps> = ({ onComplete, onCancel }) => {
                 setError('Please upload a .json or .zip file.');
                 setStatus('error');
             }
-        } catch (err) {
+        } catch {
             setError('Failed to read file.');
             setStatus('error');
         }

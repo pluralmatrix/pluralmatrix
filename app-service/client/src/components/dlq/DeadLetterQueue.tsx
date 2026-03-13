@@ -30,7 +30,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
             const sorted = response.data.sort((a: DeadLetter, b: DeadLetter) => b.timestamp - a.timestamp);
             setLetters(sorted);
             if (onCountChange) onCountChange(sorted.length);
-        } catch (err) {
+        } catch {
             console.error('Failed to fetch dead letters');
         } finally {
             setLoading(false);
@@ -49,7 +49,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
             setLetters(remaining);
             if (onCountChange) onCountChange(remaining.length);
             if (selectedLetter?.id === id) setSelectedLetter(null);
-        } catch (err) {
+        } catch {
             alert('Failed to delete item');
         }
     };

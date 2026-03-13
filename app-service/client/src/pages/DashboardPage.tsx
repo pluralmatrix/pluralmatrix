@@ -57,7 +57,7 @@ const DashboardPage: React.FC = () => {
                         isUserOwner = true;
                         privateSystem = ownRes.data;
                     }
-                } catch (e) {
+                } catch {
                     // Ignore 404s for own system
                 }
             }
@@ -102,7 +102,7 @@ const DashboardPage: React.FC = () => {
                         navigate(`/s/${ownRes.data.slug}`, { replace: true });
                         return;
                     }
-                } catch (e) {
+                } catch {
                     // Fall through to error state
                 }
             }
@@ -140,7 +140,7 @@ const DashboardPage: React.FC = () => {
             try {
                 await memberService.delete(id);
                 fetchData(true);
-            } catch (e) {
+            } catch {
                 alert('Delete failed');
             }
         }
@@ -152,7 +152,7 @@ const DashboardPage: React.FC = () => {
             try {
                 await systemService.delete();
                 navigate('/setup', { replace: true });
-            } catch (e) {
+            } catch {
                 alert('Failed to delete system');
             }
         }
@@ -164,7 +164,7 @@ const DashboardPage: React.FC = () => {
             try {
                 await groupService.delete(id);
                 fetchData(true);
-            } catch (e) {
+            } catch {
                 alert('Delete group failed');
             }
         }
@@ -176,7 +176,7 @@ const DashboardPage: React.FC = () => {
             const newId = system?.autoproxyId === memberId ? null : memberId;
             await systemService.update({ autoproxyId: newId });
             fetchData(true);
-        } catch (e) {
+        } catch {
             alert('Failed to update autoproxy setting.');
         }
     };

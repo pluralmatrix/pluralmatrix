@@ -54,7 +54,7 @@ async function streamToBuffer(stream: PassThrough): Promise<Buffer> {
     const chunks: any[] = [];
     return new Promise((resolve, reject) => {
         stream.on('data', (chunk) => chunks.push(chunk));
-        stream.on('error', (_err) => reject(_err));
+        stream.on('error', (err) => reject(err));
         stream.on('end', () => resolve(Buffer.concat(chunks)));
     });
 }

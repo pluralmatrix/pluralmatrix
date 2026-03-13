@@ -1,4 +1,4 @@
-import { AppServiceRegistration, Bridge, Request, WeakEvent, BridgeContext, AppService } from "matrix-appservice-bridge";
+import { AppServiceRegistration, Bridge, Request, WeakEvent, AppService } from "matrix-appservice-bridge";
 import { PrismaClient } from "@prisma/client";
 import * as yaml from "js-yaml";
 import * as fs from "fs";
@@ -49,7 +49,7 @@ export const initCommandHandler = (bridgeInstance: Bridge, prismaClient: PrismaC
     commandHandler = new CommandHandler(bridgeInstance, prismaClient, cryptoManagerInstance, token, domainStr);
 };
 
-export const handleEvent = async (request: Request<WeakEvent>, _context: BridgeContext | undefined, bridgeInstance: Bridge, prismaClient: PrismaClient, isDecrypted: boolean = false) => {
+export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: Bridge, prismaClient: PrismaClient, isDecrypted: boolean = false) => {
 
     const event = request.getData();
     const eventId = event.event_id!;
@@ -346,7 +346,7 @@ export const startMatrixBot = async () => {
         intentOptions: { clients: { dontCheckPowerLevel: true } },
         controller: {
             onUserQuery: () => ({}),
-            onEvent: async (request: Request<WeakEvent>) => { await handleEvent(request, undefined, bridge, prisma); }
+            onEvent: async (request: Request<WeakEvent>) => { await handleEvent(request, bridge, prisma); }
         }
     });
 
@@ -369,7 +369,7 @@ export const startMatrixBot = async () => {
             await processCryptoRequests(machine, intent, asToken);
         },
         async (decryptedEvent) => {
-            await handleEvent({ getData: () => decryptedEvent } as any, undefined, bridge, prisma, true);
+            await handleEvent({ getData: () => decryptedEvent } as any, bridge, prisma, true);
         }
     );
 

@@ -90,7 +90,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
             try {
                 const res = await memberService.uploadMedia(file);
                 setFormData({ ...formData, avatarUrl: res.data.content_uri });
-            } catch (err) {
+            } catch {
                 alert('Avatar upload failed.');
             } finally {
                 setLoading(false);

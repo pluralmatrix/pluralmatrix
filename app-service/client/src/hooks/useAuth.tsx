@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 try {
                     const res = await authService.me();
                     setUser(res.data.user);
-                } catch (e) {
+                } catch {
                     logout();
                 }
             }

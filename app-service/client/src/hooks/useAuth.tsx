@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService } from '../services/api';
 
 interface User {
@@ -20,6 +20,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
 
+    const logout = useCallback(() => {
+        localStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
+    }, []);
+
     useEffect(() => {
         const verifyToken = async () => {
             if (token) {
@@ -33,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
         };
         verifyToken();
-    }, [token]);
+    }, [token, logout]);
 
     const login = async (mxid: string, password: string) => {
         const res = await authService.login(mxid, password);
@@ -43,12 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({ mxid: userMxid });
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        setToken(null);
-        setUser(null);
-    };
-
     return (
         <AuthContext.Provider value={{ user, token, login, logout, loading }}>
             {children}
@@ -56,6 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 };
 
+// Exporting context hooks from the same file as their provider is standard React practice.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {

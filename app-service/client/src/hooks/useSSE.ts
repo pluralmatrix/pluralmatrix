@@ -18,7 +18,10 @@ export function useSSE(
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const esRef = useRef<EventSource | null>(null);
     const onMessageRef = useRef(onMessage);
-    onMessageRef.current = onMessage;
+
+    useEffect(() => {
+        onMessageRef.current = onMessage;
+    }, [onMessage]);
 
     useEffect(() => {
         if (!url) return;

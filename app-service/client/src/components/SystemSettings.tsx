@@ -118,7 +118,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
             }
         };
         fetchSystem();
-    }, []);
+    }, [resetFormData]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

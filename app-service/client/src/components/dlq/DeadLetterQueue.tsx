@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Trash2, AlertTriangle, RefreshCw, MessageSquare, Info, X, Copy, Check } from 'lucide-react';
 import { systemService } from '../../services/api';
 
@@ -23,7 +23,7 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
     const [selectedLetter, setSelectedLetter] = useState<DeadLetter | null>(null);
     const [copied, setCopied] = useState(false);
 
-    const fetchDeadLetters = async () => {
+    const fetchDeadLetters = useCallback(async () => {
         setLoading(true);
         try {
             const response = await systemService.getDeadLetters();
@@ -35,11 +35,11 @@ const DeadLetterQueue: React.FC<DeadLetterQueueProps> = ({ isOpen, onClose, onCo
         } finally {
             setLoading(false);
         }
-    };
+    }, [onCountChange]);
 
     useEffect(() => {
         if (isOpen) fetchDeadLetters();
-    }, [isOpen]);
+    }, [isOpen, fetchDeadLetters]);
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();

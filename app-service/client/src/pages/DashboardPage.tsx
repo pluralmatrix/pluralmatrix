@@ -37,11 +37,14 @@ const DashboardPage: React.FC = () => {
 
     // Refs to avoid stale closures in SSE/fetchData
     const isModalOpenRef = React.useRef(false);
-    isModalOpenRef.current = isImporting || isSettingsOpen;
     const systemRef = React.useRef<any>(null);
-    systemRef.current = system;
 
-    const fetchData = async (isBackground = false) => {
+    React.useEffect(() => {
+        isModalOpenRef.current = isImporting || isSettingsOpen;
+        systemRef.current = system;
+    }, [isImporting, isSettingsOpen, system]);
+
+    const fetchData = React.useCallback(async (isBackground = false) => {
         if (!urlSlug) return;
         if (!isBackground) setLoading(true);
 
@@ -114,10 +117,12 @@ const DashboardPage: React.FC = () => {
             }
             setLoading(false);
         }
-    };
+    }, [urlSlug, token, navigate]);
 
     useEffect(() => {
-        // Reset states when changing systems
+        // Reset states when changing systems.
+        // It's safe and intended to synchronously reset loading state before an async fetch.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsImporting(false);
         setIsSettingsOpen(false);
         setIsEditing(false);
@@ -125,7 +130,7 @@ const DashboardPage: React.FC = () => {
         setError(null);
         setLoading(true);
         fetchData();
-    }, [urlSlug, token]);
+    }, [urlSlug, token, fetchData]);
 
     const API_BASE = import.meta.env.VITE_API_URL || '/api';
     const sseUrl = (token && isOwner) ? `${API_BASE}/system/events?token=${token}` : null;

@@ -1,6 +1,6 @@
 import { Bridge, Intent } from "matrix-appservice-bridge";
 import { PrismaClient } from '@prisma/client';
-import { SystemWithRelations, PluralMatrixEvent, IntentWithClient, PluralMatrixEventContent } from '../types';
+import { SystemWithRelations, PluralMatrixEvent, IntentWithClient, PluralMatrixEventContent, getSystemPrivacy, getMemberPrivacy, getProxyTags } from '../types';
 import { marked } from "marked";
 import { RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { OlmMachineManager } from "../crypto/OlmMachineManager";
@@ -727,7 +727,7 @@ ${webUrl}
             }
 
          
-            const sysPrivacy = (targetSystem.privacy as Record<string, unknown>) || {};
+            const sysPrivacy = getSystemPrivacy(targetSystem.privacy);
 
             if (!subCmd) {
                 // Display system info card
@@ -743,7 +743,7 @@ ${webUrl}
 
                 if (isOwnSystem || sysPrivacy.member_list_privacy !== 'private') {
          
-                    const visibleMembers = targetSystem.members?.filter((m) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
+                    const visibleMembers = targetSystem.members?.filter((m) => isOwnSystem || getMemberPrivacy(m.privacy).visibility !== 'private') || [];
                     card += `**Members:** ${visibleMembers.length}\n`;
                 } else {
                     card += `**Members:** (Private)\n`;
@@ -768,7 +768,7 @@ ${webUrl}
                 
                 const isFull = subCmdArgs[0] === "full";
          
-                const visibleMembers = targetSystem.members?.filter((m) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
+                const visibleMembers = targetSystem.members?.filter((m) => isOwnSystem || getMemberPrivacy(m.privacy).visibility !== 'private') || [];
                 
                 if (visibleMembers.length === 0) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "No system members found or they are all private.");
@@ -779,7 +779,7 @@ ${webUrl}
                 const sortedMembers = visibleMembers.sort((a, b) => a.slug.localeCompare(b.slug));
          
                 const memberList = sortedMembers.map((m) => {
-                    const mp = (m.privacy as Record<string, unknown>) || {};
+                    const mp = getMemberPrivacy(m.privacy);
                     let dName = m.name;
                     if (!isOwnSystem && mp.name_privacy === 'private') {
                         dName = m.displayName || m.name;
@@ -788,7 +788,7 @@ ${webUrl}
                     let line = `* **${dName}** (\`${m.slug}\`)`;
                     
          
-                    const tags = m.proxyTags as { prefix?: string, suffix?: string }[];
+                    const tags = getProxyTags(m.proxyTags);
                     const tag = tags[0];
                     if (tag && (isOwnSystem || mp.proxy_privacy !== 'private')) {
                         line += ` - \`${tag.prefix || ""}text${tag.suffix || ""}\``;
@@ -1081,7 +1081,7 @@ ${webUrl}
 
             // Enforce privacy
          
-            const mp = (member.privacy as Record<string, unknown>) || {};
+            const mp = getMemberPrivacy(member.privacy);
             if (!isOwnMember && mp.visibility === 'private') {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${slug}`);
                 return true;
@@ -1099,7 +1099,7 @@ ${webUrl}
 
             if (isOwnMember || mp.proxy_privacy !== 'private') {
          
-                const tags = ((member.proxyTags || []) as { prefix?: string, suffix?: string }[]).map((t) => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
+                const tags = getProxyTags(member.proxyTags).map((t) => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
                 info += `--- \n* **Proxy Tags:** ${tags || "None"}`;
             }
 

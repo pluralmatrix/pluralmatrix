@@ -1,5 +1,45 @@
-import { System, Member, Group } from '@prisma/client';
+import { System, Member, Group, Prisma } from '@prisma/client';
 import { Intent } from 'matrix-appservice-bridge';
+
+export type PrivacyLevel = 'public' | 'private';
+
+export interface SystemPrivacy {
+    description_privacy?: PrivacyLevel;
+    pronoun_privacy?: PrivacyLevel;
+    member_list_privacy?: PrivacyLevel;
+    group_list_privacy?: PrivacyLevel;
+    front_privacy?: PrivacyLevel;
+    front_history_privacy?: PrivacyLevel;
+    [key: string]: unknown;
+}
+
+export interface MemberPrivacy {
+    visibility?: PrivacyLevel;
+    name_privacy?: PrivacyLevel;
+    description_privacy?: PrivacyLevel;
+    avatar_privacy?: PrivacyLevel;
+    pronoun_privacy?: PrivacyLevel;
+    proxy_privacy?: PrivacyLevel;
+    metadata_privacy?: PrivacyLevel;
+    [key: string]: unknown;
+}
+
+export interface ProxyTag {
+    prefix?: string;
+    suffix?: string;
+}
+
+export const getSystemPrivacy = (privacy: Prisma.JsonValue): SystemPrivacy => {
+    return (privacy as unknown as SystemPrivacy) || {};
+};
+
+export const getMemberPrivacy = (privacy: Prisma.JsonValue): MemberPrivacy => {
+    return (privacy as unknown as MemberPrivacy) || {};
+};
+
+export const getProxyTags = (tags: Prisma.JsonValue): ProxyTag[] => {
+    return (tags as unknown as ProxyTag[]) || [];
+};
 
 export type GroupWithMembers = Group & { members: Member[] };
 export type SystemWithRelations = System & {

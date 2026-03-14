@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import { ensureUniqueSlug } from '../utils/slug';
 import { maskMxid } from '../utils/privacy';
+import { getSystemPrivacy, getMemberPrivacy } from '../types';
 
 export const streamSystemEvents = async (req: AuthRequest, res: Response) => {
     const mxid = req.user!.mxid;
@@ -111,7 +112,7 @@ export const getPublicSystem = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'System not found' });
         }
 
-        const sysPrivacy: Record<string, unknown> = (system.privacy as Record<string, unknown>) || {};
+        const sysPrivacy = getSystemPrivacy(system.privacy);
         
         // Filter System Level Fields
         if (sysPrivacy.name_privacy === 'private') system.name = null;
@@ -123,20 +124,20 @@ export const getPublicSystem = async (req: Request, res: Response) => {
         // Filter Member List
         if (sysPrivacy.member_list_privacy === 'private') {
             system.members = [];
-            (system as Record<string, unknown>).list_privacy_enforced = true;
+            (system as { list_privacy_enforced?: boolean }).list_privacy_enforced = true;
         } else {
             system.members = (system.members || []).filter(m => {
-                const mp: Record<string, unknown> = (m.privacy as Record<string, unknown>) || {};
+                const mp = getMemberPrivacy(m.privacy);
                 return mp.visibility !== 'private';
             }).map(m => {
-                const mp: Record<string, unknown> = (m.privacy as Record<string, unknown>) || {};
+                const mp = getMemberPrivacy(m.privacy);
                 if (mp.name_privacy === 'private') m.name = m.displayName || m.name;
                 if (mp.description_privacy === 'private') m.description = null;
                 if (mp.avatar_privacy === 'private') m.avatarUrl = null;
                 if (mp.pronoun_privacy === 'private') m.pronouns = null;
                 if (mp.proxy_privacy === 'private') m.proxyTags = [];
                 // remove privacy object so we don't leak settings
-                delete (m as Record<string, unknown>).privacy;
+                m.privacy = null;
                 return m;
             });
         }
@@ -144,24 +145,24 @@ export const getPublicSystem = async (req: Request, res: Response) => {
         // Filter Group List
         if (sysPrivacy.group_list_privacy === 'private') {
             system.groups = [];
-            (system as Record<string, unknown>).group_list_privacy_enforced = true;
+            (system as { group_list_privacy_enforced?: boolean }).group_list_privacy_enforced = true;
         } else {
             system.groups = (system.groups || []).filter(g => {
-                const gp: Record<string, unknown> = (g.privacy as Record<string, unknown>) || {};
+                const gp = getMemberPrivacy(g.privacy);
                 return gp.visibility !== 'private';
             }).map(g => {
-                const gp: Record<string, unknown> = (g.privacy as Record<string, unknown>) || {};
+                const gp = getMemberPrivacy(g.privacy);
                 if (gp.name_privacy === 'private') g.name = g.displayName || g.name;
                 if (gp.description_privacy === 'private') g.description = null;
                 if (gp.avatar_privacy === 'private') g.icon = null;
                 // remove privacy object
-                delete (g as Record<string, unknown>).privacy;
+                g.privacy = null;
                 return g;
             });
         }
 
         // Strip system privacy object
-        delete (system as Record<string, unknown>).privacy;
+        system.privacy = null;
 
         res.json(system);
     } catch (e) {

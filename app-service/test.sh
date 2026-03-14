@@ -53,6 +53,13 @@ if [ $AUDIT_FRONTEND_EXIT_CODE -ne 0 ]; then
     echo "❌ Frontend dependency audit failed."
 fi
 
+echo "🏗️  Verifying Frontend Build (TypeScript & Vite)..."
+(cd client && npm run build)
+BUILD_FRONTEND_EXIT_CODE=$?
+if [ $BUILD_FRONTEND_EXIT_CODE -ne 0 ]; then
+    echo "❌ Frontend build failed."
+fi
+
 npm install --save-dev jest
 
 echo "🔄 Regenerating Prisma client..."
@@ -85,7 +92,7 @@ sudo docker compose -f ../docker-compose.yml up -d synapse
 sleep 5
 
 # Final verdict
-if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ] && [ $LINT_BACKEND_EXIT_CODE -eq 0 ] && [ $LINT_FRONTEND_EXIT_CODE -eq 0 ] && [ $AUDIT_BACKEND_EXIT_CODE -eq 0 ] && [ $AUDIT_FRONTEND_EXIT_CODE -eq 0 ]; then
+if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ] && [ $LINT_BACKEND_EXIT_CODE -eq 0 ] && [ $LINT_FRONTEND_EXIT_CODE -eq 0 ] && [ $AUDIT_BACKEND_EXIT_CODE -eq 0 ] && [ $AUDIT_FRONTEND_EXIT_CODE -eq 0 ] && [ $BUILD_FRONTEND_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "🏆 ALL TESTS PASSED SUCCESSFULLY! 🏅"
     exit 0
@@ -96,6 +103,7 @@ else
     [ $LINT_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Lint Failed"
     [ $AUDIT_BACKEND_EXIT_CODE -ne 0 ] && echo " - Backend Audit Failed"
     [ $AUDIT_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Audit Failed"
+    [ $BUILD_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Build Failed"
     [ $JEST_EXIT_CODE -ne 0 ] && echo " - Backend Tests (Jest) Failed"
     [ $PW_EXIT_CODE -ne 0 ] && echo " - UI Tests (Playwright) Failed"
     exit 1

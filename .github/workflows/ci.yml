@@ -52,6 +52,11 @@ jobs:
         cd synapse/modules
         ./test.sh
 
+    - name: Verify Frontend Build (TypeScript & Vite)
+      run: |
+        cd app-service/client
+        npm run build
+
     - name: Run Full Test Battery (Jest + Playwright)
       run: |
         cd app-service

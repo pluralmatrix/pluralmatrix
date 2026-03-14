@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../bot';
 import { AuthRequest } from '../auth';
 import { MemberSchema } from '../schemas/member';
@@ -53,8 +54,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
                 description,
                 pronouns,
                 color,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                privacy: privacy as any,
+                privacy: privacy ? privacy as unknown as Prisma.InputJsonValue : undefined,
                 groups: groups ? { connect: groups.map(id => ({ id })) } : undefined
             }
         });
@@ -115,16 +115,14 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: {
                 ...prismaUpdateData,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                privacy: privacy === undefined ? undefined : (privacy as any),
+                privacy: privacy === undefined ? undefined : (privacy as unknown as Prisma.InputJsonValue),
                 groups: groups ? { set: groups.map(groupId => ({ id: groupId })) } : undefined
             },
             include: { system: true }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        }) as any;
+        });
 
         // Sync updated profile to Matrix (under the new slug if it changed)
-        await syncGhostProfile(updated, updated.system);
+        await syncGhostProfile(updated as unknown as Record<string, unknown>, (updated as unknown as Record<string, unknown>).system as Record<string, unknown>);
 
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);

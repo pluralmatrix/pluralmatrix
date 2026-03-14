@@ -309,8 +309,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
         }
 
         // If the system slug is changing, we must decommission all old ghosts
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let membersToMigrate: any[] = [];
+        let membersToMigrate: Record<string, unknown>[] = [];
         if (slugChanged) {
             const systemWithMembers = await prisma.system.findUnique({
                 where: { id: currentSystemId },

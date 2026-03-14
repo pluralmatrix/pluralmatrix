@@ -227,8 +227,7 @@ export const migrateAvatar = async (url: string): Promise<{ mxcUrl?: string, err
 /**
  * Sets the global profile for a ghost user.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const syncGhostProfile = async (member: any, system: any) => {
+export const syncGhostProfile = async (member: Record<string, unknown>, system: Record<string, unknown>) => {
     try {
         const bridge = getBridge();
         if (!bridge) return;
@@ -243,15 +242,15 @@ export const syncGhostProfile = async (member: any, system: any) => {
         const intent = bridge.getIntent(ghostUserId);
 
         const finalDisplayName = system.systemTag 
-            ? `${member.displayName || member.name} ${system.systemTag}`
-            : (member.displayName || member.name);
+            ? `${(member.displayName as string) || (member.name as string)} ${system.systemTag as string}`
+            : ((member.displayName as string) || (member.name as string));
 
         console.log(`[Ghost] Syncing global profile for ${ghostUserId}`);
         
         await intent.ensureRegistered();
         await intent.setDisplayName(finalDisplayName);
         if (member.avatarUrl) {
-            await intent.setAvatarUrl(member.avatarUrl);
+            await intent.setAvatarUrl(member.avatarUrl as string);
         }
     } catch (e: unknown) {
         console.warn(`[Ghost] Failed to sync profile for ${member.slug}:`, (e as Error).message);
@@ -263,8 +262,7 @@ export const syncGhostProfile = async (member: any, system: any) => {
 /**
  * Cleanup a ghost user when a member is deleted.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const decommissionGhost = async (member: any, system: any) => {
+export const decommissionGhost = async (member: Record<string, unknown>, system: Record<string, unknown>) => {
     try {
         const bridge = getBridge();
         if (!bridge) return;

@@ -48,6 +48,9 @@ rust-crypto-helper/target/
 .dockercache
 *:Zone.Identifier
 
+# Temp Reports
+eslint-report.json
+
 # Jekyll Build Output
 _site/
 

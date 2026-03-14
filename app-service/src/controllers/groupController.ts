@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../bot';
 import { AuthRequest } from '../auth';
 import { GroupSchema } from '../schemas/group';
@@ -39,8 +40,7 @@ export const createGroup = async (req: AuthRequest, res: Response) => {
                 description,
                 icon,
                 color,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                privacy: privacy as any,
+                privacy: privacy ? privacy as unknown as Prisma.InputJsonValue : undefined,
                 members: members ? { connect: members.map(id => ({ id })) } : undefined
             },
             include: { members: true }
@@ -77,8 +77,7 @@ export const updateGroup = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: {
                 ...updateData,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                privacy: privacy === undefined ? undefined : (privacy as any),
+                privacy: privacy === undefined ? undefined : (privacy as unknown as Prisma.InputJsonValue),
                 members: members ? { set: members.map(mId => ({ id: mId })) } : undefined
             },
             include: { members: true }

@@ -10,8 +10,8 @@ import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest, wa
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function dispatchToDevice(intent: Intent, asToken: string, ghostUserId: string, req: any) {
     const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
-    const eventType = req.eventType || req.event_type;
-    const txnId = req.txnId || req.txn_id;
+    const eventType = (req.eventType || req.event_type) as string;
+    const txnId = (req.txnId || req.txn_id) as string;
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.messages ? { messages: req.messages } : req);
 
     await doAsRequest(

@@ -5,6 +5,8 @@ import { sleep } from "../../utils/timer";
 import { sendEncryptedEvent } from "../../crypto/encryption";
 import { cryptoManager, asToken, getBridge } from "../../bot";
 import { lastMessageCache } from "../cache";
+import { PluralMatrixEventContent } from "../../types";
+import { isMatrixHttpError } from "../../utils/error";
 
 export interface QueueItem {
     id: string;
@@ -15,10 +17,10 @@ export interface QueueItem {
     format?: string;
     formattedBody?: string;
     attempts: number;
-    relatesTo?: Record<string, unknown>; // For replies/edits
+    relatesTo?: PluralMatrixEventContent["m.relates_to"]; // For replies/edits
     prisma?: PrismaClient;
     systemSlug?: string; // Added to update LastMessageCache on success
-    fullContent?: Record<string, unknown>; // Added to preserve non-text events (images, audio)
+    fullContent?: PluralMatrixEventContent; // Added to preserve non-text events (images, audio)
 }
 
 export interface DeadLetter {
@@ -57,12 +59,12 @@ class MessageQueueService {
         senderId: string,
         ghostIntent: Intent,
         plaintext: string,
-        relatesTo?: Record<string, unknown>,
+        relatesTo?: PluralMatrixEventContent["m.relates_to"],
         prisma?: PrismaClient,
         systemSlug?: string,
         format?: string,
         formattedBody?: string,
-        fullContent?: Record<string, unknown>
+        fullContent?: PluralMatrixEventContent
     ) {
         const queue = this.RoomQueues.get(roomId) || [];
         queue.push({
@@ -119,7 +121,7 @@ class MessageQueueService {
                 try {
                     // Try to send the event
                     // Use the original full content payload if available to preserve file/image metadata
-                    const payload: Record<string, unknown> = item.fullContent ? { ...item.fullContent } : { msgtype: "m.text", body: item.plaintext };
+                    const payload: PluralMatrixEventContent = item.fullContent ? { ...item.fullContent } : { msgtype: "m.text", body: item.plaintext };
                     console.log(`[MQ] Building payload. item.fullContent present? ${!!item.fullContent}`);
                     
                     // Always ensure body is correctly stripped of proxy tags
@@ -150,7 +152,7 @@ class MessageQueueService {
                     // Success! Update Last Message Cache if system info is present
                     if (item.systemSlug && result?.event_id) {
                         const isReplacement = item.relatesTo?.rel_type === "m.replace";
-                        const rootId = isReplacement ? (item.relatesTo!.event_id || item.relatesTo!.id) : result.event_id;
+                        const rootId = isReplacement ? (item.relatesTo!.event_id || (item.relatesTo as { id?: string }).id) : result.event_id;
                         
                         const currentLast = lastMessageCache.get(item.roomId, item.systemSlug);
                         
@@ -240,11 +242,12 @@ class MessageQueueService {
      * Determines if an error is fatal (should not be retried).
      */
     private isFatalError(error: unknown): boolean {
-        // Matrix API errors often have an HTTP status on error.status or error.httpStatus
-        const status = (error as Record<string, unknown>).status || (error as Record<string, unknown>).httpStatus;
-        if (status) {
-            if (status === 400 || status === 403 || status === 401 || status === 404) {
-                return true;
+        if (isMatrixHttpError(error)) {
+            const status = error.status || error.httpStatus;
+            if (status) {
+                if (status === 400 || status === 403 || status === 401 || status === 404) {
+                    return true;
+                }
             }
         }
 

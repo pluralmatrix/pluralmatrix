@@ -1,5 +1,6 @@
 import { Bridge, Intent } from "matrix-appservice-bridge";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
+import { SystemWithRelations } from '../types';
 import { marked } from "marked";
 import { RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { OlmMachineManager } from "../crypto/OlmMachineManager";
@@ -50,27 +51,27 @@ export class CommandHandler {
         return { memberId, systemId };
     }
 
-    async resolveTargetSystem(target: string, senderMxid: string) {
+    async resolveTargetSystem(target: string, senderMxid: string): Promise<SystemWithRelations | null> {
         if (!target) return null;
         if (target.startsWith('@')) {
             let targetMxid = target;
             if (!targetMxid.includes(':')) targetMxid = `${targetMxid}:${senderMxid.split(':')[1]}`;
             const link = await this.prisma.accountLink.findUnique({
                 where: { matrixId: targetMxid },
-                include: { system: { include: { members: true, groups: true } } }
+                include: { system: { include: { members: true, groups: { include: { members: true } } } } }
             });
             return link?.system || null;
         }
 
         let system = await this.prisma.system.findUnique({
             where: { slug: target },
-            include: { members: true, groups: true }
+            include: { members: true, groups: { include: { members: true } } }
         });
 
         if (!system && target.length === 5) {
             system = await this.prisma.system.findFirst({
                 where: { pkId: target },
-                include: { members: true, groups: true }
+                include: { members: true, groups: { include: { members: true } } }
             });
         }
         return system;
@@ -325,7 +326,7 @@ export class CommandHandler {
      * Command Execution
      */
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async executeTargetingCommand(event: any, body: string, system: any) {
+    async executeTargetingCommand(event: any, body: string, system: SystemWithRelations | null) {
         const roomId = event.room_id;
         const formattedBody = event.content?.["m.new_content"]?.formatted_body || event.content?.formatted_body;
         
@@ -462,7 +463,7 @@ export class CommandHandler {
             const newEventIdStr = typeof editResultId === 'string' ? editResultId : editResultId?.event_id;
             console.log(`[CommandHandler] pk;e resulted in event ID: ${newEventIdStr}, originalId: ${originalId}`);
             
-            if (newEventIdStr) {
+            if (newEventIdStr && system) {
                 const cached = lastMessageCache.get(roomId, system.slug);
                 console.log(`[CommandHandler] Found cache to update:`, !!cached, cached?.rootEventId === originalId);
                 if (cached && cached.rootEventId === originalId) {
@@ -476,9 +477,10 @@ export class CommandHandler {
             }
 
         } else if (cmd === "reproxy" || cmd === "rp") {
+            if (!system) return true;
             const memberSlug = parts[1]?.toLowerCase();
          
-            const member = system.members.find((m: Record<string, unknown>) => m.slug === memberSlug);
+            const member = system.members.find((m) => m.slug === memberSlug);
             console.log(`[CommandHandler] Reproxy targetContent:`, JSON.stringify(targetContent));
             if (member) {
                 if (!latestText) {
@@ -670,7 +672,7 @@ export class CommandHandler {
     }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async handleCommand(event: any, cmd: string, parts: string[], system: any): Promise<any> {
+    async handleCommand(event: any, cmd: string, parts: string[], system: SystemWithRelations | null): Promise<any> {
         const roomId = event.room_id;
         const sender = event.sender;
 
@@ -763,7 +765,7 @@ ${webUrl}
 
                 if (isOwnSystem || sysPrivacy.member_list_privacy !== 'private') {
          
-                    const visibleMembers = targetSystem.members?.filter((m: Record<string, unknown>) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
+                    const visibleMembers = targetSystem.members?.filter((m) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
                     card += `**Members:** ${visibleMembers.length}\n`;
                 } else {
                     card += `**Members:** (Private)\n`;
@@ -788,7 +790,7 @@ ${webUrl}
                 
                 const isFull = subCmdArgs[0] === "full";
          
-                const visibleMembers = targetSystem.members?.filter((m: Record<string, unknown>) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
+                const visibleMembers = targetSystem.members?.filter((m) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
                 
                 if (visibleMembers.length === 0) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "No system members found or they are all private.");
@@ -796,30 +798,30 @@ ${webUrl}
                 }
 
          
-                const sortedMembers = visibleMembers.sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.slug as string).localeCompare(b.slug as string));
+                const sortedMembers = visibleMembers.sort((a, b) => a.slug.localeCompare(b.slug));
          
-                const memberList = sortedMembers.map((m: Record<string, unknown>) => {
+                const memberList = sortedMembers.map((m) => {
                     const mp = (m.privacy as Record<string, unknown>) || {};
-                    let dName = m.name as string;
+                    let dName = m.name;
                     if (!isOwnSystem && mp.name_privacy === 'private') {
-                        dName = (m.displayName || m.name) as string;
+                        dName = m.displayName || m.name;
                     }
                     
-                    let line = `* **${dName}** (\`${m.slug as string}\`)`;
+                    let line = `* **${dName}** (\`${m.slug}\`)`;
                     
          
-                    const tags = m.proxyTags as Record<string, unknown>[];
+                    const tags = m.proxyTags as { prefix?: string, suffix?: string }[];
                     const tag = tags[0];
                     if (tag && (isOwnSystem || mp.proxy_privacy !== 'private')) {
-                        line += ` - \`${tag.prefix as string || ""}text${tag.suffix as string || ""}\``;
+                        line += ` - \`${tag.prefix || ""}text${tag.suffix || ""}\``;
                     }
 
                     if (isFull) {
                         if (m.pronouns && (isOwnSystem || mp.pronoun_privacy !== 'private')) {
-                            line += `\n  *Pronouns:* ${m.pronouns as string}`;
+                            line += `\n  *Pronouns:* ${m.pronouns}`;
                         }
                         if (m.description && (isOwnSystem || mp.description_privacy !== 'private')) {
-                            line += `\n  *Description:* ${(m.description as string).split('\n')[0].substring(0, 100)}${(m.description as string).length > 100 ? '...' : ''}`;
+                            line += `\n  *Description:* ${m.description.split('\n')[0].substring(0, 100)}${m.description.length > 100 ? '...' : ''}`;
                         }
                     }
                     return line;
@@ -837,6 +839,7 @@ ${webUrl}
             }
 
             if (subCmd === "rename") {
+                if (!system) return true;
                 const newName = subCmdArgs.join(" ");
                 if (!newName) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "Usage: `pk;system rename <new name>`");
@@ -1077,7 +1080,7 @@ ${webUrl}
             }
 
          
-            let member = system?.members.find((m: Record<string, unknown>) => m.slug === slug || m.pkId === slug);
+            let member = system?.members.find((m) => m.slug === slug || m.pkId === slug);
             let isOwnMember = !!member;
 
             if (!member) {
@@ -1119,7 +1122,7 @@ ${webUrl}
 
             if (isOwnMember || mp.proxy_privacy !== 'private') {
          
-                const tags = ((member.proxyTags || []) as Record<string, unknown>[]).map((t: Record<string, unknown>) => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
+                const tags = ((member.proxyTags || []) as { prefix?: string, suffix?: string }[]).map((t) => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
                 info += `--- \n* **Proxy Tags:** ${tags || "None"}`;
             }
 
@@ -1163,7 +1166,7 @@ ${webUrl}
             }
 
          
-            const member = system.members.find((m: Record<string, unknown>) => m.slug === targetSlug);
+            const member = system.members.find((m) => m.slug === targetSlug);
             if (!member) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${targetSlug}`);
                 return true;
@@ -1194,9 +1197,9 @@ ${webUrl}
                     return true;
                 }
          
-                const sortedGroups = groups.sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.slug as string).localeCompare(b.slug as string));
+                const sortedGroups = groups.sort((a, b) => a.slug.localeCompare(b.slug));
          
-                const groupList = sortedGroups.map((g: Record<string, unknown>) => `* **${(g.displayName || g.name) as string}** (id: \`${g.slug as string}\`) - ${(g.members as unknown[])?.length || 0} members`).join("\n");
+                const groupList = sortedGroups.map((g) => `* **${g.displayName || g.name}** (id: \`${g.slug}\`) - ${g.members?.length || 0} members`).join("\n");
                 await this.sendRichText(this.bridge.getIntent(), roomId, `### ${system.name || "Your System"} Groups\n${groupList}`);
                 return true;
             }
@@ -1242,7 +1245,7 @@ ${webUrl}
                     return true;
                 }
          
-                const memberList = (group.members as Record<string, unknown>[]).sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.slug as string).localeCompare(b.slug as string)).map((m: Record<string, unknown>) => `* **${m.name as string}** (\`${m.slug as string}\`)`).join("\n");
+                const memberList = group.members.sort((a, b) => a.slug.localeCompare(b.slug)).map((m) => `* **${m.name}** (\`${m.slug}\`)`).join("\n");
                 await this.sendRichText(this.bridge.getIntent(), roomId, `### Group: ${group.displayName || group.name}\n${memberList}`);
                 return true;
             }
@@ -1255,14 +1258,14 @@ ${webUrl}
                 }
                 
          
-                const validMembers = (system.members as Record<string, unknown>[]).filter((m: Record<string, unknown>) => memberSlugs.includes(m.slug as string) || memberSlugs.includes(m.pkId as string));
+                const validMembers = system.members.filter((m) => memberSlugs.includes(m.slug) || (m.pkId && memberSlugs.includes(m.pkId)));
                 if (validMembers.length === 0) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, `None of the specified members were found.`);
                     return true;
                 }
 
          
-                const connectArr = validMembers.map((m: Record<string, unknown>) => ({ id: m.id as string }));
+                const connectArr = validMembers.map((m) => ({ id: m.id }));
                 
                 if (action === "add") {
                     await this.prisma.group.update({

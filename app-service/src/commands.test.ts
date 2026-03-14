@@ -1,5 +1,7 @@
 import { CommandHandler } from './services/commandHandler';
 import { lastMessageCache } from './services/cache';
+import { createMockSystem, createMockMember, createMockGroup } from './test/factories';
+import { SystemWithRelations } from './types';
 
 jest.mock('./services/cache', () => ({
     proxyCache: { invalidate: jest.fn(), getSystemRules: jest.fn() },
@@ -130,14 +132,14 @@ describe('CommandHandler Tests', () => {
         );
     });
 
-    const mockSystem = {
+    const mockSystem = createMockSystem({
         id: "sys123",
         slug: "seraphim",
         members: [
-            { id: "mem1", slug: "lily", name: "Lily", matrixId: "@_plural_seraphim_lily:localhost", proxyTags: [{ prefix: "lily:", suffix: "" }] }
-        ],
-        accountLinks: [{ matrixId: "@alice:localhost", isPrimary: true }]
-    };
+            createMockMember({ id: "mem1", slug: "lily", name: "Lily", matrixId: "@_plural_seraphim_lily:localhost", proxyTags: [{ prefix: "lily:", suffix: "" }] as unknown as import('@prisma/client').Prisma.JsonValue })
+        ]
+    }) as SystemWithRelations & { accountLinks: { matrixId: string; isPrimary: boolean }[] };
+    mockSystem.accountLinks = [{ matrixId: "@alice:localhost", isPrimary: true }];
 
     describe('executeTargetingCommand', () => {
         it('should find the ROOT ID even if the latest event is an edit', async () => {
@@ -388,10 +390,10 @@ describe('CommandHandler Tests', () => {
             });
 
             // Reproxy to a hypothetical member 'bob'
-            const systemWithBob = {
+            const systemWithBob = createMockSystem({
                 ...mockSystem,
-                members: [...mockSystem.members, { id: "mem2", slug: "bob", name: "Bob", matrixId: "@_plural_seraphim_bob:localhost" }]
-            };
+                members: [...mockSystem.members, createMockMember({ id: "mem2", slug: "bob", name: "Bob", matrixId: "@_plural_seraphim_bob:localhost" })]
+            });
 
             await commandHandler.executeTargetingCommand(event, "pk;rp bob", systemWithBob);
 
@@ -510,10 +512,10 @@ describe('CommandHandler Tests', () => {
                 const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
                 const parts = ["pk;member", "lily"];
                 
-                const systemWithAvatar = {
+                const systemWithAvatar = createMockSystem({
                     ...mockSystem,
-                    members: [{ id: 'm1', slug: 'lily', name: 'Lily', avatarUrl: 'mxc://broken' }]
-                };
+                    members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily', avatarUrl: 'mxc://broken' })]
+                });
 
                 const sendEncryptedImageSpy = jest.spyOn(commandHandler, 'sendEncryptedImage').mockRejectedValue(new Error("Avatar Upload Fail"));
                 const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -549,7 +551,7 @@ describe('CommandHandler Tests', () => {
                 mockPrisma.member.findMany.mockResolvedValue([privateMember]);
                 
                 const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-                const handled = await commandHandler.handleCommand(event, "member", parts, { id: 'bobsys', members: [] });
+                const handled = await commandHandler.handleCommand(event, "member", parts, createMockSystem({ id: 'bobsys', members: [] }));
                 
                 expect(handled).toBe(true);
                 expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
@@ -576,7 +578,7 @@ describe('CommandHandler Tests', () => {
                 mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
                 mockPrisma.member.findMany.mockResolvedValue([namePrivateMember]);
                 
-                const handled = await commandHandler.handleCommand(event, "member", parts, { id: 'bobsys', members: [] });
+                const handled = await commandHandler.handleCommand(event, "member", parts, createMockSystem({ id: 'bobsys', members: [] }));
                 
                 expect(handled).toBe(true);
                 expect(sendRichTextSpy).toHaveBeenCalledWith(
@@ -601,15 +603,15 @@ describe('CommandHandler Tests', () => {
                 sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
             });
 
-            const mockSystemWithGroups = {
+            const mockSystemWithGroups = createMockSystem({
                 id: 'sys1',
                 name: 'Test System',
-                members: [{ id: 'm1', slug: 'lily', name: 'Lily' }],
+                members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })],
                 groups: [
-                    { id: 'g1', slug: 'testgroup', name: 'Test Group', members: [{ id: 'm1', slug: 'lily', name: 'Lily' }] },
-                    { id: 'g2', slug: 'emptygroup', name: 'Empty Group', members: [] }
+                    createMockGroup({ id: 'g1', slug: 'testgroup', name: 'Test Group', members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })] }),
+                    createMockGroup({ id: 'g2', slug: 'emptygroup', name: 'Empty Group', members: [] })
                 ]
-            };
+            });
             const groupEvent = { room_id: "!room:localhost", sender: "@alice:localhost" };
 
             it('pk;group list should show groups', async () => {
@@ -823,14 +825,14 @@ describe('CommandHandler Tests', () => {
                 sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: "$event" });
             });
 
-            const mockSystemExtended = {
+            const mockSystemExtended = createMockSystem({
                 id: 'sys1',
                 slug: 'testsys',
                 name: 'Test System',
                 description: 'A test system',
                 systemTag: '🚀',
-                members: [{ id: 'm1', slug: 'lily', name: 'Lily' }]
-            };
+                members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })]
+            });
             const sysEvent = { room_id: "!room:localhost", sender: "@alice:localhost" };
 
             it('pk;system should show system info', async () => {

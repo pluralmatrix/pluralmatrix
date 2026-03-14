@@ -1,18 +1,9 @@
-import { PrismaClient, Member } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { SystemWithRelations } from '../types';
 import { config } from '../config';
 
-interface CachedSystem {
-    id: string;
-    slug: string;
-    name: string | null;
-    systemTag: string | null;
-    autoproxyId: string | null;
-    autoproxyMode: string;
-    members: Member[];
-}
-
 interface CacheEntry {
-    data: CachedSystem | null; // null means "we checked DB and found nothing", so don't check again for a bit
+    data: SystemWithRelations | null; // null means "we checked DB and found nothing", so don't check again for a bit
     expiresAt: number;
 }
 
@@ -23,7 +14,7 @@ export class ProxyCacheService {
     /**
      * Retrieves system rules from cache or fetches from DB if missing/expired.
      */
-    async getSystemRules(mxid: string, prisma: PrismaClient): Promise<CachedSystem | null> {
+    async getSystemRules(mxid: string, prisma: PrismaClient): Promise<SystemWithRelations | null> {
         const now = Date.now();
         const entry = this.cache.get(mxid);
 
@@ -43,12 +34,15 @@ export class ProxyCacheService {
         this.cache.delete(mxid);
     }
 
-    private async fetchAndCache(mxid: string, prisma: PrismaClient): Promise<CachedSystem | null> {
+    private async fetchAndCache(mxid: string, prisma: PrismaClient): Promise<SystemWithRelations | null> {
         const link = await prisma.accountLink.findUnique({
             where: { matrixId: mxid },
             include: { 
                 system: {
-                    include: { members: true }
+                    include: { 
+                        members: true,
+                        groups: { include: { members: true } }
+                    }
                 }
             }
         });

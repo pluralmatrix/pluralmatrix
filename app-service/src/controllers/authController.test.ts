@@ -29,7 +29,9 @@ jest.mock('../services/cache', () => ({
 }));
 
 describe('AuthController - login', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockReq: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockRes: any;
 
     beforeEach(() => {
@@ -116,7 +118,9 @@ import { me } from './authController';
 
 describe('AuthController - me', () => {
     it('should return req.user', () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockReq = { user: { mxid: '@test:localhost' } } as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockRes = { json: jest.fn() } as any;
 
         me(mockReq, mockRes);

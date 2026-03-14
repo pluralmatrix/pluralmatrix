@@ -76,7 +76,7 @@ describe('PluralMatrix Backup Roundtrip', () => {
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
 
         // 1. Export to ZIP
-        const chunks: any[] = [];
+        const chunks: Buffer[] = [];
         const zipStream = new PassThrough();
         zipStream.on('data', (chunk) => chunks.push(chunk));
         
@@ -101,8 +101,8 @@ describe('PluralMatrix Backup Roundtrip', () => {
                 }
             }); // 2. importAvatarsZip call
 
-        let savedSystem: any;
-        let savedMember: any;
+        let savedSystem: Record<string, unknown>;
+        let savedMember: Record<string, unknown>;
 
         (prisma.system.create as jest.Mock).mockImplementation((args) => {
             savedSystem = { ...args.data, id: 'new-sys-id' };

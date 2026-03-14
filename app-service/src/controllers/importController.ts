@@ -27,6 +27,7 @@ export const importPluralKit = async (req: AuthRequest, res: Response) => {
         const mxid = req.user!.mxid;
         const jsonData = PluralKitImportSchema.parse(req.body);
         const result = await importFromPluralKit(mxid, jsonData);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { count, systemSlug, failedAvatars } = result as any;
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);

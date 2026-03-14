@@ -39,6 +39,7 @@ export const createGroup = async (req: AuthRequest, res: Response) => {
                 description,
                 icon,
                 color,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 privacy: privacy as any,
                 members: members ? { connect: members.map(id => ({ id })) } : undefined
             },
@@ -76,6 +77,7 @@ export const updateGroup = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: {
                 ...updateData,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 privacy: privacy === undefined ? undefined : (privacy as any),
                 members: members ? { set: members.map(mId => ({ id: mId })) } : undefined
             },

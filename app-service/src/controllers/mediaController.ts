@@ -40,7 +40,7 @@ export const uploadMedia = async (req: Request, res: Response) => {
             body: req.body
         });
 
-        const data = await response.json() as any;
+        const data = await response.json() as { content_uri?: string, error?: string };
         if (response.ok) {
             res.json({ content_uri: data.content_uri });
         } else {

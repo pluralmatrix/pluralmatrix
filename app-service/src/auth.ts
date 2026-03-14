@@ -21,6 +21,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
         return res.sendStatus(500);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     jwt.verify(token, config.jwtSecret, (err: any, user: any) => {
         if (err) return res.sendStatus(403);
         req.user = user;

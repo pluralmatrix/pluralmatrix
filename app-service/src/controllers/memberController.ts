@@ -34,7 +34,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
 
         // Check for duplicate proxy tags in the same system
         for (const member of system.members) {
-            const existingTags = member.proxyTags as any[];
+            const existingTags = member.proxyTags as { prefix?: string, suffix?: string }[];
             for (const tag of proxyTags) {
                 if (existingTags.some(et => et.prefix === tag.prefix && et.suffix === (tag.suffix || ""))) {
                     return res.status(400).json({ error: `The proxy tag "${tag.prefix}...${tag.suffix || ""}" is already in use by ${member.name}.` });
@@ -53,6 +53,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
                 description,
                 pronouns,
                 color,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 privacy: privacy as any,
                 groups: groups ? { connect: groups.map(id => ({ id })) } : undefined
             }
@@ -94,7 +95,7 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
         if (updateData.proxyTags) {
             for (const member of link.system.members) {
                 if (member.id === id) continue;
-                const existingTags = member.proxyTags as any[];
+                const existingTags = member.proxyTags as { prefix?: string, suffix?: string }[];
                 for (const tag of updateData.proxyTags) {
                     if (existingTags.some(et => et.prefix === tag.prefix && et.suffix === (tag.suffix || ""))) {
                         return res.status(400).json({ error: `The proxy tag "${tag.prefix}...${tag.suffix || ""}" is already in use by ${member.name}.` });
@@ -114,10 +115,12 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: {
                 ...prismaUpdateData,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 privacy: privacy === undefined ? undefined : (privacy as any),
                 groups: groups ? { set: groups.map(groupId => ({ id: groupId })) } : undefined
             },
             include: { system: true }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any;
 
         // Sync updated profile to Matrix (under the new slug if it changed)

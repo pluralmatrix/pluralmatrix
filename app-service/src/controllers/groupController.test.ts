@@ -29,6 +29,7 @@ const app = express();
 app.use(bodyParser.json());
 
 // Mock auth middleware injecting the user
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockAuth = (req: any, res: any, next: any) => {
     req.user = { mxid: '@alice:localhost' };
     next();

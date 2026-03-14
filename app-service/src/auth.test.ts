@@ -96,14 +96,14 @@ describe('Authentication Engine', () => {
             const token = generateToken(mxid);
             expect(token).toBeDefined();
 
-            const decoded = jwt.verify(token, JWT_SECRET) as any;
+            const decoded = jwt.verify(token, JWT_SECRET) as { mxid: string };
             expect(decoded.mxid).toBe(mxid);
         });
 
         it('should handle localparts by converting to full MXID', () => {
             const localpart = 'chiara';
             const token = generateToken(localpart);
-            const decoded = jwt.verify(token, JWT_SECRET) as any;
+            const decoded = jwt.verify(token, JWT_SECRET) as { mxid: string };
             expect(decoded.mxid).toBe('@chiara:localhost');
         });
     });

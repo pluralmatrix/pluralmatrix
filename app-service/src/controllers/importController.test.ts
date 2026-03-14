@@ -16,7 +16,9 @@ jest.mock('../services/events');
 jest.mock('../import');
 
 describe('importController', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockReq: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockRes: any;
 
     beforeEach(() => {

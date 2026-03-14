@@ -71,7 +71,7 @@ describe('authenticateGatekeeper Middleware', () => {
 
     it('should return 500 if GATEKEEPER_SECRET is not configured', () => {
         // We use cast to any to allow clearing it for the test
-        (mockConfig as any).gatekeeperSecret = '';
+        (mockConfig as Record<string, unknown>).gatekeeperSecret = '';
 
         authenticateGatekeeper(mockReq as Request, mockRes as Response, nextFunction);
 

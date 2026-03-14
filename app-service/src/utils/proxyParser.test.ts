@@ -1,4 +1,5 @@
-import { parseProxyMatch, ProxySystem } from './proxyParser';
+import { parseProxyMatch } from './proxyParser';
+import { SystemWithRelations } from '../types';
 
 describe('proxyParser', () => {
     const system = {
@@ -19,7 +20,7 @@ describe('proxyParser', () => {
 
     it('should parse standard prefix matches', () => {
         const content = { body: 'a:Hello world' };
-        const result = parseProxyMatch(content, system as unknown as ProxySystem);
+        const result = parseProxyMatch(content, system as unknown as SystemWithRelations);
         expect(result).toBeDefined();
         expect(result?.targetMember.slug).toBe('alice');
         expect(result?.cleanBody).toBe('Hello world');
@@ -27,7 +28,7 @@ describe('proxyParser', () => {
 
     it('should parse prefix and suffix matches', () => {
         const content = { body: '[Hello bob]' };
-        const result = parseProxyMatch(content, system as unknown as ProxySystem);
+        const result = parseProxyMatch(content, system as unknown as SystemWithRelations);
         expect(result).toBeDefined();
         expect(result?.targetMember.slug).toBe('bob');
         expect(result?.cleanBody).toBe('Hello bob');
@@ -37,7 +38,7 @@ describe('proxyParser', () => {
         const content = {
             body: '> <@user:domain> Original message\n> More text\n\na:Reply text'
         };
-        const result = parseProxyMatch(content, system as unknown as ProxySystem);
+        const result = parseProxyMatch(content, system as unknown as SystemWithRelations);
         expect(result).toBeDefined();
         expect(result?.targetMember.slug).toBe('alice');
         
@@ -51,7 +52,7 @@ describe('proxyParser', () => {
             format: 'org.matrix.custom.html',
             formatted_body: '<mx-reply><blockquote>Original HTML</blockquote></mx-reply>a:Reply text'
         };
-        const result = parseProxyMatch(content, system as unknown as ProxySystem);
+        const result = parseProxyMatch(content, system as unknown as SystemWithRelations);
         expect(result).toBeDefined();
         expect(result?.targetMember.slug).toBe('alice');
         expect(result?.cleanBody).toBe('> <@user:domain> Original message\n\nReply text');
@@ -62,7 +63,7 @@ describe('proxyParser', () => {
         const autoSystem = { ...system, autoproxyId: 'm2' };
         const content = { body: 'Just a regular message without tags' };
         
-        const result = parseProxyMatch(content, autoSystem as unknown as ProxySystem);
+        const result = parseProxyMatch(content, autoSystem as unknown as SystemWithRelations);
         expect(result).toBeDefined();
         expect(result?.targetMember.slug).toBe('bob');
         expect(result?.cleanBody).toBe('Just a regular message without tags');
@@ -75,7 +76,7 @@ describe('proxyParser', () => {
             formatted_body: '<mx-reply>...</mx-reply>Just replying normally'
         };
         
-        const result = parseProxyMatch(content, autoSystem as unknown as ProxySystem);
+        const result = parseProxyMatch(content, autoSystem as unknown as SystemWithRelations);
         expect(result).toBeDefined();
         expect(result?.targetMember.slug).toBe('alice');
         // Because it's autoproxied, there's no tag to strip, so the body remains identical
@@ -86,13 +87,13 @@ describe('proxyParser', () => {
     it('should bypass autoproxy if backslash is used', () => {
         const autoSystem = { ...system, autoproxyId: 'm1' };
         const content = { body: '\\Just escaping' };
-        const result = parseProxyMatch(content, autoSystem as unknown as ProxySystem);
+        const result = parseProxyMatch(content, autoSystem as unknown as SystemWithRelations);
         expect(result).toBeNull();
     });
 
     it('should return null for unmatched tags', () => {
         const content = { body: 'c:Unmatched tag' };
-        const result = parseProxyMatch(content, system as unknown as ProxySystem);
+        const result = parseProxyMatch(content, system as unknown as SystemWithRelations);
         expect(result).toBeNull();
     });
 });

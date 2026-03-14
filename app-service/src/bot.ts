@@ -13,7 +13,7 @@ import { processCryptoRequests, registerDevice } from "./crypto/crypto-utils";
 import { messageQueue } from "./services/queue/MessageQueue";
 import { CommandHandler } from "./services/commandHandler";
 import { parseCommand } from "./utils/commandParser";
-import { parseProxyMatch, ProxySystem } from "./utils/proxyParser";
+import { parseProxyMatch } from "./utils/proxyParser";
 import { PluralMatrixEvent, PluralMatrixEventContent } from "./types";
 import { applyAutoproxyLatch } from "./services/autoproxyService";
 
@@ -284,7 +284,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     // Escape hatch for autoproxy/proxying
     if (body.startsWith("\\")) return;
 
-    const proxyMatch = parseProxyMatch(content, system as unknown as ProxySystem, isEdit ? originalEvent?.content : undefined);
+    const proxyMatch = parseProxyMatch(content, system, isEdit ? originalEvent?.content : undefined);
     
     if (proxyMatch) {
         const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = proxyMatch as {

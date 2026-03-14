@@ -1,43 +1,15 @@
-export type ProxyContent = {
-    body?: string;
-    formatted_body?: string;
-    msgtype?: string;
-    'm.new_content'?: {
-        body?: string;
-        formatted_body?: string;
-    };
-    'm.relates_to'?: {
-        rel_type?: string;
-        event_id?: string;
-    };
-    [key: string]: unknown;
-};
-
-export type ProxyMember = {
-    id: string;
-    slug: string;
-    name: string;
-    displayName?: string | null;
-    avatarUrl?: string | null;
-    proxyTags: { prefix: string; suffix?: string }[];
-    [key: string]: unknown;
-};
-
-export type ProxySystem = {
-    members: ProxyMember[];
-    autoproxyId?: string;
-    [key: string]: unknown;
-};
+import { SystemWithRelations, PluralMatrixEventContent, getProxyTags } from '../types';
+import { Member } from '@prisma/client';
 
 export interface ProxyMatchResult {
-    targetMember: ProxyMember;
+    targetMember: Member;
     cleanBody: string;
     cleanFormattedBody?: string;
     wasAutoproxied: boolean;
-    fullContent: ProxyContent;
+    fullContent: PluralMatrixEventContent;
 }
 
-export function parseProxyMatch(content: ProxyContent, system: ProxySystem, originalEventContent?: ProxyContent): ProxyMatchResult | null {
+export function parseProxyMatch(content: PluralMatrixEventContent, system: SystemWithRelations, originalEventContent?: PluralMatrixEventContent): ProxyMatchResult | null {
     if (!content || !content.body) return null;
 
     let rawBody = content["m.new_content"]?.body || content.body;
@@ -79,14 +51,14 @@ export function parseProxyMatch(content: ProxyContent, system: ProxySystem, orig
 
     // 2. Find matching member
     let matchFound = false;
-    let targetMember: ProxyMember | null = null;
+    let targetMember: Member | null = null;
     let matchedPrefixLength = 0;
     let matchedSuffixLength = 0;
 
     for (const member of system.members) {
-        const tags = member.proxyTags;
+        const tags = getProxyTags(member.proxyTags);
         for (const tag of tags) {
-            if (rawBody.startsWith(tag.prefix) && (tag.suffix ? rawBody.endsWith(tag.suffix) : true)) {
+            if (tag.prefix && rawBody.startsWith(tag.prefix) && (tag.suffix ? rawBody.endsWith(tag.suffix) : true)) {
                 matchFound = true;
                 targetMember = member;
                 matchedPrefixLength = tag.prefix.length;
@@ -100,7 +72,7 @@ export function parseProxyMatch(content: ProxyContent, system: ProxySystem, orig
     // 3. Autoproxy Fallback
     let wasAutoproxied = false;
     if (!matchFound && system.autoproxyId && !rawBody.startsWith("\\")) {
-        const autoMember = system.members.find((m: ProxyMember) => m.id === system.autoproxyId);
+        const autoMember = system.members.find((m) => m.id === system.autoproxyId);
         if (autoMember) {
             matchFound = true;
             targetMember = autoMember;

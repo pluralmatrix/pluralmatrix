@@ -4,7 +4,7 @@ import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
 import { parseCommand } from '../utils/commandParser';
-import { parseProxyMatch, ProxyContent, ProxySystem } from '../utils/proxyParser';
+import { parseProxyMatch } from '../utils/proxyParser';
 import { PluralMatrixEventContent, PluralMatrixEvent } from '../types';
 import { applyAutoproxyLatch } from '../services/autoproxyService';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
@@ -55,7 +55,7 @@ export const checkMessage = async (req: Request, res: Response) => {
             }
         }
 
-        const body = (content?.body as string) || "";
+        let body = (content?.body as string) || "";
         const cleanSender = sender.toLowerCase();
         const system = await proxyCache.getSystemRules(cleanSender, prisma);
 
@@ -70,15 +70,15 @@ export const checkMessage = async (req: Request, res: Response) => {
         let isEdit = false;
         let originalEventId: string | undefined = undefined;
 
-        console.log(`[Gatekeeper] Analyzing event ${event_id} - has m.new_content: ${!!(content as ProxyContent)["m.new_content"]}, rel_type: ${(content as ProxyContent)["m.relates_to"]?.rel_type}`);
+        console.log(`[Gatekeeper] Analyzing event ${event_id} - has m.new_content: ${!!content["m.new_content"]}, rel_type: ${content["m.relates_to"]?.rel_type}`);
 
-        if ((content as ProxyContent)["m.new_content"] && (content as ProxyContent)["m.relates_to"]?.rel_type === "m.replace") {
+        if (content["m.new_content"] && content["m.relates_to"]?.rel_type === "m.replace") {
             isEdit = true;
-            originalEventId = (content as ProxyContent)["m.relates_to"]?.event_id;
+            originalEventId = content["m.relates_to"]?.event_id;
+            body = content["m.new_content"].body as string;
         }
 
-        // --- ZERO-FLASH FOR COMMANDS ---
-        const parsedCommand = parseCommand(body, (content as ProxyContent)?.formatted_body);
+        const parsedCommand = parseCommand(body, content?.formatted_body);
         if (parsedCommand) {
             const { cmd } = parsedCommand;
             if (["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) {
@@ -106,7 +106,7 @@ export const checkMessage = async (req: Request, res: Response) => {
         // --- PROXY CHECK ---
         // For the immediate proxy check to decide BLOCK/ALLOW quickly, we just use the current content.
         // If it's a match, we'll fetch the original event in the background before sending the ghost message.
-        const proxyMatch = parseProxyMatch(content, system as unknown as ProxySystem, undefined);
+        const proxyMatch = parseProxyMatch(content, system, undefined);
 
         if (proxyMatch) {
             // We matched! Return BLOCK immediately to Synapse so it can cache the result quickly 
@@ -131,7 +131,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                         }
 
                         // Re-parse with the original event to get the rich fallbacks
-                        const finalProxyMatch = parseProxyMatch(content, system as unknown as ProxySystem, isEdit ? (originalEvent?.content as PluralMatrixEventContent | undefined) : undefined);
+                        const finalProxyMatch = parseProxyMatch(content, system, isEdit ? (originalEvent?.content as PluralMatrixEventContent | undefined) : undefined);
                         if (!finalProxyMatch) return; // Should never happen since it matched above
 
                         const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch;

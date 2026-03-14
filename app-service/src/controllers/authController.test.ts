@@ -29,20 +29,18 @@ jest.mock('../services/cache', () => ({
 }));
 
 describe('AuthController - login', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mockReq: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mockRes: any;
+    let mockReq: import('express').Request;
+    let mockRes: import('express').Response;
 
     beforeEach(() => {
         jest.clearAllMocks();
         mockReq = {
             body: { mxid: '@alice:localhost', password: 'password' }
-        };
+        } as unknown as import('express').Request;
         mockRes = {
             json: jest.fn(),
             status: jest.fn().mockReturnThis()
-        };
+        } as unknown as import('express').Response;
     });
 
     it('should return token and hasSystem: true if user has a system', async () => {
@@ -118,10 +116,8 @@ import { me } from './authController';
 
 describe('AuthController - me', () => {
     it('should return req.user', () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mockReq = { user: { mxid: '@test:localhost' } } as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mockRes = { json: jest.fn() } as any;
+        const mockReq = { user: { mxid: '@test:localhost' } } as unknown as import('express').Request;
+        const mockRes = { json: jest.fn() } as unknown as import('express').Response;
 
         me(mockReq, mockRes);
 

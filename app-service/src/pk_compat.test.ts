@@ -9,6 +9,27 @@ jest.mock('./bot', () => ({
     }
 }));
 
+interface PKExport {
+    version: number;
+    id: string;
+    uuid: string;
+    name: string;
+    tag?: string;
+    description?: string;
+    color?: string;
+    config?: Record<string, unknown>;
+    privacy?: Record<string, string>;
+    members: {
+        id: string;
+        uuid: string;
+        name: string;
+        display_name?: string;
+        color?: string;
+        proxy_tags?: { prefix?: string | null, suffix?: string | null }[];
+        privacy?: Record<string, string>;
+    }[];
+}
+
 describe('PluralKit Compatibility', () => {
     it('should generate a JSON that strictly follows PluralKit schema from dump', async () => {
         const mockSystem = {
@@ -44,8 +65,7 @@ describe('PluralKit Compatibility', () => {
             system: mockSystem
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pkJson: any = await generatePkJson('@user:localhost');
+        const pkJson = await generatePkJson('@user:localhost') as unknown as PKExport;
 
         expect(pkJson).toBeDefined();
         // Check core PK fields
@@ -58,7 +78,7 @@ describe('PluralKit Compatibility', () => {
         expect(pkJson.color).toBe('8f00ff');
         
         // Ensure NO pluralmatrix_version in the PK-specific export
-        expect(pkJson.config.pluralmatrix_version).toBeUndefined();
+        expect(pkJson.config?.pluralmatrix_version).toBeUndefined();
 
         expect(pkJson.members).toHaveLength(1);
         const m = pkJson.members[0];
@@ -73,9 +93,9 @@ describe('PluralKit Compatibility', () => {
         
         // Ensure privacy fields are present as PK expects them
         expect(pkJson.privacy).toBeDefined();
-        expect(pkJson.privacy.name_privacy).toBe('public');
+        expect(pkJson.privacy?.name_privacy).toBe('public');
         expect(m.privacy).toBeDefined();
-        expect(m.privacy.visibility).toBe('public');
+        expect(m.privacy?.visibility).toBe('public');
     });
 
     it('should generate random pkIds if missing', async () => {
@@ -101,8 +121,7 @@ describe('PluralKit Compatibility', () => {
             system: mockSystem
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pkJson: any = await generatePkJson('@user:localhost');
+        const pkJson = await generatePkJson('@user:localhost') as unknown as PKExport;
         expect(pkJson.id).toMatch(/^[a-z]{5}$/);
         expect(pkJson.members[0].id).toMatch(/^[a-z]{5}$/);
     });

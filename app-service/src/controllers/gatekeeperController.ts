@@ -39,10 +39,11 @@ export const checkMessage = async (req: Request, res: Response) => {
                         const parsed = JSON.parse(decrypted.event);
                         content = parsed.content;
                         break;
-                        }
-                        } catch (decErr: unknown) {
-                        lastError = (decErr as Error).message;
-                        if (attempt < 2) {                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                } catch (decErr: unknown) {
+                    lastError = (decErr as Error).message;
+                    if (attempt < 2) {
+                        await new Promise(resolve => setTimeout(resolve, 200));
                     }
                 }
             }

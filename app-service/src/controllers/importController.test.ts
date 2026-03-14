@@ -16,24 +16,22 @@ jest.mock('../services/events');
 jest.mock('../import');
 
 describe('importController', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mockReq: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mockRes: any;
+    let mockReq: import('express').Request;
+    let mockRes: import('express').Response;
 
     beforeEach(() => {
         jest.clearAllMocks();
         mockReq = {
             user: { mxid: '@test:localhost' },
             body: {}
-        };
+        } as unknown as import('express').Request;
         mockRes = {
             json: jest.fn(),
             status: jest.fn().mockReturnThis(),
             setHeader: jest.fn(),
             send: jest.fn(),
             headersSent: false
-        };
+        } as unknown as import('express').Response;
     });
 
     describe('importPluralKit', () => {

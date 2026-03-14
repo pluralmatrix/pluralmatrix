@@ -253,22 +253,31 @@ export async function waitForDeviceVisibility(
     return false;
 }
 
+interface CryptoRequest {
+    id: string;
+    type: number;
+    body?: string;
+    eventType?: string;
+    txnId?: string;
+    [key: string]: unknown;
+}
+
 /**
  * Dispatches a single cryptographic request to Synapse.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function dispatchRequest(machine: OlmMachine, intent: Intent, asToken: string, req: any) {
+export async function dispatchRequest(machine: OlmMachine, intent: Intent, asToken: string, req: unknown) {
     const userId = intent.userId;
     const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
     const deviceId = machine.deviceId.toString();
+    const typedReq = req as CryptoRequest;
 
     try {
         let response: Record<string, unknown> | undefined;
 
-        switch (req.type) {
+        switch (typedReq.type) {
             case RequestType.KeysUpload:
                 try {
-                    response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(req.body), deviceId);
+                    response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}"), deviceId);
                 } catch (err: unknown) {
                     if ((err as { body?: string }).body && (err as { body: string }).body.includes("already exists")) {
                         response = { "one_time_key_counts": { "signed_curve25519": 50 } };
@@ -276,7 +285,7 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
                 }                break;
 
             case RequestType.KeysQuery: {
-                const queryBody = JSON.parse(req.body);
+                const queryBody = JSON.parse(typedReq.body || "{}");
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/query", queryBody);
                 const devCount = Object.keys(response?.device_keys || {}).length;
                 console.log(`[KEY_EXCHANGE] KeysQuery success for ${userId}. Found ${devCount} users.`);
@@ -284,7 +293,7 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
             }
 
             case RequestType.KeysClaim: {
-                const claimBody = JSON.parse(req.body);
+                const claimBody = JSON.parse(typedReq.body || "{}");
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/claim", claimBody);
                 const OTKCount = response?.one_time_keys ? Object.keys(response.one_time_keys).length : 0;
                 console.log(`[KEY_EXCHANGE] KeysClaim success for ${userId}. Obtained OTKs for ${OTKCount} users.`);
@@ -292,22 +301,22 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
             }
             
             case RequestType.SignatureUpload:
-                response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/signatures/upload", JSON.parse(req.body));
+                response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/signatures/upload", JSON.parse(typedReq.body || "{}"));
                 break;
 
             case RequestType.ToDevice:
-                console.log(`[KEY_EXCHANGE] Sending ToDevice ${req.eventType} from ${userId}`);
-                response = await doAsRequest(hsUrl, asToken, userId, "PUT", `/_matrix/client/v3/sendToDevice/${encodeURIComponent(req.eventType)}/${encodeURIComponent(req.txnId)}`, JSON.parse(req.body));
+                console.log(`[KEY_EXCHANGE] Sending ToDevice ${typedReq.eventType} from ${userId}`);
+                response = await doAsRequest(hsUrl, asToken, userId, "PUT", `/_matrix/client/v3/sendToDevice/${encodeURIComponent(typedReq.eventType || "")}/${encodeURIComponent(typedReq.txnId || "")}`, JSON.parse(typedReq.body || "{}"));
                 break;
 
             default:
-                console.warn(`[Crypto] Unknown request type: ${req.type}`);
+                console.warn(`[Crypto] Unknown request type: ${typedReq.type}`);
                 return;
         }
         
-        await machine.markRequestAsSent(req.id, req.type, JSON.stringify(response));
+        await machine.markRequestAsSent(typedReq.id, typedReq.type, JSON.stringify(response));
     } catch (e: unknown) {
-        console.error(`[KEY_EXCHANGE] ❌ FAILED request ${req.id} (Type ${req.type}) for ${userId}:`, (e as Error).message);
+        console.error(`[KEY_EXCHANGE] ❌ FAILED request ${typedReq.id} (Type ${typedReq.type}) for ${userId}:`, (e as Error).message);
     }
 }
 

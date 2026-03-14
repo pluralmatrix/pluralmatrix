@@ -4,15 +4,25 @@ import { RoomId, UserId, EncryptionSettings, DeviceLists } from "@matrix-org/mat
 import { PrismaClient } from "@prisma/client";
 import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest, waitForDeviceVisibility } from "./crypto-utils";
 
+interface ToDeviceRequest {
+    eventType?: string;
+    event_type?: string;
+    txnId?: string;
+    txn_id?: string;
+    body?: string | Record<string, unknown>;
+    messages?: Record<string, unknown>;
+    [key: string]: unknown;
+}
+
 /**
  * Manually dispatches to-device messages (like Megolm room keys) to Synapse.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function dispatchToDevice(intent: Intent, asToken: string, ghostUserId: string, req: any) {
+async function dispatchToDevice(intent: Intent, asToken: string, ghostUserId: string, req: unknown) {
     const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
-    const eventType = (req.eventType || req.event_type) as string;
-    const txnId = (req.txnId || req.txn_id) as string;
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.messages ? { messages: req.messages } : req);
+    const typedReq = req as ToDeviceRequest;
+    const eventType = (typedReq.eventType || typedReq.event_type) as string;
+    const txnId = (typedReq.txnId || typedReq.txn_id) as string;
+    const body = typeof typedReq.body === 'string' ? JSON.parse(typedReq.body) : (typedReq.messages ? { messages: typedReq.messages } : typedReq);
 
     await doAsRequest(
         hsUrl, 
@@ -32,8 +42,7 @@ export async function sendEncryptedEvent(
     intent: Intent,
     roomId: string,
     eventType: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    content: any,
+    content: Record<string, unknown>,
     manager: OlmMachineManager,
     asToken: string,
     prisma?: PrismaClient

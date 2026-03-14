@@ -660,7 +660,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group new should create a group', async () => {
                 const parts = ["pk;group", "new", "My New Group"];
-                (mockPrisma.group.create as jest.Mock).mockResolvedValue({ id: 'g2', name: 'My New Group' });
+                (mockPrisma.group.create).mockResolvedValue({ id: 'g2', name: 'My New Group' });
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.create).toHaveBeenCalled();
@@ -695,7 +695,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group <group> add should add members', async () => {
                 const parts = ["pk;group", "testgroup", "add", "lily"];
-                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.group.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -710,7 +710,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group <group> remove should remove members', async () => {
                 const parts = ["pk;group", "testgroup", "remove", "lily"];
-                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.group.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -747,7 +747,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group <group> rename should rename the group', async () => {
                 const parts = ["pk;group", "testgroup", "rename", "New Name"];
-                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.group.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -768,7 +768,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group <group> description should update description', async () => {
                 const parts = ["pk;group", "testgroup", "desc", "New description"];
-                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.group.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -778,7 +778,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group <group> description empty should clear description', async () => {
                 const parts = ["pk;group", "testgroup", "desc"];
-                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.group.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -788,7 +788,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group <group> icon should update icon', async () => {
                 const parts = ["pk;group", "testgroup", "icon", "mxc://icon"];
-                (mockPrisma.group.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.group.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -798,7 +798,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;group <group> delete should delete the group', async () => {
                 const parts = ["pk;group", "testgroup", "delete"];
-                (mockPrisma.group.delete as jest.Mock).mockResolvedValue({});
+                (mockPrisma.group.delete).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
                 expect(handled).toBe(true);
                 expect(mockPrisma.group.delete).toHaveBeenCalledWith({
@@ -848,7 +848,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;system rename should update system name', async () => {
                 const parts = ["pk;system", "rename", "New Name"];
-                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.system.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
                 expect(handled).toBe(true);
                 expect(mockPrisma.system.update).toHaveBeenCalledWith({
@@ -859,7 +859,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;system description should update system description', async () => {
                 const parts = ["pk;system", "description", "New desc"];
-                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.system.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
                 expect(handled).toBe(true);
                 expect(mockPrisma.system.update).toHaveBeenCalledWith({
@@ -870,7 +870,7 @@ describe('CommandHandler Tests', () => {
 
             it('pk;system tag should update system tag', async () => {
                 const parts = ["pk;system", "tag", "🔖"];
-                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.system.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
                 expect(handled).toBe(true);
                 expect(mockPrisma.system.update).toHaveBeenCalledWith({
@@ -881,7 +881,7 @@ describe('CommandHandler Tests', () => {
             
             it('pk;system avatar should update system avatarUrl', async () => {
                 const parts = ["pk;system", "avatar", "mxc://example.com/123"];
-                (mockPrisma.system.update as jest.Mock).mockResolvedValue({});
+                (mockPrisma.system.update).mockResolvedValue({});
                 const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
                 expect(handled).toBe(true);
                 expect(mockPrisma.system.update).toHaveBeenCalledWith({

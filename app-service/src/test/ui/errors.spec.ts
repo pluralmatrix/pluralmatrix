@@ -19,7 +19,7 @@ test.describe('Frontend Error Resilience', () => {
         fullMxid = await registerUser(username, password);
         const client = await getMatrixClient(username, password);
         matrixAccessToken = client.accessToken;
-        await client.stop();
+        client.stop();
 
         // Ensure fixtures directory exists
         if (!fs.existsSync(fixturesDir)) {
@@ -65,9 +65,9 @@ test.describe('Frontend Error Resilience', () => {
         
         // Listen for the alert dialog
         let alertMessage = '';
-        page.on('dialog', dialog => {
+        page.on('dialog', async dialog => {
             alertMessage = dialog.message();
-            dialog.dismiss();
+            await dialog.dismiss();
         });
 
         await page.getByTestId('avatar-upload-input').setInputFiles(badFilePath);

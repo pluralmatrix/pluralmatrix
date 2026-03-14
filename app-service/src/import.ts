@@ -111,7 +111,7 @@ export const generateSlug = (name: string, defaultId: string): string => {
  */
 export const getCleanPrefix = (pkMember: LooseMember): string => {
     const firstPrefix = pkMember.proxy_tags?.find((t: Record<string, unknown>) => t.prefix)?.prefix || "";
-    return (firstPrefix as string).replace(/[^a-zA-Z]/g, '').toLowerCase();
+    return (firstPrefix).replace(/[^a-zA-Z]/g, '').toLowerCase();
 };
 
 /**
@@ -443,7 +443,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: PKExport): Pro
             const avatarUrl = migrationResult?.mxcUrl;
             
             if (migrationResult?.error) {
-                failedAvatars.push({ slug, name: pkMember.name as string, error: migrationResult.error as string });
+                failedAvatars.push({ slug, name: pkMember.name as string, error: migrationResult.error });
             }
 
             const memberData = {
@@ -480,8 +480,8 @@ export const importFromPluralKit = async (mxid: string, jsonData: PKExport): Pro
                 await syncGhostProfile(member, system);
             } catch (syncErr: unknown) {
                 failedAvatars.push({ 
-                    slug: member.slug as string, 
-                    name: member.name as string, 
+                    slug: member.slug, 
+                    name: member.name, 
                     error: `Matrix Profile Sync Failed: ${(syncErr as Error).message || 'Unknown error'}` 
                 });
             }

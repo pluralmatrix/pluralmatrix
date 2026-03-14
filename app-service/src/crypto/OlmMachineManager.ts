@@ -84,7 +84,7 @@ export class OlmMachineManager {
             
             // Identity Keys are read-only properties
             const keys = machine.identityKeys;
-            console.log(`[Crypto] Machine initialized for ${userId}. Identity: curve25519=${keys.curve25519.toString().substring(0,10)}...`);
+            console.log(`[Crypto] Machine initialized for ${userId}. Identity: curve25519=${keys.curve25519.toBase64().substring(0,10)}...`);
             
             this.machines.set(userId, machine);
             return machine;

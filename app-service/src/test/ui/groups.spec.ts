@@ -14,7 +14,7 @@ test.describe('Web UI Groups Flow', () => {
         fullMxid = await registerUser(username, password);
         const client = await getMatrixClient(username, password);
         matrixAccessToken = client.accessToken;
-        await client.stop(); 
+        client.stop(); 
     });
 
     test.afterEach(async () => {
@@ -151,9 +151,9 @@ test.describe('Web UI Groups Flow', () => {
         // Step 7: Delete Group
         const superCoolGroupCard = page.getByTestId('group-card-coolgroup');
         await superCoolGroupCard.hover();
-        page.once('dialog', dialog => {
+        page.once('dialog', async dialog => {
             expect(dialog.type()).toBe('confirm');
-            dialog.accept();
+            await dialog.accept();
         });
         await superCoolGroupCard.getByTestId('delete-group-coolgroup').click();
 
@@ -186,9 +186,9 @@ test.describe('Web UI Groups Flow', () => {
         
         // Setup dialog handler to DISMISS the dirty state warning
         let dialogHandled = false;
-        page.once('dialog', dialog => {
+        page.once('dialog', async dialog => {
             expect(dialog.message()).toContain('unsaved changes');
-            dialog.dismiss();
+            await dialog.dismiss();
             dialogHandled = true;
         });
 

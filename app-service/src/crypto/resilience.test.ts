@@ -68,7 +68,7 @@ describe('Crypto Resilience Utilities', () => {
         };
 
         it('should retry device registration on rate limit', async () => {
-            const mockDoRequest = mockIntent.matrixClient.doRequest as jest.Mock;
+            const mockDoRequest = mockIntent.matrixClient.doRequest;
 
             mockDoRequest.mockRejectedValueOnce(new Error('M_LIMIT_EXCEEDED'));
             mockDoRequest.mockResolvedValueOnce({});
@@ -81,7 +81,7 @@ describe('Crypto Resilience Utilities', () => {
         });
 
         it('should respect the concurrency semaphore without OOMing', async () => {
-            const mockDoRequest = mockIntent.matrixClient.doRequest as jest.Mock;
+            const mockDoRequest = mockIntent.matrixClient.doRequest;
             
             // To avoid infinite loops in the test, we mock sleep to actually pause execution briefly
             (timer.sleep as jest.Mock).mockImplementation(() => new Promise(r => setTimeout(r, 10)));

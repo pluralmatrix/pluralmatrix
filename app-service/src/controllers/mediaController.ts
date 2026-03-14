@@ -62,7 +62,7 @@ export const downloadMedia = async (req: Request, res: Response) => {
         }
 
         // Modern Synapse requires authenticated media download via /client/v1/
-        const response = await fetch(`${config.synapseUrl}/_matrix/client/v1/media/download/${server}/${mediaId}`, {
+        const response = await fetch(`${config.synapseUrl}/_matrix/client/v1/media/download/${server as string}/${mediaId as string}`, {
             headers: {
                 'Authorization': `Bearer ${config.asToken}`
             }

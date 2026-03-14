@@ -274,7 +274,7 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
     try {
         let response: Record<string, unknown> | undefined;
 
-        switch (typedReq.type) {
+        switch (typedReq.type as unknown as RequestType) {
             case RequestType.KeysUpload:
                 try {
                     response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}"), deviceId);

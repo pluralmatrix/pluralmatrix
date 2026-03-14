@@ -123,7 +123,7 @@ describe('Bot Event Handler', () => {
             };
 
             // Mock prisma lookup
-            (mockPrisma.system.findUnique as jest.Mock).mockResolvedValue(mockSystem);
+            (mockPrisma.system.findUnique).mockResolvedValue(mockSystem);
             
             // Spy on ghost intent methods
             const ghostJoin = jest.spyOn(mockIntent, 'join');
@@ -158,7 +158,7 @@ describe('Bot Event Handler', () => {
                 ]
             };
 
-            (mockPrisma.system.findUnique as jest.Mock).mockResolvedValue(mockSystem);
+            (mockPrisma.system.findUnique).mockResolvedValue(mockSystem);
             
             const ghostInvite = jest.spyOn(mockIntent, 'invite');
             const ghostSetTopic = jest.spyOn(mockIntent, 'setRoomTopic');
@@ -293,7 +293,7 @@ describe('Bot Event Handler', () => {
                 content: { membership: "join" }
             };
 
-            (mockPrisma.system.findUnique as jest.Mock).mockResolvedValue({
+            (mockPrisma.system.findUnique).mockResolvedValue({
                 slug: "seraphim",
                 accountLinks: [{ matrixId: ownerUserId, isPrimary: true }]
             });

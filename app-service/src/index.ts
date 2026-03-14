@@ -46,7 +46,7 @@ app.use((req, res) => {
 });
 
 if (require.main === module) {
-    startMatrixBot().then(async () => {
+    startMatrixBot().then(() => {
         app.listen(PORT, () => {
             console.log(`App Service (Brain) listening on port ${PORT}`);
         });

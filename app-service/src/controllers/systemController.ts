@@ -13,7 +13,7 @@ import { maskMxid } from '../utils/privacy';
 import { Prisma } from '@prisma/client';
 import { getSystemPrivacy, getMemberPrivacy } from '../types';
 
-export const streamSystemEvents = async (req: AuthRequest, res: Response) => {
+export const streamSystemEvents = (req: AuthRequest, res: Response) => {
     const mxid = req.user!.mxid;
     console.log(`[SSE] Client connected: ${maskMxid(mxid)}`);
 
@@ -570,7 +570,7 @@ export const getDeadLetters = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const deleteDeadLetter = async (req: AuthRequest, res: Response) => {
+export const deleteDeadLetter = (req: AuthRequest, res: Response) => {
     // Basic auth check already done by middleware
     const { id } = req.params;
     messageQueue.deleteDeadLetter(id as string);

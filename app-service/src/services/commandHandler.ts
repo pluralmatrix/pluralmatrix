@@ -97,7 +97,7 @@ export class CommandHandler {
         const { memberId, systemId } = await this.resolveIdentity(userId);
         await registerDevice(intent, machine.deviceId.toString(), this.prisma, memberId, systemId);
 
-        const html = await marked.parse(text, { breaks: true });
+        const html = marked.parse(text, { breaks: true });
         return sendEncryptedEvent(intent, roomId, "m.room.message", {
             msgtype: "m.text",
             body: text,

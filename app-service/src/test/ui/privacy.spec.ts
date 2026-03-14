@@ -13,7 +13,7 @@ test.describe('Web UI Privacy Settings', () => {
         fullMxid = await registerUser(username, password);
         const client = await getMatrixClient(username, password);
         matrixAccessToken = client.accessToken;
-        await client.stop(); 
+        client.stop(); 
     });
 
     test.afterEach(async () => {

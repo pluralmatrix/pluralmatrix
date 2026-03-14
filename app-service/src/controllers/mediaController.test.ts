@@ -50,7 +50,7 @@ describe('Media Controller', () => {
         it('should accept valid images and proxy to Synapse', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: async () => ({ content_uri: 'mxc://localhost/12345' })
+                json: () => Promise.resolve({ content_uri: 'mxc://localhost/12345' })
             });
 
             const response = await request(app)
@@ -101,7 +101,7 @@ describe('Media Controller', () => {
             config.asToken = '';
             
             // Still mock fetch just in case it doesn't return early
-            fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+            fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
 
             const response = await request(app)
                 .post('/upload?filename=test.png')
@@ -116,7 +116,7 @@ describe('Media Controller', () => {
             fetchMock.mockResolvedValue({
                 ok: false,
                 status: 429,
-                json: async () => ({ errcode: 'M_LIMIT_EXCEEDED', error: 'Too many requests' })
+                json: () => Promise.resolve({ errcode: 'M_LIMIT_EXCEEDED', error: 'Too many requests' })
             });
 
             const response = await request(app)
@@ -134,7 +134,7 @@ describe('Media Controller', () => {
             fetchMock.mockResolvedValue({
                 ok: true,
                 headers: new Map([['content-type', 'image/webp']]),
-                arrayBuffer: async () => new Uint8Array(Buffer.from('image_bytes')).buffer
+                arrayBuffer: () => Promise.resolve(new Uint8Array(Buffer.from('image_bytes')).buffer)
             });
 
             const response = await request(app)

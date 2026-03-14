@@ -85,11 +85,11 @@ describe('PluralMatrix E2E Roundtrip', () => {
         // 2. Stop clients
         if (client) {
             console.log(`[E2E] Matrix client stopping...`);
-            await client.stop();
+            client.stop();
         }
         if (observer) {
             console.log(`[E2E] Observer client stopping...`);
-            await observer.stop();
+            observer.stop();
         }
 
         // 3. Deactivate users in Synapse
@@ -317,9 +317,9 @@ describe('PluralMatrix E2E Roundtrip', () => {
         console.log(`[E2E-EditReply] Ghost message content:`, JSON.stringify(ghostMsg.content, null, 2));
 
         // Assertions
-        expect(ghostMsg.content!["m.relates_to"]).toBeDefined();
-        expect(ghostMsg.content!["m.relates_to"]!["m.in_reply_to"]).toBeDefined();
-        expect(ghostMsg.content!["m.relates_to"]!["m.in_reply_to"]!.event_id).toBe(msgAId);
+        expect(ghostMsg.content["m.relates_to"]).toBeDefined();
+        expect(ghostMsg.content["m.relates_to"]!["m.in_reply_to"]).toBeDefined();
+        expect(ghostMsg.content["m.relates_to"]!["m.in_reply_to"]!.event_id).toBe(msgAId);
         
         expect(ghostMsg.content.body).toContain("> <@pm_test:localhost> Message A");
         expect(ghostMsg.content.body).toContain("Edited Reply B with **bold**");
@@ -384,14 +384,14 @@ describe('PluralMatrix E2E Roundtrip', () => {
         // The ghost edit event should have an m.replace relation pointing to ghostMsgId
         const ghostEditMsg = await editCmdPromise;
         
-        expect(ghostEditMsg.content!["m.new_content"]).toBeDefined();
-        expect(ghostEditMsg.content!["m.new_content"]!.body).toBe("**new bold text**");
-        expect(ghostEditMsg.content!["m.new_content"]!.format).toBe("org.matrix.custom.html");
-        expect(ghostEditMsg.content!["m.new_content"]!.formatted_body).toBe("<b>new bold text</b>");
+        expect(ghostEditMsg.content["m.new_content"]).toBeDefined();
+        expect(ghostEditMsg.content["m.new_content"]!.body).toBe("**new bold text**");
+        expect(ghostEditMsg.content["m.new_content"]!.format).toBe("org.matrix.custom.html");
+        expect(ghostEditMsg.content["m.new_content"]!.formatted_body).toBe("<b>new bold text</b>");
         
-        expect(ghostEditMsg.content!["m.relates_to"]).toBeDefined();
-        expect(ghostEditMsg.content!["m.relates_to"]!.rel_type).toBe("m.replace");
-        expect(ghostEditMsg.content!["m.relates_to"]!.event_id).toBe(ghostMsgId);
+        expect(ghostEditMsg.content["m.relates_to"]).toBeDefined();
+        expect(ghostEditMsg.content["m.relates_to"]!.rel_type).toBe("m.replace");
+        expect(ghostEditMsg.content["m.relates_to"]!.event_id).toBe(ghostMsgId);
 
         console.log(`[E2E-CmdE] SUCCESS: pk;e preserved rich formatting.`);
     }, 60000);
@@ -496,8 +496,8 @@ describe('PluralMatrix E2E Roundtrip', () => {
         
         expect(ghostMsg.content.msgtype).toBe("m.image");
         expect(ghostMsg.content.url).toBe("mxc://localhost/dummy_image_id");
-        expect(ghostMsg.content!.info).toBeDefined();
-        expect(ghostMsg.content!.info!.h).toBe(1600);
+        expect(ghostMsg.content.info).toBeDefined();
+        expect(ghostMsg.content.info!.h).toBe(1600);
         expect(ghostMsg.content.body).toBe("Look at this cool image!");
 
         console.log(`[E2E-Image] SUCCESS: Image and attached text successfully proxied.`);
@@ -564,8 +564,8 @@ describe('PluralMatrix E2E Roundtrip', () => {
         // The ghost should send a brand new m.image event, NOT an edit event
         expect(ghostMsg.content.msgtype).toBe("m.image");
         expect(ghostMsg.content.url).toBe("mxc://localhost/dummy_image_id_to_edit");
-        expect(ghostMsg.content!.info).toBeDefined();
-        expect(ghostMsg.content!.info!.h).toBe(1600);
+        expect(ghostMsg.content.info).toBeDefined();
+        expect(ghostMsg.content.info!.h).toBe(1600);
         
         // The body should be correctly stripped
         expect(ghostMsg.content.body).toBe("Edited caption with prefix!");
@@ -645,9 +645,9 @@ describe('PluralMatrix E2E Roundtrip', () => {
         // Assertions
         expect(reproxyGhostMsg.sender).toContain(slug2);
         
-        expect(reproxyGhostMsg.content!["m.relates_to"]).toBeDefined();
-        expect(reproxyGhostMsg.content!["m.relates_to"]!["m.in_reply_to"]).toBeDefined();
-        expect(reproxyGhostMsg.content!["m.relates_to"]!["m.in_reply_to"]!.event_id).toBe(msgAId);
+        expect(reproxyGhostMsg.content["m.relates_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]!["m.in_reply_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]!["m.in_reply_to"]!.event_id).toBe(msgAId);
         
         expect(reproxyGhostMsg.content.body).toContain("> <@pm_test:localhost> Original Message to Reply To");
         expect(reproxyGhostMsg.content.body).toContain("My proxy reply");
@@ -727,9 +727,9 @@ describe('PluralMatrix E2E Roundtrip', () => {
         expect(reproxyGhostMsg.content.body).toContain("This text is heavily modified!");
         
         // Assert that the reproxy preserved the original reply relation
-        expect(reproxyGhostMsg.content!["m.relates_to"]).toBeDefined();
-        expect(reproxyGhostMsg.content!["m.relates_to"]!["m.in_reply_to"]).toBeDefined();
-        expect(reproxyGhostMsg.content!["m.relates_to"]!["m.in_reply_to"]!.event_id).toBe(parentMsgId);
+        expect(reproxyGhostMsg.content["m.relates_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]!["m.in_reply_to"]).toBeDefined();
+        expect(reproxyGhostMsg.content["m.relates_to"]!["m.in_reply_to"]!.event_id).toBe(parentMsgId);
         
         console.log(`[E2E-ReproxyEdit] SUCCESS: Reproxy correctly grabbed the latest edited text and preserved reply.`);
     }, 60000);

@@ -16,7 +16,7 @@ test.describe('Web UI Onboarding Flow', () => {
         // 2. Get the user's access token for cleanup later
         const client = await getMatrixClient(username, password);
         matrixAccessToken = client.accessToken;
-        await client.stop(); // Stop syncing immediately, we don't need Matrix events here
+        client.stop(); // Stop syncing immediately, we don't need Matrix events here
     });
 
     test.afterAll(async () => {

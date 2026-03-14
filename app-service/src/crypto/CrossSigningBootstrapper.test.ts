@@ -83,7 +83,7 @@ describe('CrossSigningBootstrapper', () => {
 
         fetchMock.mockResolvedValue({
             ok: true,
-            json: async () => ({ success: true })
+            json: () => Promise.resolve({ success: true })
         });
 
         const result = await bootstrapCrossSigning(
@@ -144,7 +144,7 @@ describe('CrossSigningBootstrapper', () => {
         fetchMock.mockResolvedValue({
             ok: false,
             status: 400,
-            text: async () => '{"error": "Invalid payload"}'
+            text: () => Promise.resolve('{"error": "Invalid payload"}')
         });
 
         await expect(

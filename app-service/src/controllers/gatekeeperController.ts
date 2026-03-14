@@ -92,7 +92,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                         content: content
                     };
                     // Execute in background
-                    commandHandler.executeTargetingCommand(mockEvent, body as string, system).catch((e: unknown) => {
+                    commandHandler.executeTargetingCommand(mockEvent, body, system).catch((e: unknown) => {
                         console.error("[Gatekeeper] Failed to execute targeting command:", (e as Error).message);
                     });
                 } else {
@@ -131,7 +131,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                         }
 
                         // Re-parse with the original event to get the rich fallbacks
-                        const finalProxyMatch = parseProxyMatch(content, system, isEdit ? (originalEvent?.content as PluralMatrixEventContent | undefined) : undefined);
+                        const finalProxyMatch = parseProxyMatch(content, system, isEdit ? (originalEvent?.content) : undefined);
                         if (!finalProxyMatch) return; // Should never happen since it matched above
 
                         const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch;
@@ -168,7 +168,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                     } catch (err: unknown) {
                         console.error("[Gatekeeper] Background proxy task failed:", (err as Error).message);
                     }
-                })();
+                })().catch((err) => console.error("[Gatekeeper] Background proxy failed:", err));
             } else {
                 console.log(`[Gatekeeper] E2EE Match for ${event_id} - Visibility BLOCKED, but letting bot.ts handle proxying.`);
             }

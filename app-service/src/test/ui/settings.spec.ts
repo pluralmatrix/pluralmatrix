@@ -16,7 +16,7 @@ test.describe('System Settings and Member Management', () => {
         fullMxid = await registerUser(username, password);
         const client = await getMatrixClient(username, password);
         matrixAccessToken = client.accessToken;
-        await client.stop();
+        client.stop();
 
         // Register link target user
         linkUsername = `ui_link_user_${Math.random().toString(36).substring(7)}`;
@@ -231,7 +231,7 @@ test.describe('System Settings and Member Management', () => {
         const testFullMxid = await registerUser(testUser, password);
         const client = await getMatrixClient(testUser, password);
         const testToken = client.accessToken;
-        await client.stop();
+        client.stop();
 
         page.on('console', msg => console.log(`[Browser] ${msg.text()}`));
         // 1. Log in
@@ -248,9 +248,9 @@ test.describe('System Settings and Member Management', () => {
 
         // Track dialogs to ensure none are triggered
         let dialogTriggered = false;
-        page.on('dialog', dialog => {
+        page.on('dialog', async dialog => {
             dialogTriggered = true;
-            dialog.accept();
+            await dialog.accept();
         });
 
         // 2. Open settings

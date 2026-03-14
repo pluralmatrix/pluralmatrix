@@ -273,7 +273,7 @@ describe('MessageQueueService', () => {
         expect(messageQueue['RoomQueues'].get(roomId)!.length).toBe(0);
     });
 
-    it('should garbage collect dead letters older than 24 hours', async () => {
+    it('should garbage collect dead letters older than 24 hours', () => {
         // Manually insert an item into the vault that is 25 hours old
         const oldTimestamp = Date.now() - (25 * 60 * 60 * 1000);
         messageQueue['DeadLetterVault'].set("old-item", {

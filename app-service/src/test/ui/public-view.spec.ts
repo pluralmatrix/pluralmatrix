@@ -13,7 +13,7 @@ test.describe('Public System View and Read-Only Modals', () => {
         fullMxid = await registerUser(username, password);
         const client = await getMatrixClient(username, password);
         matrixAccessToken = client.accessToken;
-        await client.stop(); 
+        client.stop(); 
     });
 
     test.afterEach(async () => {

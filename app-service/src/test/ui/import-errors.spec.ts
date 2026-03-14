@@ -18,7 +18,7 @@ test.describe('Import Tool Error Handling', () => {
         fullMxid = await registerUser(username, password);
         const client = await getMatrixClient(username, password);
         matrixAccessToken = client.accessToken;
-        await client.stop();
+        client.stop();
 
         if (!fs.existsSync(fixturesDir)) {
             fs.mkdirSync(fixturesDir, { recursive: true });

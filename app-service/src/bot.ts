@@ -53,8 +53,8 @@ export const initCommandHandler = (bridgeInstance: Bridge, prismaClient: PrismaC
 export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: Bridge, prismaClient: PrismaClient, isDecrypted: boolean = false) => {
 
     const event = request.getData();
-    const eventId = event.event_id!;
-    const roomId = event.room_id!;
+    const eventId = event.event_id;
+    const roomId = event.room_id;
     const sender = event.sender;
     
     // Member Event Handling (Invites and Joins)
@@ -131,13 +131,15 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                             await ghostIntent.invite(roomId, botUserId);
                             
                             // Force Bot to join immediately (Don't wait for invite event loopback)
-                            setTimeout(async () => {
-                                try {
-                                    await bridgeInstance.getIntent().join(roomId);
-                                    console.log(`[Bot] Joined ${roomId} via ghost-triggered join.`);
-                                } catch (e: unknown) {
-                                    console.warn(`[Bot] Immediate join failed (might already be in room):`, (e as Error).message);
-                                }
+                            setTimeout(() => {
+                                (async () => {
+                                    try {
+                                        await bridgeInstance.getIntent().join(roomId);
+                                        console.log(`[Bot] Joined ${roomId} via ghost-triggered join.`);
+                                    } catch (e: unknown) {
+                                        console.warn(`[Bot] Immediate join failed (might already be in room):`, (e as Error).message);
+                                    }
+                                })().catch(console.error);
                             }, 500);
     
                             // 3. Pre-emptively promote system (Bot & Owner) to Admin
@@ -163,7 +165,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
         // 2. Case: Join Handling (Power level promotion & Topic clearing)
         if (membership === "join") {
             try {
-                const members = (await bridgeInstance.getBot().getClient().getJoinedRoomMembers(roomId)) as string[];
+                const members = (await bridgeInstance.getBot().getClient().getJoinedRoomMembers(roomId));
                 const ghostInRoom = members.find((m: string) => m.startsWith("@_plural_"));
                 
                 if (ghostInRoom) {
@@ -252,7 +254,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     // Edit Loop Prevention
     if (isEdit) {
         try {
-            originalEvent = (await bridgeInstance.getBot().getClient().getEvent(roomId, originalEventId as string)) as unknown as PluralMatrixEvent;
+            originalEvent = (await bridgeInstance.getBot().getClient().getEvent(roomId, originalEventId)) as unknown as PluralMatrixEvent;
             const redactedBy = originalEvent?.unsigned?.redacted_by as string | undefined;
             if (redactedBy === botUserId || redactedBy?.startsWith("@_plural_")) return;
         } catch {
@@ -268,7 +270,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     }
 
     // --- Command handling ---
-    const parsedCommand = parseCommand(body, content?.formatted_body as string | undefined);
+    const parsedCommand = parseCommand(body, content?.formatted_body);
     if (parsedCommand) {
         const { cmd, parts } = parsedCommand;
         const system = await proxyCache.getSystemRules(sender, prismaClient);
@@ -301,7 +303,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
         // If it's an edit, redact the original root event (Matrix server will cascade redact all associated m.replace edits)
         // If it's a new message, redact the event itself
         const targetRedactionId = isEdit ? originalEventId : eventId;
-        await commandHandler.safeRedact(roomId, targetRedactionId as string, "PluralProxy");
+        await commandHandler.safeRedact(roomId, targetRedactionId, "PluralProxy");
         
         try {
             const ghostUserId = `@_plural_${system.slug}_${targetMember.slug}:${DOMAIN}`;
@@ -355,7 +357,9 @@ export const startMatrixBot = async () => {
         intentOptions: { clients: { dontCheckPowerLevel: true } },
         controller: {
             onUserQuery: () => ({}),
-            onEvent: async (request: Request<WeakEvent>) => { await handleEvent(request, bridge, prisma); }
+            onEvent: (request: Request<WeakEvent>) => {
+                handleEvent(request, bridge, prisma).catch(console.error);
+            }
         }
     });
 

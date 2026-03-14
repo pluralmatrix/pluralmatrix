@@ -1,5 +1,6 @@
 import { doAsRequest, registerDevice } from './crypto-utils';
 import * as timer from '../utils/timer';
+import { Intent } from 'matrix-appservice-bridge';
 
 // Mock the timer module
 jest.mock('../utils/timer', () => ({
@@ -72,7 +73,7 @@ describe('Crypto Resilience Utilities', () => {
             mockDoRequest.mockRejectedValueOnce(new Error('M_LIMIT_EXCEEDED'));
             mockDoRequest.mockResolvedValueOnce({});
 
-            const result = await registerDevice(mockIntent as any, "NEW_DEVICE");
+            const result = await registerDevice(mockIntent as unknown as Intent, "NEW_DEVICE");
             
             expect(result).toBe(true);
             expect(mockDoRequest).toHaveBeenCalledTimes(2);
@@ -90,11 +91,11 @@ describe('Crypto Resilience Utilities', () => {
 
             // Fire off 5 registrations (Semaphore limit is 1)
             const results = await Promise.all([
-                registerDevice(mockIntent as any, "DEV1"),
-                registerDevice(mockIntent as any, "DEV2"),
-                registerDevice(mockIntent as any, "DEV3"),
-                registerDevice(mockIntent as any, "DEV4"),
-                registerDevice(mockIntent as any, "DEV5")
+                registerDevice(mockIntent as unknown as Intent, "DEV1"),
+                registerDevice(mockIntent as unknown as Intent, "DEV2"),
+                registerDevice(mockIntent as unknown as Intent, "DEV3"),
+                registerDevice(mockIntent as unknown as Intent, "DEV4"),
+                registerDevice(mockIntent as unknown as Intent, "DEV5")
             ]);
 
             expect(results.every(r => r === true)).toBe(true);

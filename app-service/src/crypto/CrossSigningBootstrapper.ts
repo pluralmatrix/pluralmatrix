@@ -14,10 +14,9 @@ async function doAsRequest(
     asToken: string, 
     targetUserId: string, 
     method: string, 
-    path: string, 
-    body: any
-) {
-    const url = new URL(`${hsUrl}${path}`);
+    path: string,
+    body: unknown
+    ) {    const url = new URL(`${hsUrl}${path}`);
     url.searchParams.set("user_id", targetUserId);
 
     const headers = {
@@ -40,9 +39,9 @@ async function doAsRequest(
 
 export interface BootstrapResult {
     keysRequestId: string;
-    keysResponse: any;
+    keysResponse: Record<string, unknown>;
     signaturesRequestId: string;
-    signaturesResponse: any;
+    signaturesResponse: Record<string, unknown>;
 }
 
 /**
@@ -90,8 +89,8 @@ export async function bootstrapCrossSigning(
             signaturesResponse
         };
 
-    } catch (e: any) {
-        console.error(`[Crypto] Failed to bootstrap cross-signing for ${userId}:`, e.message);
+    } catch (e: unknown) {
+        console.error(`[Crypto] Failed to bootstrap cross-signing for ${userId}:`, (e as Error).message);
         throw e;
     }
 }

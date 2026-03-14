@@ -10,19 +10,19 @@ export function initializeLogger() {
 
     const getTimestamp = () => `[${new Date().toISOString()}]`;
 
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
         originalLog(getTimestamp(), ...args);
     };
 
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
         originalError(getTimestamp(), ...args);
     };
 
-    console.warn = (...args: any[]) => {
+    console.warn = (...args: unknown[]) => {
         originalWarn(getTimestamp(), ...args);
     };
 
-    console.info = (...args: any[]) => {
+    console.info = (...args: unknown[]) => {
         originalInfo(getTimestamp(), ...args);
     };
     

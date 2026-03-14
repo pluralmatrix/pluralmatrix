@@ -45,7 +45,7 @@ export const registerUser = async (username: string, password: string): Promise<
             })
         });
 
-        const data = await response.json() as any;
+        const data = await response.json() as Record<string, unknown>;
         if (!response.ok) {
             if (data.errcode === 'M_USER_IN_USE') {
                 console.log(`[E2E] User ${username} already exists.`);
@@ -59,8 +59,8 @@ export const registerUser = async (username: string, password: string): Promise<
 
         console.log(`[E2E] User ${username} registered successfully.`);
         return `@${username}:${domain}`;
-    } catch (e: any) {
-        console.error(`[E2E] Registration failed for ${username}:`, e.message);
+    } catch (e: unknown) {
+        console.error(`[E2E] Registration failed for ${username}:`, (e as Error).message);
         throw e;
     }
 };
@@ -78,7 +78,7 @@ export const getMatrixClient = async (username: string, password: string): Promi
         })
     });
     
-    const data = await response.json() as any;
+    const data = await response.json() as Record<string, unknown>;
     if (!response.ok) {
         if (data.errcode === 'M_LIMIT_EXCEEDED') {
             printRateLimitHelp();
@@ -99,7 +99,7 @@ export const getMatrixClient = async (username: string, password: string): Promi
     const baseStorage = new MemoryStorageProvider();
     const crypto = new RustSdkCryptoStorageProvider(storagePath, 0); // 0 = Sqlite (usually)
     
-    const client = new MatrixClient(hsUrl, data.access_token, baseStorage, crypto);
+    const client = new MatrixClient(hsUrl, data.access_token as string, baseStorage, crypto);
     AutojoinRoomsMixin.setupOnClient(client);
     return client;
 };
@@ -112,14 +112,14 @@ export const getPluralMatrixToken = async (mxid: string, password: string): Prom
         body: JSON.stringify({ mxid, password })
     });
     
-    const data = await response.json() as any;
+    const data = await response.json() as Record<string, unknown>;
     if (!response.ok) {
         console.error(`[E2E] PluralMatrix login failed for ${mxid}:`, JSON.stringify(data));
         throw new Error(`PluralMatrix login failed: ${JSON.stringify(data)}`);
     }
     
     console.log(`[E2E] PluralMatrix JWT obtained for ${mxid}.`);
-    return data.token;
+    return data.token as string;
 };
 
 export const setupTestRoom = async (client: MatrixClient): Promise<string> => {
@@ -157,13 +157,13 @@ export const deactivateUser = async (userId: string, accessToken: string) => {
         });
         
         if (!response.ok) {
-            const data = await response.json() as any;
+            const data = await response.json() as Record<string, unknown>;
             console.warn(`[E2E] Deactivation failed for ${userId}: ${JSON.stringify(data)}`);
         } else {
             console.log(`[E2E] User ${userId} successfully deactivated.`);
         }
-    } catch (e: any) {
-        console.error(`[E2E] Error during deactivation of ${userId}:`, e.message);
+    } catch (e: unknown) {
+        console.error(`[E2E] Error during deactivation of ${userId}:`, (e as Error).message);
     }
 };
 

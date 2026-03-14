@@ -51,7 +51,7 @@ jest.mock('./bot', () => ({
 }));
 
 async function streamToBuffer(stream: PassThrough): Promise<Buffer> {
-    const chunks: any[] = [];
+    const chunks: Uint8Array[] = [];
     return new Promise((resolve, reject) => {
         stream.on('data', (chunk) => chunks.push(chunk));
         stream.on('error', (err) => reject(err));
@@ -73,7 +73,7 @@ describe('PluralKit Roundtrip', () => {
                     get: (name: string) => name.toLowerCase() === 'content-type' ? 'image/png' : null
                 },
                 arrayBuffer: () => Promise.resolve(new Uint8Array(Buffer.from('fake-image-binary-data-123')).buffer)
-            } as any);
+            } as unknown as Response);
         });
     });
 
@@ -97,8 +97,8 @@ describe('PluralKit Roundtrip', () => {
             ]
         };
 
-        let savedSystem: any;
-        const savedMembers: any[] = [];
+        let savedSystem: Record<string, unknown> = {};
+        const savedMembers: Record<string, unknown>[] = [];
 
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
@@ -163,8 +163,8 @@ describe('PluralKit Roundtrip', () => {
             ]
         };
 
-        let savedSystem: any;
-        const savedMembers: any[] = [];
+        let savedSystem: Record<string, unknown> = {};
+        const savedMembers: Record<string, unknown>[] = [];
 
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);

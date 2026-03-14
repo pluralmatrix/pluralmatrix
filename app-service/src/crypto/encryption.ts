@@ -7,6 +7,7 @@ import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest, wa
 /**
  * Manually dispatches to-device messages (like Megolm room keys) to Synapse.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function dispatchToDevice(intent: Intent, asToken: string, ghostUserId: string, req: any) {
     const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
     const eventType = req.eventType || req.event_type;
@@ -31,6 +32,7 @@ export async function sendEncryptedEvent(
     intent: Intent,
     roomId: string,
     eventType: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     content: any,
     manager: OlmMachineManager,
     asToken: string,
@@ -118,8 +120,8 @@ export async function sendEncryptedEvent(
             for (const req of shareRequests) {
                 try {
                     await dispatchToDevice(intent, asToken, ghostUserId, req);
-                } catch (dispatchErr: any) {
-                    console.error(`[Crypto]   - Failed to dispatch:`, dispatchErr.message);
+                } catch (dispatchErr: unknown) {
+                    console.error(`[Crypto]   - Failed to dispatch:`, (dispatchErr as Error).message);
                 }
             }
         }
@@ -141,8 +143,8 @@ export async function sendEncryptedEvent(
         // Step D: Send encrypted event
         return intent.sendEvent(roomId, "m.room.encrypted", encryptedPayload);
 
-    } catch (e: any) {
-        console.error(`[Crypto] Encryption failed for ${ghostUserId} in ${roomId}:`, e.message || e);
+    } catch (e: unknown) {
+        console.error(`[Crypto] Encryption failed for ${ghostUserId} in ${roomId}:`, (e as Error).message || e);
         throw e;
     }
 }

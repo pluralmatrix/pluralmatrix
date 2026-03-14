@@ -1,4 +1,6 @@
 import { sendEncryptedEvent } from "./encryption";
+import { Intent } from "matrix-appservice-bridge";
+import { OlmMachineManager } from "./OlmMachineManager";
 
 // Mock dependencies
 const mockIntent = {
@@ -53,7 +55,7 @@ describe("sendEncryptedEvent", () => {
     it("should send plaintext if room is not encrypted (404 on state event)", async () => {
         mockIntent.matrixClient.getRoomStateEvent.mockRejectedValue(new Error("Not found"));
 
-        await sendEncryptedEvent(mockIntent as any, roomId, "m.room.message", { body: "hello" }, mockManager as any, asToken);
+        await sendEncryptedEvent(mockIntent as unknown as Intent, roomId, "m.room.message", { body: "hello" }, mockManager as unknown as OlmMachineManager, asToken);
 
         expect(mockIntent.sendEvent).toHaveBeenCalledWith(roomId, "m.room.message", { body: "hello" });
         expect(mockManager.getMachine).not.toHaveBeenCalled();
@@ -62,7 +64,7 @@ describe("sendEncryptedEvent", () => {
     it("should send plaintext if room encryption event exists but algorithm is not megolm", async () => {
         mockIntent.matrixClient.getRoomStateEvent.mockResolvedValue({ algorithm: "other" });
 
-        await sendEncryptedEvent(mockIntent as any, roomId, "m.room.message", { body: "hello" }, mockManager as any, asToken);
+        await sendEncryptedEvent(mockIntent as unknown as Intent, roomId, "m.room.message", { body: "hello" }, mockManager as unknown as OlmMachineManager, asToken);
 
         expect(mockIntent.sendEvent).toHaveBeenCalledWith(roomId, "m.room.message", { body: "hello" });
         expect(mockManager.getMachine).not.toHaveBeenCalled();
@@ -78,7 +80,7 @@ describe("sendEncryptedEvent", () => {
         };
         mockMachine.encryptRoomEvent.mockResolvedValue(JSON.stringify(encryptedContent));
 
-        await sendEncryptedEvent(mockIntent as any, roomId, "m.room.message", { body: "hello" }, mockManager as any, asToken);
+        await sendEncryptedEvent(mockIntent as unknown as Intent, roomId, "m.room.message", { body: "hello" }, mockManager as unknown as OlmMachineManager, asToken);
 
         expect(mockManager.getMachine).toHaveBeenCalledWith(ghostId);
         expect(mockMachine.updateTrackedUsers).toHaveBeenCalled();

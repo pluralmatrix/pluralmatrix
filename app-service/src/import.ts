@@ -8,6 +8,7 @@ import path from 'path';
 import imageSize from 'image-size';
 import os from 'os';
 import { config } from './config';
+import { PKExport, PluralKitMember, PluralKitSystem, PluralKitGroup } from './types';
 
 export interface AvatarMigrationError {
     slug: string;
@@ -15,45 +16,32 @@ export interface AvatarMigrationError {
     error: string;
 }
 
-export interface LooseMember extends Record<string, unknown> {
+export interface LooseMember extends PluralKitMember {
     createdAt?: Date;
     slug?: string;
-    name?: string;
     displayName?: string;
     avatarUrl?: string;
-    avatar_url?: string;
-    proxy_tags?: Array<Record<string, unknown>>;
     finalSlug?: string;
-    id?: string;
-    display_name?: string;
     pronouns?: string;
     description?: string;
     color?: string;
 }
 
-export interface LooseSystem extends Record<string, unknown> {
+export interface LooseSystem extends PluralKitSystem {
     slug?: string;
     systemTag?: string;
-    id?: string;
-    name?: string;
-    description?: string;
-    pronouns?: string;
     avatarUrl?: string;
-    avatar_url?: string;
     banner?: string;
-    color?: string;
     groups?: LooseGroup[];
 }
 
-export interface LooseGroup extends Record<string, unknown> {
+export interface LooseGroup extends Omit<PluralKitGroup, 'members'> {
     createdAt?: Date;
     slug?: string;
-    name?: string;
     icon?: string;
-    id?: string;
-    display_name?: string;
-    description?: string;
     color?: string;
+    pkId?: string | null;
+    displayName?: string | null;
     members?: string[] | Array<{ pkId?: string, slug?: string }>;
 }
 
@@ -294,10 +282,10 @@ import { ensureUniqueSlug } from './utils/slug';
 /**
  * Main importer logic for PluralKit JSON.
  */
-export const importFromPluralKit = async (mxid: string, jsonData: Record<string, unknown>): Promise<{ count: number, systemSlug: string, failedAvatars: AvatarMigrationError[] }> => {
+export const importFromPluralKit = async (mxid: string, jsonData: PKExport): Promise<{ count: number, systemSlug: string, failedAvatars: AvatarMigrationError[] }> => {
     console.log(`[Importer] Starting import for ${maskMxid(mxid)}`);
 
-    const isPluralMatrix = (jsonData.pluralmatrix_metadata as Record<string, unknown>) !== undefined || (jsonData.config as Record<string, unknown>)?.pluralmatrix_version !== undefined;
+    const isPluralMatrix = jsonData.pluralmatrix_metadata !== undefined || jsonData.config?.pluralmatrix_version !== undefined;
     const localpart = mxid.split(':')[0].substring(1);
     
     const link = await prisma.accountLink.findUnique({

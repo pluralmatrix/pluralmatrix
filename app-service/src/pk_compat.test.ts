@@ -9,26 +9,7 @@ jest.mock('./bot', () => ({
     }
 }));
 
-interface PKExport {
-    version: number;
-    id: string;
-    uuid: string;
-    name: string;
-    tag?: string;
-    description?: string;
-    color?: string;
-    config?: Record<string, unknown>;
-    privacy?: Record<string, string>;
-    members: {
-        id: string;
-        uuid: string;
-        name: string;
-        display_name?: string;
-        color?: string;
-        proxy_tags?: { prefix?: string | null, suffix?: string | null }[];
-        privacy?: Record<string, string>;
-    }[];
-}
+import { PKExport } from './types';
 
 describe('PluralKit Compatibility', () => {
     it('should generate a JSON that strictly follows PluralKit schema from dump', async () => {
@@ -81,7 +62,7 @@ describe('PluralKit Compatibility', () => {
         expect(pkJson.config?.pluralmatrix_version).toBeUndefined();
 
         expect(pkJson.members).toHaveLength(1);
-        const m = pkJson.members[0];
+        const m = pkJson.members![0];
         expect(m.id).toBe('udhgx');
         expect(m.uuid).toBe('mem-uuid');
         expect(m.name).toBe('Riven');
@@ -123,6 +104,6 @@ describe('PluralKit Compatibility', () => {
 
         const pkJson = await generatePkJson('@user:localhost') as unknown as PKExport;
         expect(pkJson.id).toMatch(/^[a-z]{5}$/);
-        expect(pkJson.members[0].id).toMatch(/^[a-z]{5}$/);
+        expect(pkJson.members![0].id).toMatch(/^[a-z]{5}$/);
     });
 });

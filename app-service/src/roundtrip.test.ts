@@ -151,9 +151,7 @@ describe('PluralKit Roundtrip', () => {
             version: 2,
             id: systemSlug,
             name: 'Test System',
-            config: {
-                pluralmatrix_version: 1
-            },
+            config: { pluralmatrix_version: "1.0.0" },
             members: [
                 {
                     id: longSlug,

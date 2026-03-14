@@ -41,6 +41,63 @@ export const getProxyTags = (tags: Prisma.JsonValue): ProxyTag[] => {
     return (tags as unknown as ProxyTag[]) || [];
 };
 
+export interface PluralKitGroup {
+    id?: string;
+    uuid?: string;
+    name?: string;
+    display_name?: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    privacy?: Record<string, string>;
+    members?: string[];
+}
+
+export interface PluralKitMember {
+    id?: string;
+    uuid?: string;
+    name?: string;
+    display_name?: string;
+    color?: string;
+    avatar_url?: string;
+    pronouns?: string;
+    description?: string;
+    proxy_tags?: { prefix?: string | null, suffix?: string | null }[];
+    privacy?: Record<string, string>;
+}
+
+export interface PluralKitSystem {
+    id?: string;
+    uuid?: string;
+    name?: string;
+    tag?: string;
+    description?: string;
+    color?: string;
+    avatar_url?: string;
+    banner?: string;
+    pronouns?: string;
+    privacy?: Record<string, string>;
+}
+
+export interface PKExport {
+    version: number;
+    id?: string;
+    uuid?: string;
+    name?: string;
+    tag?: string;
+    description?: string;
+    color?: string;
+    avatar_url?: string;
+    banner?: string;
+    pronouns?: string;
+    privacy?: Record<string, string>;
+    members?: PluralKitMember[];
+    groups?: PluralKitGroup[];
+    switches?: unknown[];
+    pluralmatrix_metadata?: Record<string, unknown>;
+    config?: { pluralmatrix_version?: string, [key: string]: unknown };
+}
+
 export type GroupWithMembers = Group & { members: Member[] };
 export type SystemWithRelations = System & {
     members: Member[];

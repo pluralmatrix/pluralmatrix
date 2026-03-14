@@ -4,13 +4,13 @@ import * as auth from './auth';
 import { prisma } from './bot';
 
 // Mock auth functions
-jest.mock('./auth', () => ({
+jest.mock('./auth', (): typeof auth => ({
     ...jest.requireActual('./auth'),
-    loginToMatrix: jest.fn(),
+    loginToMatrix: jest.fn() as unknown as typeof auth.loginToMatrix,
 }));
 
 // Mock Prisma
-jest.mock('./bot', () => ({
+jest.mock('./bot', (): { prisma: unknown } => ({
     ...jest.requireActual('./bot'),
     prisma: {
         system: {
@@ -59,7 +59,7 @@ describe('API Endpoints', () => {
                 .send({ mxid: mockMxid, password: 'password' });
 
             expect(response.status).toBe(200);
-            expect(response.body.token).toBeDefined();
+            expect((response.body as { token: string }).token).toBeDefined();
         });
     });
 
@@ -79,7 +79,7 @@ describe('API Endpoints', () => {
 
             expect(response.status).toBe(200);
             expect(response.body).toHaveLength(1);
-            expect(response.body[0].name).toBe('Lily');
+            expect((response.body as { name: string }[])[0].name).toBe('Lily');
         });
 
         it('POST /api/members should create a new member with all fields', async () => {
@@ -108,9 +108,9 @@ describe('API Endpoints', () => {
                 });
 
             expect(response.status).toBe(201);
-            expect(response.body.description).toBe('A test user');
-            expect(response.body.pronouns).toBe('He/Him');
-            expect(response.body.color).toBe('ff0000');
+            expect((response.body as { description: string }).description).toBe('A test user');
+            expect((response.body as { pronouns: string }).pronouns).toBe('He/Him');
+            expect((response.body as { color: string }).color).toBe('ff0000');
         });
 
         it('PATCH /api/members/:id should update existing member', async () => {
@@ -124,7 +124,7 @@ describe('API Endpoints', () => {
                 .send({ name: 'Lily Updated' });
 
             expect(response.status).toBe(200);
-            expect(response.body.name).toBe('Lily Updated');
+            expect((response.body as { name: string }).name).toBe('Lily Updated');
         });
 
         it('DELETE /api/members/:id should remove member', async () => {
@@ -136,7 +136,7 @@ describe('API Endpoints', () => {
                 .set(authHeader);
 
             expect(response.status).toBe(200);
-            expect(response.body.success).toBe(true);
+            expect((response.body as { success: boolean }).success).toBe(true);
         });
 
         it('DELETE /api/members (Bulk) should remove all members', async () => {
@@ -148,8 +148,8 @@ describe('API Endpoints', () => {
                 .set(authHeader);
 
             expect(response.status).toBe(200);
-            expect(response.body.success).toBe(true);
-            expect(prisma.member.deleteMany).toHaveBeenCalled();
+            expect((response.body as { success: boolean }).success).toBe(true);
+            expect((prisma.member.deleteMany as jest.Mock).mock.calls.length).toBeGreaterThan(0);
         });
 
         it('should return 404 if member of another system', async () => {
@@ -174,7 +174,7 @@ describe('API Endpoints', () => {
                 });
 
             expect(response.status).toBe(400);
-            expect(response.body.error).toBe('Invalid input format');
+            expect((response.body as { error: string }).error).toBe('Invalid input format');
         });
 
         it('POST /api/members should SUCCEED with only required fields', async () => {
@@ -198,7 +198,7 @@ describe('API Endpoints', () => {
                 });
 
             expect(response.status).toBe(201);
-            expect(response.body.name).toBe('Minimal');
+            expect((response.body as { name: string }).name).toBe('Minimal');
         });
 
         it('POST /api/members should FAIL if duplicate proxy tags in system', async () => {
@@ -221,7 +221,7 @@ describe('API Endpoints', () => {
                 });
 
             expect(response.status).toBe(400);
-            expect(response.body.error).toContain('already in use by Lily');
+            expect((response.body as { error: string }).error).toContain('already in use by Lily');
         });
 
         it('PATCH /api/members/:id should FAIL if updating to duplicate proxy tags', async () => {
@@ -244,7 +244,7 @@ describe('API Endpoints', () => {
                 });
 
             expect(response.status).toBe(400);
-            expect(response.body.error).toContain('already in use by Lily');
+            expect((response.body as { error: string }).error).toContain('already in use by Lily');
         });
 
         it('POST /api/members should SUCCEED if duplicate proxy tags exist in DIFFERENT systems', async () => {
@@ -274,7 +274,7 @@ describe('API Endpoints', () => {
                 });
 
             expect(response.status).toBe(201);
-            expect(response.body.name).toBe('Lily');
+            expect((response.body as { name: string }).name).toBe('Lily');
         });
     });
 
@@ -291,7 +291,7 @@ describe('API Endpoints', () => {
                 .set(authHeader);
 
             expect(response.status).toBe(200);
-            expect(response.body.name).toBe('My System');
+            expect((response.body as { name: string }).name).toBe('My System');
         });
 
         it('PATCH /api/system should update system details', async () => {
@@ -305,8 +305,8 @@ describe('API Endpoints', () => {
                 .send({ name: 'New Name' });
 
             expect(response.status).toBe(200);
-            expect(response.body.name).toBe('New Name');
-            expect(prisma.system.update).toHaveBeenCalled();
+            expect((response.body as { name: string }).name).toBe('New Name');
+            expect((prisma.system.update as jest.Mock).mock.calls.length).toBeGreaterThan(0);
         });
     });
 });

@@ -75,7 +75,7 @@ export const loginToMatrix = async (mxid: string, password: string): Promise<boo
             try {
                 const wellKnownRes = await fetch(`https://${domain}/.well-known/matrix/client`);
                 if (wellKnownRes.ok) {
-                    const wellKnownData = await wellKnownRes.json();
+                    const wellKnownData = await wellKnownRes.json() as { 'm.homeserver'?: { base_url?: string } };
                     if (wellKnownData['m.homeserver']?.base_url) {
                         serverUrl = wellKnownData['m.homeserver'].base_url;
                         // Strip trailing slash if present
@@ -106,7 +106,7 @@ export const loginToMatrix = async (mxid: string, password: string): Promise<boo
         if (response.ok) {
             return true;
         } else {
-            const data = await response.json();
+            const data = await response.json() as { error?: string };
             console.warn(`[Auth] Login failed for ${fullMxid} on ${serverUrl}:`, data.error);
             return false;
         }

@@ -24,8 +24,8 @@ describe('Authentication Engine', () => {
                 expect.stringContaining('/_matrix/client/v3/login'),
                 expect.objectContaining({
                     method: 'POST',
-                    body: expect.stringContaining('"user":"@user:localhost"')
-                })
+                    body: expect.stringContaining('"user":"@user:localhost"') as unknown as string
+                }) as unknown as RequestInit
             );
         });
 
@@ -68,8 +68,8 @@ describe('Authentication Engine', () => {
                 'https://matrix.remote.org/_matrix/client/v3/login',
                 expect.objectContaining({
                     method: 'POST',
-                    body: expect.stringContaining('"user":"@chiara:remote.org"')
-                })
+                    body: expect.stringContaining('"user":"@chiara:remote.org"') as unknown as string
+                }) as unknown as RequestInit
             );
         });
 

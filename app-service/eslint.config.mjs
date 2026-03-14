@@ -20,7 +20,7 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "no-unused-vars": "off",
-      
+
       // Ignoring strict rules related to Jest mocks/any propagation for now
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",

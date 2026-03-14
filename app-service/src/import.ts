@@ -15,6 +15,48 @@ export interface AvatarMigrationError {
     error: string;
 }
 
+export interface LooseMember extends Record<string, unknown> {
+    createdAt?: Date;
+    slug?: string;
+    name?: string;
+    displayName?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
+    proxy_tags?: Array<Record<string, unknown>>;
+    finalSlug?: string;
+    id?: string;
+    display_name?: string;
+    pronouns?: string;
+    description?: string;
+    color?: string;
+}
+
+export interface LooseSystem extends Record<string, unknown> {
+    slug?: string;
+    systemTag?: string;
+    id?: string;
+    name?: string;
+    description?: string;
+    pronouns?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
+    banner?: string;
+    color?: string;
+    groups?: LooseGroup[];
+}
+
+export interface LooseGroup extends Record<string, unknown> {
+    createdAt?: Date;
+    slug?: string;
+    name?: string;
+    icon?: string;
+    id?: string;
+    display_name?: string;
+    description?: string;
+    color?: string;
+    members?: string[] | Array<{ pkId?: string, slug?: string }>;
+}
+
 /**
  * Generates a random alphabetic ID like PluralKit (e.g. "abcde")
  */
@@ -78,9 +120,9 @@ export const generateSlug = (name: string, defaultId: string): string => {
 /**
  * Extracts alphabetic-only lowercase prefix for slug resolution.
  */
-export const getCleanPrefix = (pkMember: any): string => {
-    const firstPrefix = pkMember.proxy_tags?.find((t: any) => t.prefix)?.prefix || "";
-    return firstPrefix.replace(/[^a-zA-Z]/g, '').toLowerCase();
+export const getCleanPrefix = (pkMember: LooseMember): string => {
+    const firstPrefix = pkMember.proxy_tags?.find((t: Record<string, unknown>) => t.prefix)?.prefix || "";
+    return (firstPrefix as string).replace(/[^a-zA-Z]/g, '').toLowerCase();
 };
 
 /**
@@ -176,8 +218,8 @@ export const migrateAvatar = async (url: string): Promise<{ mxcUrl?: string, err
 
         const mxcUrl = await bridge.getBot().getClient().uploadContent(buffer, contentType, 'avatar.png');
         return { mxcUrl };
-    } catch (e: any) {
-        const message = e.name === 'AbortError' ? "Download timed out" : e.message;
+    } catch (e: unknown) {
+        const message = (e as Error).name === 'AbortError' ? "Download timed out" : (e as Error).message;
         return { error: message };
     }
 };
@@ -185,6 +227,7 @@ export const migrateAvatar = async (url: string): Promise<{ mxcUrl?: string, err
 /**
  * Sets the global profile for a ghost user.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const syncGhostProfile = async (member: any, system: any) => {
     try {
         const bridge = getBridge();
@@ -210,8 +253,8 @@ export const syncGhostProfile = async (member: any, system: any) => {
         if (member.avatarUrl) {
             await intent.setAvatarUrl(member.avatarUrl);
         }
-    } catch (e: any) {
-        console.warn(`[Ghost] Failed to sync profile for ${member.slug}:`, e.message);
+    } catch (e: unknown) {
+        console.warn(`[Ghost] Failed to sync profile for ${member.slug}:`, (e as Error).message);
         throw e;
     }
     }
@@ -220,6 +263,7 @@ export const syncGhostProfile = async (member: any, system: any) => {
 /**
  * Cleanup a ghost user when a member is deleted.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const decommissionGhost = async (member: any, system: any) => {
     try {
         const bridge = getBridge();
@@ -242,8 +286,8 @@ export const decommissionGhost = async (member: any, system: any) => {
         }
 
         console.log(`[Ghost] ${ghostUserId} has left all rooms.`);
-    } catch (e: any) {
-        console.error(`[Ghost] Failed to decommission ${member.slug}:`, e.message || e);
+    } catch (e: unknown) {
+        console.error(`[Ghost] Failed to decommission ${member.slug}:`, (e as Error).message || String(e));
     }
 };
 
@@ -252,10 +296,10 @@ import { ensureUniqueSlug } from './utils/slug';
 /**
  * Main importer logic for PluralKit JSON.
  */
-export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<{ count: number, systemSlug: string, failedAvatars: AvatarMigrationError[] }> => {
+export const importFromPluralKit = async (mxid: string, jsonData: Record<string, unknown>): Promise<{ count: number, systemSlug: string, failedAvatars: AvatarMigrationError[] }> => {
     console.log(`[Importer] Starting import for ${maskMxid(mxid)}`);
 
-    const isPluralMatrix = jsonData.pluralmatrix_metadata !== undefined || jsonData.config?.pluralmatrix_version !== undefined;
+    const isPluralMatrix = (jsonData.pluralmatrix_metadata as Record<string, unknown>) !== undefined || (jsonData.config as Record<string, unknown>)?.pluralmatrix_version !== undefined;
     const localpart = mxid.split(':')[0].substring(1);
     
     const link = await prisma.accountLink.findUnique({
@@ -270,29 +314,29 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         let attempts = 0;
         while (attempts < 5) {
             try {
-                const baseSlug = (isPluralMatrix && jsonData.id) 
-                    ? jsonData.id 
-                    : generateSlug(jsonData.name || localpart, localpart);
+                const baseSlug = (isPluralMatrix && (jsonData.id as string)) 
+                    ? (jsonData.id as string) 
+                    : generateSlug((jsonData.name as string) || localpart, localpart);
                 
                 const systemSlug = await ensureUniqueSlug(prisma, baseSlug, system.id);
 
                 system = await prisma.system.update({
                     where: { id: system.id },
                     data: {
-                        name: jsonData.name || system.name,
-                        systemTag: jsonData.tag || system.systemTag,
+                        name: (jsonData.name as string) || system.name,
+                        systemTag: (jsonData.tag as string) || system.systemTag,
                         slug: systemSlug,
-                        pkId: jsonData.id || system.pkId,
-                        description: jsonData.description || system.description,
-                        pronouns: jsonData.pronouns || system.pronouns,
-                        avatarUrl: jsonData.avatar_url || system.avatarUrl,
-                        banner: jsonData.banner || system.banner,
-                        color: jsonData.color || system.color
+                        pkId: (jsonData.id as string) || system.pkId,
+                        description: (jsonData.description as string) || system.description,
+                        pronouns: (jsonData.pronouns as string) || system.pronouns,
+                        avatarUrl: (jsonData.avatar_url as string) || system.avatarUrl,
+                        banner: (jsonData.banner as string) || system.banner,
+                        color: (jsonData.color as string) || system.color
                     }
                 });
                 break;
-            } catch (err: any) {
-                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+            } catch (err: unknown) {
+                if ((err as { code?: string, meta?: { target?: string[] } }).code === 'P2002' && (err as { code?: string, meta?: { target?: string[] } }).meta?.target?.includes('slug')) {
                     attempts++;
                     console.warn(`[Import] Slug race condition detected during update, retrying (attempt ${attempts})...`);
                     continue;
@@ -308,31 +352,31 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         let attempts = 0;
         while (attempts < 5) {
             try {
-                const baseSlug = (isPluralMatrix && jsonData.id) 
-                    ? jsonData.id 
-                    : generateSlug(jsonData.name || localpart, localpart);
+                const baseSlug = (isPluralMatrix && (jsonData.id as string)) 
+                    ? (jsonData.id as string) 
+                    : generateSlug((jsonData.name as string) || localpart, localpart);
                 
                 const systemSlug = await ensureUniqueSlug(prisma, baseSlug);
 
                 system = await prisma.system.create({
                     data: {
                         slug: systemSlug,
-                        pkId: jsonData.id,
-                        name: jsonData.name || `${localpart}'s System`,
-                        systemTag: jsonData.tag,
-                        description: jsonData.description,
-                        pronouns: jsonData.pronouns,
-                        avatarUrl: jsonData.avatar_url,
-                        banner: jsonData.banner,
-                        color: jsonData.color,
+                        pkId: (jsonData.id as string),
+                        name: (jsonData.name as string) || `${localpart}'s System`,
+                        systemTag: (jsonData.tag as string),
+                        description: (jsonData.description as string),
+                        pronouns: (jsonData.pronouns as string),
+                        avatarUrl: (jsonData.avatar_url as string),
+                        banner: (jsonData.banner as string),
+                        color: (jsonData.color as string),
                         accountLinks: {
                             create: { matrixId: mxid, isPrimary: true }
                         }
                     }
                 });
                 break;
-            } catch (err: any) {
-                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+            } catch (err: unknown) {
+                if ((err as { code?: string, meta?: { target?: string[] } }).code === 'P2002' && (err as { code?: string, meta?: { target?: string[] } }).meta?.target?.includes('slug')) {
                     attempts++;
                     console.warn(`[Import] Slug race condition detected during creation, retrying (attempt ${attempts})...`);
                     continue;
@@ -351,23 +395,23 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         throw new Error("System resolution failed unexpectedly.");
     }
 
-    const rawMembers = jsonData.members || [];
-    const slugGroups: Record<string, any[]> = {};
+    const rawMembers = (jsonData.members as LooseMember[]) || [];
+    const slugGroups: Record<string, LooseMember[]> = {};
 
     for (const member of rawMembers) {
         let baseSlug = (isPluralMatrix && member.id) 
             ? member.id 
-            : generateSlug(member.name, ""); 
+            : generateSlug(member.name as string, ""); 
         
         if (!baseSlug) {
-            const extractedName = extractNameFromDescription(member.description);
+            const extractedName = extractNameFromDescription(member.description as string);
             if (extractedName) {
                 baseSlug = generateSlug(extractedName, "");
             }
         }
         
         if (!baseSlug) {
-            baseSlug = member.id.toLowerCase();
+            baseSlug = (member.id as string).toLowerCase();
         }
 
         if (!slugGroups[baseSlug]) slugGroups[baseSlug] = [];
@@ -382,7 +426,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
             members.sort((a, b) => {
                 const preA = getCleanPrefix(a);
                 const preB = getCleanPrefix(b);
-                return preA.length - preB.length || a.id.localeCompare(b.id);
+                return preA.length - preB.length || (a.id as string).localeCompare(b.id as string);
             });
 
             members.forEach((m, idx) => {
@@ -390,7 +434,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
                     processedMembers.push({ ...m, finalSlug: baseSlug });
                 } else {
                     const cleanPre = getCleanPrefix(m);
-                    const suffix = cleanPre || m.id.toLowerCase();
+                    const suffix = cleanPre || (m.id as string).toLowerCase();
                     processedMembers.push({ ...m, finalSlug: `${baseSlug}-${suffix}` });
                 }
             });
@@ -405,25 +449,25 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
         try {
             const slug = pkMember.finalSlug;
             const proxyTags = (pkMember.proxy_tags || [])
-                .filter((t: any) => t.prefix)
-                .map((t: any) => ({ prefix: t.prefix, suffix: t.suffix || "" }));
+                .filter((t: Record<string, unknown>) => t.prefix)
+                .map((t: Record<string, unknown>) => ({ prefix: t.prefix, suffix: t.suffix || "" }));
 
-            const migrationResult = await migrateAvatar(pkMember.avatar_url);
+            const migrationResult = await migrateAvatar(pkMember.avatar_url as string);
             const avatarUrl = migrationResult?.mxcUrl;
             
             if (migrationResult?.error) {
-                failedAvatars.push({ slug, name: pkMember.name, error: migrationResult.error });
+                failedAvatars.push({ slug, name: pkMember.name as string, error: migrationResult.error as string });
             }
 
             const memberData = {
-                name: pkMember.name,
+                name: pkMember.name as string || 'Unknown',
                 pkId: pkMember.id,
                 displayName: pkMember.display_name,
                 avatarUrl: avatarUrl || undefined,
                 pronouns: pkMember.pronouns,
                 description: pkMember.description,
                 color: pkMember.color,
-                proxyTags: proxyTags
+                proxyTags: proxyTags as unknown as import('@prisma/client').Prisma.InputJsonValue
             };
 
             const member = await prisma.member.upsert({
@@ -447,11 +491,11 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
 
             try {
                 await syncGhostProfile(member, system);
-            } catch (syncErr: any) {
+            } catch (syncErr: unknown) {
                 failedAvatars.push({ 
-                    slug: member.slug, 
-                    name: member.name, 
-                    error: `Matrix Profile Sync Failed: ${syncErr.message || 'Unknown error'}` 
+                    slug: member.slug as string, 
+                    name: member.name as string, 
+                    error: `Matrix Profile Sync Failed: ${(syncErr as Error).message || 'Unknown error'}` 
                 });
             }
 
@@ -459,27 +503,27 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
             if (importedCount % 10 === 0) {
                 console.log(`[Importer] Progress: ${importedCount} members...`);
             }
-        } catch (memberError: any) {
+        } catch (memberError: unknown) {
             console.error(`[Importer] Failed to import a member:`, memberError);
             failedAvatars.push({ 
                 slug: pkMember.finalSlug || 'unknown', 
                 name: pkMember.name || 'Unknown', 
-                error: `Database/Validation Error: ${memberError.message || 'Unknown error'}` 
+                error: `Database/Validation Error: ${(memberError as Error).message || 'Unknown error'}` 
             });
         }
     }
 
-    const rawGroups = jsonData.groups || [];
+    const rawGroups = (jsonData.groups as LooseGroup[]) || [];
     let importedGroupsCount = 0;
     
     // Create a set of base group slugs to ensure uniqueness within the system
-    const groupSlugGroups: Record<string, any[]> = {};
+    const groupSlugGroups: Record<string, LooseGroup[]> = {};
     for (const group of rawGroups) {
         let baseSlug = (isPluralMatrix && group.id) 
             ? group.id 
-            : generateSlug(group.name || group.id, group.id);
+            : generateSlug(group.name as string || group.id as string, group.id as string);
             
-        if (!baseSlug) baseSlug = group.id.toLowerCase();
+        if (!baseSlug) baseSlug = (group.id as string).toLowerCase();
         
         if (!groupSlugGroups[baseSlug]) groupSlugGroups[baseSlug] = [];
         groupSlugGroups[baseSlug].push(group);
@@ -494,7 +538,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
                 if (idx === 0) {
                     processedGroups.push({ ...g, finalSlug: baseSlug });
                 } else {
-                    processedGroups.push({ ...g, finalSlug: `${baseSlug}-${g.id.toLowerCase()}` });
+                    processedGroups.push({ ...g, finalSlug: `${baseSlug}-${(g.id as string).toLowerCase()}` });
                 }
             });
         }
@@ -508,8 +552,8 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
             const memberConnections = [];
             if (pkGroup.members && Array.isArray(pkGroup.members)) {
                 for (const memberPkId of pkGroup.members) {
-                    if (pkIdToDbIdMap[memberPkId]) {
-                        memberConnections.push({ id: pkIdToDbIdMap[memberPkId] });
+                    if (pkIdToDbIdMap[memberPkId as string]) {
+                        memberConnections.push({ id: pkIdToDbIdMap[memberPkId as string] });
                     }
                 }
             }
@@ -560,7 +604,7 @@ export const importFromPluralKit = async (mxid: string, jsonData: any): Promise<
  * Stringifies an object to JSON while escaping all non-ASCII characters 
  * using \uXXXX sequences for maximum compatibility.
  */
-export const stringifyWithEscapedUnicode = (obj: any): string => {
+export const stringifyWithEscapedUnicode = (obj: unknown): string => {
     return JSON.stringify(obj, null, 4).replace(/[\x80-\uffff]/g, (c) => {
         return "\\u" + c.charCodeAt(0).toString(16).padStart(4, '0');
     });
@@ -650,7 +694,7 @@ export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string,
             autoproxy_enabled: true,
             message_count: 0,
             last_message_timestamp: null,
-            proxy_tags: (m.proxyTags as any[]).map(t => ({
+            proxy_tags: (m.proxyTags as Array<Record<string, unknown>>).map(t => ({
                 prefix: t.prefix || null,
                 suffix: t.suffix || null
             })),
@@ -666,7 +710,7 @@ export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string,
                 proxy_privacy: "public"
             }
         })),
-        groups: (system as any).groups?.map((g: any) => ({
+        groups: (system as LooseSystem).groups?.map((g: LooseGroup) => ({
             id: g.pkId || generateRandomPkId(),
             uuid: g.id,
             name: g.name,
@@ -675,8 +719,8 @@ export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string,
             icon: g.icon || null,
             banner: null,
             color: g.color || null,
-            created: g.createdAt.toISOString(),
-            members: g.members?.map((m: any) => m.pkId) || [],
+            created: (g.createdAt as Date).toISOString(),
+            members: g.members?.map((m: { pkId?: string, slug?: string }) => m.pkId) || [],
             privacy: {
                 name_privacy: "public",
                 description_privacy: "public",
@@ -740,7 +784,7 @@ export const generateBackupJson = async (mxid: string) => {
             description: m.description,
             proxy_tags: m.proxyTags
         })),
-        groups: (system as any).groups?.map((g: any) => ({
+        groups: (system as LooseSystem).groups?.map((g: LooseGroup) => ({
             id: g.slug,
             pk_id: g.pkId,
             name: g.name,
@@ -748,7 +792,7 @@ export const generateBackupJson = async (mxid: string) => {
             description: g.description,
             icon: g.icon,
             color: g.color,
-            members: g.members?.map((m: any) => m.slug) || []
+            members: g.members?.map((m: { pkId?: string, slug?: string }) => m.slug) || []
         })) || []
     };
 
@@ -837,7 +881,7 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
         }
 
         // Handle Group Icons
-        const groups = (system as any).groups || [];
+        const groups = (system as LooseSystem).groups || [];
         for (const group of groups) {
             if (!group.icon || !group.icon.startsWith('mxc://')) continue;
 
@@ -868,7 +912,7 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
                 
                 fs.writeFileSync(tmpPath, buffer);
                 
-                avatarFiles.push({ memberId: group.id, tmpPath, filename });
+                avatarFiles.push({ memberId: group.id as string, tmpPath, filename });
                 
                 if (type === 'pk') {
                     // For groups, PluralKit uses 'icon' property but we will map it similarly
@@ -882,7 +926,7 @@ export const exportSystemZip = async (mxid: string, stream: NodeJS.WritableStrea
         // 2. Add JSON file
         const jsonData = type === 'pk' ? await generatePkJson(mxid, avatarUrlMap) : await generateBackupJson(mxid);
         const jsonFilename = type === 'pk' ? 'pluralkit_system.json' : 'pluralmatrix_backup.json';
-        archive.append(stringifyWithEscapedUnicode(jsonData), { name: jsonFilename });
+        archive.append(stringifyWithEscapedUnicode(jsonData as unknown), { name: jsonFilename });
 
         // 3. Add Avatars from disk
         for (const avatar of avatarFiles) {
@@ -987,11 +1031,11 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
         const ext = filename.split('.').pop() || 'png';
         const contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
-        let affectedMembers: any[] = [];
-        let affectedGroups: any[] = [];
+        let affectedMembers: Record<string, unknown>[] = [];
+        let affectedGroups: LooseGroup[] = [];
 
         if (isGroupIcon) {
-            affectedGroups = (system as any).groups.filter((g: any) => 
+            affectedGroups = ((system as LooseSystem).groups || []).filter((g: LooseGroup) => 
                 g.icon && g.icon.endsWith(`/${oldMediaId}`)
             );
         } else {
@@ -1009,10 +1053,10 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
             const validation = validateImageBuffer(data);
             if (!validation.valid) {
                 for (const member of affectedMembers) {
-                    failedAvatars.push({ slug: member.slug, name: member.name, error: validation.error! });
+                    failedAvatars.push({ slug: member.slug as string, name: member.name as string, error: validation.error! });
                 }
                 for (const group of affectedGroups) {
-                    failedAvatars.push({ slug: group.slug, name: group.name, error: validation.error! });
+                    failedAvatars.push({ slug: group.slug as string, name: group.name as string, error: validation.error! });
                 }
                 continue;
             }
@@ -1021,16 +1065,16 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
 
             for (const member of affectedMembers) {
                 const updated = await prisma.member.update({
-                    where: { id: member.id },
+                    where: { id: member.id as string },
                     data: { avatarUrl: mxcUrl }
                 });
                 try {
                     await syncGhostProfile(updated, system);
-                } catch (syncErr: any) {
+                } catch (syncErr: unknown) {
                     failedAvatars.push({ 
-                        slug: member.slug, 
-                        name: member.name, 
-                        error: `Matrix Profile Sync Failed after avatar upload: ${syncErr.message || 'Unknown error'}` 
+                        slug: member.slug as string, 
+                        name: member.name as string, 
+                        error: `Matrix Profile Sync Failed after avatar upload: ${(syncErr as Error).message || 'Unknown error'}` 
                     });
                 }
             }
@@ -1043,13 +1087,13 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
             }
 
             count++;
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error(`[Import] Failed to re-upload avatar ${filename}:`, e);
             for (const member of affectedMembers) {
-                failedAvatars.push({ slug: member.slug, name: member.name, error: e.message });
+                failedAvatars.push({ slug: member.slug as string, name: member.name as string, error: (e as Error).message });
             }
             for (const group of affectedGroups) {
-                failedAvatars.push({ slug: group.slug, name: group.name, error: e.message });
+                failedAvatars.push({ slug: group.slug as string, name: group.name as string, error: (e as Error).message });
             }
         }
     }

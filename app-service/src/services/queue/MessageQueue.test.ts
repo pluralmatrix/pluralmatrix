@@ -2,6 +2,7 @@ import { messageQueue } from './MessageQueue';
 import { sendEncryptedEvent } from '../../crypto/encryption';
 import { sleep } from '../../utils/timer';
 import { getBridge } from '../../bot';
+import { Intent } from 'matrix-appservice-bridge';
 import { lastMessageCache } from '../cache';
 
 // Mock dependencies
@@ -39,25 +40,25 @@ describe('MessageQueueService', () => {
     const senderId = "@human:localhost";
     const plaintext = "Hello World";
     
-    let mockGhostIntent: any;
-    let mockBotIntent: any;
+    let mockGhostIntent: Intent;
+    let mockBotIntent: Intent;
 
     beforeEach(() => {
         jest.clearAllMocks();
         
         // Reset the singleton instance internal state via its public/private boundaries (or by recreating it, but it's exported as const, so we clean it up)
         // Since it's a singleton, we need to clear its internal maps for clean tests.
-        (messageQueue as any).RoomQueues.clear();
-        (messageQueue as any).RoomLocks.clear();
-        (messageQueue as any).DeadLetterVault.clear();
+        messageQueue['RoomQueues'].clear();
+        messageQueue['RoomLocks'].clear();
+        messageQueue['DeadLetterVault'].clear();
 
         mockGhostIntent = {
             userId: "@_plural_ghost:localhost"
-        };
+        } as unknown as Intent;
         
         mockBotIntent = {
             userId: "@plural_bot:localhost"
-        };
+        } as unknown as Intent;
         
         const bridge = getBridge();
         (bridge.getIntent as jest.Mock).mockReturnValue(mockBotIntent);
@@ -92,8 +93,8 @@ describe('MessageQueueService', () => {
         });
 
         // Queue should be empty
-        expect((messageQueue as any).RoomQueues.get(roomId).length).toBe(0);
-        expect((messageQueue as any).RoomLocks.get(roomId)).toBe(false);
+        expect(messageQueue['RoomQueues'].get(roomId)!.length).toBe(0);
+        expect(messageQueue['RoomLocks'].get(roomId)).toBe(false);
     });
 
     it('should update cache for edits if they match the current last message', async () => {
@@ -152,7 +153,7 @@ describe('MessageQueueService', () => {
         expect(sleep).toHaveBeenCalledTimes(2);
         
         // Queue should be empty after success
-        expect((messageQueue as any).RoomQueues.get(roomId).length).toBe(0);
+        expect(messageQueue['RoomQueues'].get(roomId)!.length).toBe(0);
     });
 
     it('should immediately trigger Fallback 1 on fatal errors', async () => {
@@ -192,7 +193,7 @@ describe('MessageQueueService', () => {
         // No sleeps (no retries)
         expect(sleep).not.toHaveBeenCalled();
         // Item removed from queue
-        expect((messageQueue as any).RoomQueues.get(roomId).length).toBe(0);
+        expect(messageQueue['RoomQueues'].get(roomId)!.length).toBe(0);
         // Not in DL vault since fallback 1 succeeded
         expect(messageQueue.getDeadLetters().length).toBe(0);
     });
@@ -216,7 +217,7 @@ describe('MessageQueueService', () => {
         expect(sleep).toHaveBeenCalledTimes(3);
         
         // Item removed from queue
-        expect((messageQueue as any).RoomQueues.get(roomId).length).toBe(0);
+        expect(messageQueue['RoomQueues'].get(roomId)!.length).toBe(0);
     });
 
     it('should trigger Fallback 2 (Dead Letter Vault) if bot bailout fails', async () => {
@@ -243,7 +244,7 @@ describe('MessageQueueService', () => {
 
     it('should process items strictly FIFO with a mutex lock', async () => {
         // We simulate a slow send
-        let resolveSend: any;
+        let resolveSend!: (value: unknown) => void;
         const slowPromise = new Promise(r => resolveSend = r);
         
         (sendEncryptedEvent as jest.Mock)
@@ -257,7 +258,7 @@ describe('MessageQueueService', () => {
         await new Promise(r => setImmediate(r));
 
         // The queue should have 2 items, but sendEncryptedEvent should only be called ONCE because the lock is held
-        expect((messageQueue as any).RoomQueues.get(roomId).length).toBe(2);
+        expect(messageQueue['RoomQueues'].get(roomId)!.length).toBe(2);
         expect(sendEncryptedEvent).toHaveBeenCalledTimes(1);
 
         // Resolve the first message
@@ -269,13 +270,13 @@ describe('MessageQueueService', () => {
 
         // Both sent, queue empty
         expect(sendEncryptedEvent).toHaveBeenCalledTimes(2);
-        expect((messageQueue as any).RoomQueues.get(roomId).length).toBe(0);
+        expect(messageQueue['RoomQueues'].get(roomId)!.length).toBe(0);
     });
 
     it('should garbage collect dead letters older than 24 hours', async () => {
         // Manually insert an item into the vault that is 25 hours old
         const oldTimestamp = Date.now() - (25 * 60 * 60 * 1000);
-        (messageQueue as any).DeadLetterVault.set("old-item", {
+        messageQueue['DeadLetterVault'].set("old-item", {
             id: "old-item",
             timestamp: oldTimestamp,
             roomId,
@@ -285,7 +286,7 @@ describe('MessageQueueService', () => {
         });
 
         // Manually insert a fresh item
-        (messageQueue as any).DeadLetterVault.set("new-item", {
+        messageQueue['DeadLetterVault'].set("new-item", {
             id: "new-item",
             timestamp: Date.now(),
             roomId,
@@ -297,7 +298,7 @@ describe('MessageQueueService', () => {
         expect(messageQueue.getDeadLetters().length).toBe(2);
 
         // Manually trigger the garbage collection logic
-        (messageQueue as any).runGarbageCollection();
+        messageQueue['runGarbageCollection']();
 
         // The old item should be gone, the new item should remain
         const remaining = messageQueue.getDeadLetters();

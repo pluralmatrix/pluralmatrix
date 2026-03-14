@@ -12,10 +12,27 @@ jest.mock('./services/cache', () => ({
 
 describe('CommandHandler Tests', () => {
     let commandHandler: CommandHandler;
-    let mockBridge: any;
-    let mockPrisma: any;
-    let mockCryptoManager: any;
-    let mockBotClient: any;
+    let mockBridge: { getBot: jest.Mock; getIntent: jest.Mock };
+    let mockPrisma: {
+        system: Record<string, jest.Mock>;
+        member: Record<string, jest.Mock>;
+        group: Record<string, jest.Mock>;
+        accountLink: Record<string, jest.Mock>;
+        $transaction: jest.Mock;
+    };
+    let mockCryptoManager: { getMachine: jest.Mock };
+    let mockBotClient: {
+        getUserId: jest.Mock;
+        uploadContent: jest.Mock;
+        redactEvent: jest.Mock;
+        getEvent: jest.Mock;
+        getUserProfile: jest.Mock;
+        getRoomStateEvent: jest.Mock;
+        getJoinedRoomMembers: jest.Mock;
+        homeserverUrl: string;
+        doRequest: jest.Mock;
+        sendStateEvent?: jest.Mock;
+    };
     const asToken = "mock_token";
     const domain = "localhost";
 
@@ -95,16 +112,22 @@ describe('CommandHandler Tests', () => {
                 decryptRoomEvent: jest.fn().mockResolvedValue({
                     event: JSON.stringify({ type: "m.room.message", content: { body: "Decrypted Text" } })
                 }),
-                receiveSyncChanges: jest.fn().mockResolvedValue(undefined),
-                updateTrackedUsers: jest.fn().mockResolvedValue(undefined),
-                getMissingSessions: jest.fn().mockResolvedValue(undefined),
+                receiveSyncChanges: jest.fn().mockResolvedValue({ event_id: "$event" }),
+                updateTrackedUsers: jest.fn().mockResolvedValue({ event_id: "$event" }),
+                getMissingSessions: jest.fn().mockResolvedValue({ event_id: "$event" }),
                 shareRoomKey: jest.fn().mockResolvedValue([]),
                 encryptRoomEvent: jest.fn().mockResolvedValue(JSON.stringify({ content: { body: "Encrypted" } })),
                 outgoingRequests: jest.fn().mockResolvedValue([])
             })
         };
 
-        commandHandler = new CommandHandler(mockBridge, mockPrisma, mockCryptoManager, asToken, domain);
+        commandHandler = new CommandHandler(
+            mockBridge as unknown as ConstructorParameters<typeof CommandHandler>[0],
+            mockPrisma as unknown as ConstructorParameters<typeof CommandHandler>[1],
+            mockCryptoManager as unknown as ConstructorParameters<typeof CommandHandler>[2],
+            asToken,
+            domain
+        );
     });
 
     const mockSystem = {
@@ -197,7 +220,7 @@ describe('CommandHandler Tests', () => {
                 content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
             };
 
-            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue(undefined as any);
+            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
 
             await commandHandler.executeTargetingCommand(event, "pk;edit hack", mockSystem);
 
@@ -225,7 +248,7 @@ describe('CommandHandler Tests', () => {
                 content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
             };
 
-            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue(undefined as any);
+            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
 
             await commandHandler.executeTargetingCommand(event, "pk;rp lily", mockSystem);
 
@@ -253,7 +276,7 @@ describe('CommandHandler Tests', () => {
                 content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
             };
 
-            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue(undefined as any);
+            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
 
             await commandHandler.executeTargetingCommand(event, "pk;message -delete", mockSystem);
 
@@ -391,7 +414,7 @@ describe('CommandHandler Tests', () => {
         describe('pk;autoproxy edge cases', () => {
             let sendEncryptedTextSpy: jest.SpyInstance;
             beforeEach(() => {
-                sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
             });
 
             it('pk;autoproxy off should disable autoproxy', async () => {
@@ -436,7 +459,7 @@ describe('CommandHandler Tests', () => {
             let sendRichTextSpy: jest.SpyInstance;
             
             beforeEach(() => {
-                sendRichTextSpy = jest.spyOn(commandHandler as any, 'sendRichText').mockResolvedValue(true);
+                sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: "$event" });
             });
 
             it('should display own member details', async () => {
@@ -457,7 +480,7 @@ describe('CommandHandler Tests', () => {
                 const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
                 const parts = ["pk;member", "nonexistent"];
                 
-                const sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
                 const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
                 
                 expect(handled).toBe(true);
@@ -472,7 +495,7 @@ describe('CommandHandler Tests', () => {
                 const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
                 const parts = ["pk;member"];
                 
-                const sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
                 const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
                 
                 expect(handled).toBe(true);
@@ -492,7 +515,7 @@ describe('CommandHandler Tests', () => {
                     members: [{ id: 'm1', slug: 'lily', name: 'Lily', avatarUrl: 'mxc://broken' }]
                 };
 
-                const sendEncryptedImageSpy = jest.spyOn(commandHandler as any, 'sendEncryptedImage').mockRejectedValue(new Error("Avatar Upload Fail"));
+                const sendEncryptedImageSpy = jest.spyOn(commandHandler, 'sendEncryptedImage').mockRejectedValue(new Error("Avatar Upload Fail"));
                 const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
                 const handled = await commandHandler.handleCommand(event, "member", parts, systemWithAvatar);
@@ -525,7 +548,7 @@ describe('CommandHandler Tests', () => {
                 mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
                 mockPrisma.member.findMany.mockResolvedValue([privateMember]);
                 
-                const sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
                 const handled = await commandHandler.handleCommand(event, "member", parts, { id: 'bobsys', members: [] });
                 
                 expect(handled).toBe(true);
@@ -574,8 +597,8 @@ describe('CommandHandler Tests', () => {
             let sendEncryptedTextSpy: jest.SpyInstance;
             
             beforeEach(() => {
-                sendRichTextSpy = jest.spyOn(commandHandler as any, 'sendRichText').mockResolvedValue(true);
-                sendEncryptedTextSpy = jest.spyOn(commandHandler as any, 'sendEncryptedText').mockResolvedValue(true);
+                sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: "$event" });
+                sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
             });
 
             const mockSystemWithGroups = {
@@ -797,7 +820,7 @@ describe('CommandHandler Tests', () => {
             let sendRichTextSpy: jest.SpyInstance;
             
             beforeEach(() => {
-                sendRichTextSpy = jest.spyOn(commandHandler as any, 'sendRichText').mockResolvedValue(true);
+                sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: "$event" });
             });
 
             const mockSystemExtended = {
@@ -912,7 +935,7 @@ describe('CommandHandler Tests', () => {
             });
 
             // We need to call the private method via any
-            const result = await (commandHandler as any).getSenderSystem(sender);
+            const result = await commandHandler['getSenderSystem'](sender);
 
             expect(mockPrisma.accountLink.findUnique).toHaveBeenCalledWith({
                 where: { matrixId: sender },
@@ -928,7 +951,7 @@ describe('CommandHandler Tests', () => {
             mockPrisma.accountLink.findUnique.mockResolvedValue(null);
 
             // We need to call the private method via any
-            const result = await (commandHandler as any).getSenderSystem(sender);
+            const result = await commandHandler['getSenderSystem'](sender);
 
             expect(result).toBeNull();
         });

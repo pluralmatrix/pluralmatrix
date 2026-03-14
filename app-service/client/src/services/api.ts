@@ -22,13 +22,13 @@ export const authService = {
 
 export const memberService = {
     list: () => api.get('/members'),
-    create: (data: any) => api.post('/members', data),
-    update: (id: string, data: any) => api.patch(`/members/${id}`, data),
+    create: (data: Record<string, unknown>) => api.post('/members', data),
+    update: (id: string, data: Record<string, unknown>) => api.patch(`/members/${id}`, data),
     delete: (id: string) => api.delete(`/members/${id}`),
     deleteAll: () => api.delete('/members'),
     
     // PluralKit Imports
-    importPkJson: (data: any) => api.post('/import/pk/json', data),
+    importPkJson: (data: Record<string, unknown>) => api.post('/import/pk/json', data),
 
     // Unified Backup Imports
     importBackupZip: (file: File) => {
@@ -58,7 +58,7 @@ export const systemService = {
     get: () => api.get('/system'),
     create: () => api.post('/system'),
     delete: () => api.delete('/system'),
-    update: (data: any) => api.patch('/system', data),
+    update: (data: Record<string, unknown>) => api.patch('/system', data),
     getLinks: () => api.get('/system/links'),
     createLink: (targetMxid: string) => api.post('/system/links', { targetMxid }),
     setPrimaryLink: (targetMxid: string) => api.post('/system/links/primary', { targetMxid }),
@@ -70,8 +70,8 @@ export const systemService = {
 
 export const groupService = {
     list: () => api.get('/groups'),
-    create: (data: any) => api.post('/groups', data),
-    update: (id: string, data: any) => api.put(`/groups/${id}`, data),
+    create: (data: Record<string, unknown>) => api.post('/groups', data),
+    update: (id: string, data: Record<string, unknown>) => api.put(`/groups/${id}`, data),
     delete: (id: string) => api.delete(`/groups/${id}`)
 };
 

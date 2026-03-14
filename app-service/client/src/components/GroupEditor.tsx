@@ -6,9 +6,22 @@ import { validateAvatarImage } from '../utils/imageValidation';
 import { useDirtyState } from '../hooks/useDirtyState';
 import PrivacyToggle from './PrivacyToggle';
 
+interface GroupData {
+    id: string;
+    slug: string;
+    name: string;
+    displayName?: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    members?: unknown[];
+    privacy?: Record<string, string>;
+    [key: string]: unknown;
+}
+
 interface GroupEditorProps {
-    group?: any;
-    systemMembers: any[];
+    group?: GroupData;
+    systemMembers: { id: string; name: string; [key: string]: unknown }[];
     isReadOnly?: boolean;
     onSave: () => void;
     onCancel: () => void;
@@ -27,7 +40,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
         description: group?.description || '',
         icon: group?.icon || '',
         color: group?.color || '',
-        members: group?.members?.map((m: any) => typeof m === 'object' ? m.id : m) || [],
+        members: group?.members?.map((m: unknown) => typeof m === 'object' && m !== null && 'id' in m ? (m as { id: string }).id : m) || [],
         privacy: group?.privacy || {
             visibility: 'public',
             name_privacy: 'public',
@@ -105,8 +118,8 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                 await groupService.update(group.id, payload);
             }
             onSave();
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Failed to save group.');
+        } catch (err: unknown) {
+            setError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to save group.');
         } finally {
             setSaving(false);
         }

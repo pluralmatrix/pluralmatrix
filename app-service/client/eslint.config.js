@@ -21,7 +21,7 @@ export default defineConfig([
     },
     rules: {
       // Aggressively ignoring existing categories of errors as requested
-      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-explicit-any": "error",
       // We use @typescript-eslint/no-unused-vars instead (enabled by default in recommended config)
       "no-unused-vars": "off",
     },

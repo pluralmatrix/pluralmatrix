@@ -8,11 +8,11 @@ import { AnimatePresence } from 'framer-motion';
 
 const PublicSystemPage: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
-    const [system, setSystem] = useState<any>(null);
+    const [system, setSystem] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [selectedMember, setSelectedMember] = useState<any>(null);
+    const [selectedMember, setSelectedMember] = useState<Record<string, unknown> | null>(null);
 
     useEffect(() => {
         const fetchPublicSystem = async () => {
@@ -22,9 +22,9 @@ const PublicSystemPage: React.FC = () => {
                 const res = await systemService.getPublic(slug);
                 setSystem(res.data);
                 setError(null);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Failed to fetch public system:', err);
-                setError(err.response?.data?.error || 'System not found');
+                setError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'System not found');
             } finally {
                 setLoading(false);
             }
@@ -32,9 +32,9 @@ const PublicSystemPage: React.FC = () => {
         fetchPublicSystem();
     }, [slug]);
 
-    const filteredMembers = (system?.members || []).filter((m: any) => 
-        m.name.toLowerCase().includes(search.toLowerCase()) || 
-        m.slug.toLowerCase().includes(search.toLowerCase())
+    const filteredMembers = ((system?.members as Record<string, unknown>[]) || []).filter((m: Record<string, unknown>) => 
+        typeof m.name === 'string' && m.name.toLowerCase().includes(search.toLowerCase()) || 
+        typeof m.slug === 'string' && m.slug.toLowerCase().includes(search.toLowerCase())
     );
 
     if (loading) {
@@ -128,10 +128,10 @@ const PublicSystemPage: React.FC = () => {
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <AnimatePresence mode="popLayout">
-                                {filteredMembers.map((member: any) => (
+                                {filteredMembers.map((member: Record<string, unknown>) => (
                                     <MemberCard 
-                                        key={member.id} 
-                                        member={member} 
+                                        key={member.id as string} 
+                                        member={member as unknown as React.ComponentProps<typeof MemberCard>['member']} 
                                         isReadOnly={true}
                                         isAutoproxy={system.autoproxyId === member.id}
                                         onEdit={(m) => setSelectedMember(m)}

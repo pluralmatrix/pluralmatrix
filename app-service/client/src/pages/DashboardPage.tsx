@@ -18,9 +18,9 @@ const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
     const { user, token, logout } = useAuth();
     
-    const [system, setSystem] = useState<any>(null);
-    const [members, setMembers] = useState<any[]>([]);
-    const [groups, setGroups] = useState<any[]>([]);
+    const [system, setSystem] = useState<Record<string, unknown> | null>(null);
+    const [members, setMembers] = useState<Record<string, unknown>[]>([]);
+    const [groups, setGroups] = useState<Record<string, unknown>[]>([]);
     const [activeTab, setActiveTab] = useState<'members' | 'groups'>('members');
     const [isOwner, setIsOwner] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -29,15 +29,15 @@ const DashboardPage: React.FC = () => {
     const [search, setSearch] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [isEditingGroup, setIsEditingGroup] = useState(false);
-    const [selectedMember, setSelectedMember] = useState<any>(null);
-    const [selectedGroup, setSelectedGroup] = useState<any>(null);
+    const [selectedMember, setSelectedMember] = useState<Record<string, unknown> | null>(null);
+    const [selectedGroup, setSelectedGroup] = useState<Record<string, unknown> | null>(null);
     const [isImporting, setIsImporting] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
 
     // Refs to avoid stale closures in SSE/fetchData
     const isModalOpenRef = React.useRef(false);
-    const systemRef = React.useRef<any>(null);
+    const systemRef = React.useRef<Record<string, unknown> | null>(null);
 
     React.useEffect(() => {
         isModalOpenRef.current = isImporting || isSettingsOpen;
@@ -80,18 +80,18 @@ const DashboardPage: React.FC = () => {
                 const pubSystem = pubRes.data;
 
                 setSystem(pubSystem);
-                setMembers(pubSystem.members || []);
-                setGroups(pubSystem.groups || []);
+                setMembers((pubSystem.members as Record<string, unknown>[]) || []);
+                setGroups((pubSystem.groups as Record<string, unknown>[]) || []);
             }
 
             setError(null);
             setLoading(false); 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to fetch system data:', err);
 
             // Resilience: If 404 and logged in, check if our own system slug changed
             // CRITICAL: We use systemRef to know if we were already successfully viewing a system.
-            if (err.response?.status === 404 && token && systemRef.current) {                // If a modal is open, let the modal handle its own redirect/finish state.
+            if ((err as { response?: { status?: number } }).response?.status === 404 && token && systemRef.current) {                // If a modal is open, let the modal handle its own redirect/finish state.
                 if (isModalOpenRef.current) {
                     setLoading(false);
                     return;
@@ -113,7 +113,7 @@ const DashboardPage: React.FC = () => {
             // Only show the global error screen if we don't have a system yet,
             // or if we aren't currently in the middle of an import/settings change.
             if (!systemRef.current || !isModalOpenRef.current) {
-                setError(err.response?.data?.error || 'System not found');
+                setError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'System not found');
             }
             setLoading(false);
         }
@@ -186,15 +186,15 @@ const DashboardPage: React.FC = () => {
         }
     };
 
-    const filteredMembers = members.filter((m: any) => 
-        m.name.toLowerCase().includes(search.toLowerCase()) || 
-        m.slug.toLowerCase().includes(search.toLowerCase())
-    ).sort((a: any, b: any) => {
+    const filteredMembers = members.filter((m: Record<string, unknown>) => 
+        typeof m.name === 'string' && m.name.toLowerCase().includes(search.toLowerCase()) || 
+        typeof m.slug === 'string' && m.slug.toLowerCase().includes(search.toLowerCase())
+    ).sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         if (system?.autoproxyId) {
             if (a.id === system.autoproxyId) return -1;
             if (b.id === system.autoproxyId) return 1;
         }
-        return a.slug.localeCompare(b.slug);
+        return typeof a.slug === 'string' && typeof b.slug === 'string' ? a.slug.localeCompare(b.slug) : 0;
     });
 
     if (loading) {
@@ -446,11 +446,10 @@ const DashboardPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <AnimatePresence mode="popLayout">
                         {activeTab === 'members' ? (
-                            filteredMembers.map((member: any) => (
+                            filteredMembers.map((member: Record<string, unknown>) => (
                                 <MemberCard 
-                                    key={member.id} 
-                                    member={member} 
-                                    isReadOnly={!isOwner}
+                                    key={member.id as string} 
+                                    member={member as unknown as React.ComponentProps<typeof MemberCard>['member']}                                    isReadOnly={!isOwner}
                                     isAutoproxy={system?.autoproxyId === member.id}
                                     onEdit={(m) => { setSelectedMember(m); setIsEditing(true); }}
                                     onDelete={handleDelete}
@@ -458,13 +457,13 @@ const DashboardPage: React.FC = () => {
                                 />
                             ))
                         ) : (
-                            groups.filter((g: any) => 
-                                g.name.toLowerCase().includes(search.toLowerCase()) || 
-                                g.slug.toLowerCase().includes(search.toLowerCase())
-                            ).sort((a: any, b: any) => a.slug.localeCompare(b.slug)).map((group: any) => (
+                            groups.filter((g: Record<string, unknown>) => 
+                                typeof g.name === 'string' && g.name.toLowerCase().includes(search.toLowerCase()) || 
+                                typeof g.slug === 'string' && g.slug.toLowerCase().includes(search.toLowerCase())
+                            ).sort((a: Record<string, unknown>, b: Record<string, unknown>) => typeof a.slug === 'string' && typeof b.slug === 'string' ? a.slug.localeCompare(b.slug) : 0).map((group: Record<string, unknown>) => (
                                 <GroupCard 
-                                    key={group.id} 
-                                    group={group} 
+                                    key={group.id as string} 
+                                    group={group as unknown as React.ComponentProps<typeof GroupCard>['group']} 
                                     isReadOnly={!isOwner}
                                     onEdit={(g) => { setSelectedGroup(g); setIsEditingGroup(true); }}
                                     onDelete={handleDeleteGroup}
@@ -474,7 +473,7 @@ const DashboardPage: React.FC = () => {
                     </AnimatePresence>
                 </div>
 
-                {((activeTab === 'members' && filteredMembers.length === 0) || (activeTab === 'groups' && groups.length === 0 && search === '') || (activeTab === 'groups' && groups.filter((g: any) => g.name.toLowerCase().includes(search.toLowerCase())).length === 0)) && (
+                {((activeTab === 'members' && filteredMembers.length === 0) || (activeTab === 'groups' && groups.length === 0 && search === '') || (activeTab === 'groups' && groups.filter((g: Record<string, unknown>) => typeof g.name === 'string' && g.name.toLowerCase().includes(search.toLowerCase())).length === 0)) && (
                     <div className="text-center py-20 space-y-4">
                         <div className="w-20 h-20 bg-matrix-light rounded-full flex items-center justify-center mx-auto text-matrix-muted opacity-50">
                             <Search size={40} />

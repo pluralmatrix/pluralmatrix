@@ -6,9 +6,24 @@ import { validateAvatarImage } from '../utils/imageValidation';
 import { useDirtyState } from '../hooks/useDirtyState';
 import PrivacyToggle from './PrivacyToggle';
 
+interface MemberData {
+    id?: string;
+    slug?: string;
+    name?: string;
+    displayName?: string;
+    pronouns?: string;
+    description?: string;
+    color?: string;
+    avatarUrl?: string;
+    proxyTags?: { prefix?: string; suffix?: string }[];
+    groups?: unknown[];
+    privacy?: Record<string, string>;
+    [key: string]: unknown;
+}
+
 interface MemberEditorProps {
-    member?: any;
-    systemGroups?: any[];
+    member?: MemberData;
+    systemGroups?: { id: string; name: string; [key: string]: unknown }[];
     isReadOnly?: boolean;
     onSave: () => void;
     onCancel: () => void;
@@ -26,7 +41,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
         color: member?.color || '0dbd8b',
         avatarUrl: member?.avatarUrl || '',
         proxyTags: member?.proxyTags || [{ prefix: '', suffix: '' }],
-        groups: member?.groups?.map((g: any) => typeof g === 'object' ? g.id : g) || [],
+        groups: member?.groups?.map((g: unknown) => typeof g === 'object' && g !== null && 'id' in g ? (g as { id: string }).id : g) || [],
         privacy: member?.privacy || {
             visibility: 'public',
             name_privacy: 'public',
@@ -56,7 +71,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
     };
 
     const handleRemoveTag = (index: number) => {
-        const newTags = formData.proxyTags.filter((_: any, i: number) => i !== index);
+        const newTags = formData.proxyTags.filter((_: unknown, i: number) => i !== index);
         setFormData({ ...formData, proxyTags: newTags });
     };
 
@@ -102,7 +117,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
         e.preventDefault();
         
         // Basic validation for proxy tags
-        const validTags = formData.proxyTags.filter((t: any) => t.prefix.trim().length > 0);
+        const validTags = formData.proxyTags.filter((t: { prefix: string; suffix?: string }) => t.prefix.trim().length > 0);
         if (validTags.length === 0) {
             alert('At least one proxy tag with a prefix is required.');
             return;
@@ -132,8 +147,8 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                 await memberService.create(dataToSave);
             }
             onSave();
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to save member.');
+        } catch (err: unknown) {
+            alert((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to save member.');
         } finally {
             setLoading(false);
         }
@@ -322,7 +337,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                 )}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {formData.proxyTags.map((tag: any, index: number) => (
+                                {formData.proxyTags.map((tag: { prefix?: string; suffix?: string }, index: number) => (
                                     <div key={index} className="flex items-center gap-2 bg-matrix-dark/50 p-2 rounded-xl border border-white/5 group">
                                         <input 
                                             name="prefix"
@@ -365,7 +380,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                                 data-testid={testId}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
-                                                    setFormData((prev: any) => ({
+                                                    setFormData((prev: { groups: string[]; [key: string]: unknown }) => ({
                                                         ...prev,
                                                         groups: isSelected 
                                                             ? prev.groups.filter((id: string) => id !== group.id)

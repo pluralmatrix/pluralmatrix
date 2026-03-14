@@ -37,7 +37,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
             pronoun_privacy: 'public'
         }
     });
-    const [links, setLinks] = useState<any[]>([]);
+    const [links, setLinks] = useState<{ matrixId: string; isPrimary: boolean }[]>([]);
     const [newLinkMxid, setNewLinkMxid] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -126,8 +126,8 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
         try {
             const res = await systemService.update(formData);
             onSave(res.data.slug);
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to save system settings.');
+        } catch (err: unknown) {
+            alert((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to save system settings.');
         } finally {
             setSaving(false);
         }
@@ -141,8 +141,8 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
             await systemService.createLink(newLinkMxid);
             setNewLinkMxid('');
             await fetchLinks();
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to link account.');
+        } catch (err: unknown) {
+            alert((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to link account.');
         } finally {
             setLinking(false);
         }
@@ -152,8 +152,8 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
         try {
             await systemService.setPrimaryLink(mxid);
             await fetchLinks();
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to set primary account.');
+        } catch (err: unknown) {
+            alert((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to set primary account.');
         }
     };
 
@@ -169,8 +169,8 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
             try {
                 await systemService.deleteLink(mxid);
                 await fetchLinks();
-            } catch (err: any) {
-                alert(err.response?.data?.error || 'Failed to unlink account.');
+            } catch (err: unknown) {
+                alert((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to unlink account.');
             }
         }
     };
@@ -407,7 +407,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                                         <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
                                             <span className="text-sm font-medium capitalize">{field.replace('_', ' ')} Privacy</span>
                                             <PrivacyToggle 
-                                                value={(formData.privacy as any)[`${field}_privacy`]} 
+                                                value={(formData.privacy as Record<string, string>)[`${field}_privacy`]} 
                                                 onChange={(v) => {
                                                     setFormData({ 
                                                         ...formData, 

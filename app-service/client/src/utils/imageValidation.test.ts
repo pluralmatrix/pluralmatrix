@@ -28,8 +28,8 @@ describe('imageValidation', () => {
                 width = 500;
                 height = 500;
                 _src = '';
-                onload: any = null;
-                onerror: any = null;
+                onload: (() => void) | null = null;
+                onerror: ((e: Event) => void) | null = null;
 
                 set src(_value: string) {
                     this._src = _value;
@@ -95,7 +95,7 @@ describe('imageValidation', () => {
             vi.stubGlobal('Image', class {
                 width = 500;
                 height = 4001;
-                onload: any = null;
+                onload: (() => void) | null = null;
                 set src(_v: string) {
                     setTimeout(() => { if (this.onload) this.onload(); }, 10);
                 }
@@ -112,7 +112,7 @@ describe('imageValidation', () => {
             vi.stubGlobal('Image', class {
                 width = 4000;
                 height = 500;
-                onload: any = null;
+                onload: (() => void) | null = null;
                 set src(_v: string) {
                     setTimeout(() => { if (this.onload) this.onload(); }, 10);
                 }
@@ -126,7 +126,7 @@ describe('imageValidation', () => {
             const file = new File(['mock'], 'test.png', { type: 'image/png' });
             
             vi.stubGlobal('Image', class {
-                onerror: any = null;
+                onerror: ((e: Event) => void) | null = null;
                 set src(_value: string) {
                     setTimeout(() => { if (this.onerror) this.onerror(new Event('error')); }, 10);
                 }

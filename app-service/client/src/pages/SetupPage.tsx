@@ -25,9 +25,9 @@ const SetupPage: React.FC = () => {
                     // Already have a system, go to dashboard
                     navigate(`/s/${res.data.slug}`, { replace: true });
                 }
-            } catch (e: any) {
+            } catch (e: unknown) {
                 // 404 is expected here if they truly don't have a system
-                if (e.response?.status !== 404) {
+                if ((e as { response?: { status?: number } }).response?.status !== 404) {
                     console.error('Error checking existing system:', e);
                 }
             } finally {
@@ -44,9 +44,9 @@ const SetupPage: React.FC = () => {
             await systemService.create();
             // System created successfully, move to warning step
             setStep(2);
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to create system:', e);
-            setError(e.response?.data?.error || 'Failed to create system.');
+            setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to create system.');
         } finally {
             setLoading(false);
         }

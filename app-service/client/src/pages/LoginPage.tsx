@@ -19,8 +19,8 @@ const LoginPage: React.FC = () => {
         try {
             await login(mxid, password);
             navigate('/');
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Failed to login. Please check your credentials.');
+        } catch (err: unknown) {
+            setError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to login. Please check your credentials.');
         } finally {
             setLoading(false);
         }

@@ -12,8 +12,8 @@ interface Member {
     pronouns: string | null;
     description: string | null;
     color: string | null;
-    proxyTags: any[];
-    groups?: any[];
+    proxyTags: { prefix?: string; suffix?: string }[];
+    groups?: { id: string; name: string; color?: string }[];
 }
 
 interface MemberCardProps {
@@ -117,8 +117,8 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, isAutoproxy, isReadOnly
                     <div className="flex items-center space-x-2 text-sm text-matrix-muted">
                         <MessageSquare size={14} />
                         <span className="flex-1 truncate">
-                            {member.proxyTags && (member.proxyTags as any[]).length > 0 ? (
-                                (member.proxyTags as any[]).map(t => `"${t.prefix} ...${t.suffix || ""}"`).join(", ")
+                            {member.proxyTags && member.proxyTags.length > 0 ? (
+                                member.proxyTags.map(t => `"${t.prefix} ...${t.suffix || ""}"`).join(", ")
                             ) : "No tags"}
                         </span>
                     </div>

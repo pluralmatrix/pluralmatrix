@@ -20,8 +20,9 @@ const SystemRedirector: React.FC = () => {
             try {
                 const res = await systemService.get();
                 setSlug(res.data.slug);
-            } catch (e: any) {
-                if (e.response && e.response.status === 404) {
+            } catch (e: unknown) {
+                const err = e as { response?: { status?: number } };
+                if (err.response && err.response.status === 404) {
                     setNeedsSetup(true);
                 } else {
                     console.error('Failed to redirect to system:', e);

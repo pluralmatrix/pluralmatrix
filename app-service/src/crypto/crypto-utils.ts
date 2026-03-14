@@ -17,13 +17,12 @@ export const clearRegisteredDevicesCache = () => {
 export async function doAsRequest(
     hsUrl: string, 
     asToken: string, 
-    targetUserId: string, 
-    method: string, 
-    path: string, 
-    body: any,
+    targetUserId: string,
+    method: string,
+    path: string,
+    body: Record<string, unknown> | null,
     msc3202DeviceId?: string
-) {
-    const url = new URL(`${hsUrl}${path}`);
+    ) {    const url = new URL(`${hsUrl}${path}`);
     url.searchParams.set("user_id", targetUserId);
     if (msc3202DeviceId) {
         url.searchParams.set("org.matrix.msc3202.device_id", msc3202DeviceId);
@@ -58,15 +57,14 @@ export async function doAsRequest(
                 }
 
                 console.error(`[Crypto] Matrix API Error ${res.status}: ${text} (${method} ${url.toString()})`);
-                
-                const error: any = new Error(`Matrix API Error ${res.status}`);
+
+                const error = new Error(`Matrix API Error ${res.status}`) as Error & { status?: number; body?: string };
                 error.status = res.status;
                 error.body = text;
-                throw error;
-            }
+                throw error;            }
             return res.json();
-        } catch (e: any) {
-            if (e.status === 429 || e.message?.includes("M_LIMIT_EXCEEDED")) {
+        } catch (e: unknown) {
+            if ((e as { status?: number }).status === 429 || (e as Error).message?.includes("M_LIMIT_EXCEEDED")) {
                 // Already handled above if possible, but catch network-level or other errors here
                 attempts++;
                 const waitTime = Math.pow(2, attempts) * 1000 + (Math.random() * 1000);
@@ -165,12 +163,13 @@ export async function registerDevice(intent: Intent, deviceId: string, prisma?: 
 
                 registeredDevices.add(cacheKey);
                 return true;
-            } catch (e: any) {
-                let isRateLimit = e.message?.includes("M_LIMIT_EXCEEDED");
-                if (!isRateLimit && e.body) {
+            } catch (e: unknown) {
+                const err = e as Record<string, unknown>;
+                let isRateLimit = (e as Error).message?.includes("M_LIMIT_EXCEEDED");
+                if (!isRateLimit && err.body) {
                     try {
-                        const parsedBody = typeof e.body === 'string' ? JSON.parse(e.body) : e.body;
-                        isRateLimit = parsedBody.errcode === "M_LIMIT_EXCEEDED";
+                        const parsedBody = typeof err.body === 'string' ? JSON.parse(err.body) : err.body;
+                        isRateLimit = (parsedBody as any).errcode === "M_LIMIT_EXCEEDED";
                     } catch { /* Ignore */ }
                 }
                 
@@ -182,13 +181,13 @@ export async function registerDevice(intent: Intent, deviceId: string, prisma?: 
                     continue;
                 }
                 
-                console.error(`[Crypto] Device registration call failed for ${userId}:`, e.message);
+                console.error(`[Crypto] Device registration call failed for ${userId}:`, (e as Error).message);
                 
                 // If it's a 400 "already registered" error, we consider it a success
-                const bodyStr = typeof e.body === 'string' ? e.body : (e.body ? JSON.stringify(e.body) : "");
-                const errorStr = (e.message + bodyStr).toLowerCase();
+                const bodyStr = typeof err.body === 'string' ? err.body : (err.body ? JSON.stringify(err.body) : "");
+                const errorStr = ((e as Error).message + bodyStr).toLowerCase();
                 
-                if (e.errcode === "M_USER_IN_USE" || errorStr.includes("already exists") || errorStr.includes("already taken") || errorStr.includes("in use")) {
+                if (err.errcode === "M_USER_IN_USE" || errorStr.includes("already exists") || errorStr.includes("already taken") || errorStr.includes("in use")) {
                     console.log(`[Crypto] Device ${deviceId} was already registered for ${userId}.`);
                     if (prisma && memberId) {
                         await prisma.member.update({ where: { id: memberId }, data: { deviceRegistered: true } });
@@ -257,29 +256,29 @@ export async function waitForDeviceVisibility(
 /**
  * Dispatches a single cryptographic request to Synapse.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function dispatchRequest(machine: OlmMachine, intent: Intent, asToken: string, req: any) {
     const userId = intent.userId;
     const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
     const deviceId = machine.deviceId.toString();
 
     try {
-        let response: any;
+        let response: Record<string, unknown> | undefined;
 
         switch (req.type) {
             case RequestType.KeysUpload:
                 try {
                     response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(req.body), deviceId);
-                } catch (err: any) {
-                    if (err.body && err.body.includes("already exists")) {
-                        response = { "one_time_key_counts": { "signed_curve25519": 50 } }; 
+                } catch (err: unknown) {
+                    if ((err as { body?: string }).body && (err as { body: string }).body.includes("already exists")) {
+                        response = { "one_time_key_counts": { "signed_curve25519": 50 } };
                     } else throw err;
-                }
-                break;
+                }                break;
 
             case RequestType.KeysQuery: {
                 const queryBody = JSON.parse(req.body);
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/query", queryBody);
-                const devCount = Object.keys(response.device_keys || {}).length;
+                const devCount = Object.keys(response?.device_keys || {}).length;
                 console.log(`[KEY_EXCHANGE] KeysQuery success for ${userId}. Found ${devCount} users.`);
                 break;
             }
@@ -287,7 +286,7 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
             case RequestType.KeysClaim: {
                 const claimBody = JSON.parse(req.body);
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/claim", claimBody);
-                const OTKCount = response.one_time_keys ? Object.keys(response.one_time_keys).length : 0;
+                const OTKCount = response?.one_time_keys ? Object.keys(response.one_time_keys).length : 0;
                 console.log(`[KEY_EXCHANGE] KeysClaim success for ${userId}. Obtained OTKs for ${OTKCount} users.`);
                 break;
             }
@@ -307,8 +306,8 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
         }
         
         await machine.markRequestAsSent(req.id, req.type, JSON.stringify(response));
-    } catch (e: any) {
-        console.error(`[KEY_EXCHANGE] ❌ FAILED request ${req.id} (Type ${req.type}) for ${userId}:`, e.message);
+    } catch (e: unknown) {
+        console.error(`[KEY_EXCHANGE] ❌ FAILED request ${req.id} (Type ${req.type}) for ${userId}:`, (e as Error).message);
     }
 }
 

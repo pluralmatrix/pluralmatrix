@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Mock fetch globally
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (global as any).fetch = jest.fn().mockResolvedValue({
     ok: true,
     arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
@@ -46,6 +47,7 @@ jest.mock('./bot', () => ({
 }));
 
 // Helper to strip non-comparable fields
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function cleanForCompare(data: any) {
     if (!data) return data;
     const clean = JSON.parse(JSON.stringify(data));
@@ -57,6 +59,7 @@ function cleanForCompare(data: any) {
         'accounts', 'switches', 'groups', 'privacy'
     ];
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recursiveClean = (obj: any) => {
         if (Array.isArray(obj)) {
             obj.forEach(recursiveClean);
@@ -92,13 +95,13 @@ describe('Seraphim PK Roundtrip', () => {
         const originalJson = JSON.parse(fs.readFileSync(dumpPath, 'utf8'));
 
         // State for our mock DB
-        let storedSystem: any = {
+        let storedSystem: Record<string, unknown> = {
             id: 'mock-sys-uuid',
             slug: 'mock-slug',
             createdAt: new Date(),
             updatedAt: new Date()
         };
-        const storedMembers: Map<string, any> = new Map();
+        const storedMembers: Map<string, Record<string, unknown>> = new Map();
 
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 
@@ -158,8 +161,8 @@ describe('Seraphim PK Roundtrip', () => {
         const cleanExported = cleanForCompare(exportedJson);
 
         // Sort members by ID for stable comparison
-        cleanOriginal.members.sort((a: any, b: any) => a.id.localeCompare(b.id));
-        cleanExported.members.sort((a: any, b: any) => a.id.localeCompare(b.id));
+        cleanOriginal.members.sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
+        cleanExported.members.sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
 
         expect(cleanExported.id).toBe(cleanOriginal.id);
         expect(cleanExported.name).toBe(cleanOriginal.name);

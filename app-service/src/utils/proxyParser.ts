@@ -1,12 +1,43 @@
+export type ProxyContent = {
+    body?: string;
+    formatted_body?: string;
+    msgtype?: string;
+    'm.new_content'?: {
+        body?: string;
+        formatted_body?: string;
+    };
+    'm.relates_to'?: {
+        rel_type?: string;
+        event_id?: string;
+    };
+    [key: string]: unknown;
+};
+
+export type ProxyMember = {
+    id: string;
+    slug: string;
+    name: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+    proxyTags: { prefix: string; suffix?: string }[];
+    [key: string]: unknown;
+};
+
+export type ProxySystem = {
+    members: ProxyMember[];
+    autoproxyId?: string;
+    [key: string]: unknown;
+};
+
 export interface ProxyMatchResult {
-    targetMember: any;
+    targetMember: ProxyMember;
     cleanBody: string;
     cleanFormattedBody?: string;
     wasAutoproxied: boolean;
-    fullContent: any;
+    fullContent: ProxyContent;
 }
 
-export function parseProxyMatch(content: any, system: any, originalEventContent?: any): ProxyMatchResult | null {
+export function parseProxyMatch(content: ProxyContent, system: ProxySystem, originalEventContent?: ProxyContent): ProxyMatchResult | null {
     if (!content || !content.body) return null;
 
     let rawBody = content["m.new_content"]?.body || content.body;
@@ -48,12 +79,12 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
 
     // 2. Find matching member
     let matchFound = false;
-    let targetMember: any = null;
+    let targetMember: ProxyMember | null = null;
     let matchedPrefixLength = 0;
     let matchedSuffixLength = 0;
 
     for (const member of system.members) {
-        const tags = member.proxyTags as any[];
+        const tags = member.proxyTags;
         for (const tag of tags) {
             if (rawBody.startsWith(tag.prefix) && (tag.suffix ? rawBody.endsWith(tag.suffix) : true)) {
                 matchFound = true;
@@ -69,7 +100,7 @@ export function parseProxyMatch(content: any, system: any, originalEventContent?
     // 3. Autoproxy Fallback
     let wasAutoproxied = false;
     if (!matchFound && system.autoproxyId && !rawBody.startsWith("\\")) {
-        const autoMember = system.members.find((m: any) => m.id === system.autoproxyId);
+        const autoMember = system.members.find((m: ProxyMember) => m.id === system.autoproxyId);
         if (autoMember) {
             matchFound = true;
             targetMember = autoMember;

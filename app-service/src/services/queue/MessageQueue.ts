@@ -15,10 +15,10 @@ export interface QueueItem {
     format?: string;
     formattedBody?: string;
     attempts: number;
-    relatesTo?: any; // For replies/edits
+    relatesTo?: Record<string, unknown>; // For replies/edits
     prisma?: PrismaClient;
     systemSlug?: string; // Added to update LastMessageCache on success
-    fullContent?: any; // Added to preserve non-text events (images, audio)
+    fullContent?: Record<string, unknown>; // Added to preserve non-text events (images, audio)
 }
 
 export interface DeadLetter {
@@ -57,12 +57,12 @@ class MessageQueueService {
         senderId: string,
         ghostIntent: Intent,
         plaintext: string,
-        relatesTo?: any,
+        relatesTo?: Record<string, unknown>,
         prisma?: PrismaClient,
         systemSlug?: string,
         format?: string,
         formattedBody?: string,
-        fullContent?: any
+        fullContent?: Record<string, unknown>
     ) {
         const queue = this.RoomQueues.get(roomId) || [];
         queue.push({
@@ -119,7 +119,7 @@ class MessageQueueService {
                 try {
                     // Try to send the event
                     // Use the original full content payload if available to preserve file/image metadata
-                    const payload: any = item.fullContent ? { ...item.fullContent } : { msgtype: "m.text", body: item.plaintext };
+                    const payload: Record<string, unknown> = item.fullContent ? { ...item.fullContent } : { msgtype: "m.text", body: item.plaintext };
                     console.log(`[MQ] Building payload. item.fullContent present? ${!!item.fullContent}`);
                     
                     // Always ensure body is correctly stripped of proxy tags
@@ -137,7 +137,7 @@ class MessageQueueService {
                     
                     console.log(`[MQ] Sending payload to Matrix:`, JSON.stringify(payload, null, 2));
 
-                    const result: any = await sendEncryptedEvent(
+                    const result = await sendEncryptedEvent(
                         item.ghostIntent,
                         item.roomId,
                         "m.room.message",
@@ -145,12 +145,12 @@ class MessageQueueService {
                         cryptoManager,
                         asToken,
                         item.prisma
-                    );
+                    ) as { event_id?: string };
 
                     // Success! Update Last Message Cache if system info is present
                     if (item.systemSlug && result?.event_id) {
                         const isReplacement = item.relatesTo?.rel_type === "m.replace";
-                        const rootId = isReplacement ? (item.relatesTo.event_id || item.relatesTo.id) : result.event_id;
+                        const rootId = isReplacement ? (item.relatesTo!.event_id || item.relatesTo!.id) : result.event_id;
                         
                         const currentLast = lastMessageCache.get(item.roomId, item.systemSlug);
                         
@@ -158,7 +158,7 @@ class MessageQueueService {
                         if (!isReplacement || (currentLast && currentLast.rootEventId === rootId)) {
                             const newRootContent = !isReplacement ? payload : (currentLast ? currentLast.rootContent : payload);
                             lastMessageCache.set(item.roomId, item.systemSlug, {
-                                rootEventId: rootId,
+                                rootEventId: rootId as string,
                                 latestEventId: result.event_id,
                                 latestContent: payload,
                                 rootContent: newRootContent,
@@ -169,7 +169,7 @@ class MessageQueueService {
 
                     // Success! Remove from queue.
                     queue.shift();
-                } catch (error: any) {
+                } catch (error: unknown) {
                     await this.handleSendError(item, queue, error);
                 }
             }
@@ -181,7 +181,7 @@ class MessageQueueService {
     /**
      * Analyzes errors, applies retries, and triggers fallbacks.
      */
-    private async handleSendError(item: QueueItem, queue: QueueItem[], error: any) {
+    private async handleSendError(item: QueueItem, queue: QueueItem[], error: unknown) {
         const isFatal = this.isFatalError(error);
 
         if (!isFatal) {
@@ -189,14 +189,14 @@ class MessageQueueService {
             if (item.attempts <= 3) {
                 // Exponential backoff
                 const waitTime = Math.pow(2, item.attempts) * 1000 + (Math.random() * 500);
-                console.warn(`[Queue] Transient error sending for ${item.ghostIntent.userId} in ${item.roomId}. Retrying in ${Math.round(waitTime)}ms...`, error.message);
+                console.warn(`[Queue] Transient error sending for ${item.ghostIntent.userId} in ${item.roomId}. Retrying in ${Math.round(waitTime)}ms...`, (error as Error).message);
                 await sleep(waitTime);
                 return; // Continue outer while loop to retry exact item
             }
         }
 
         // --- Fallback 1: The plural_bot Bailout ---
-        console.error(`[Queue] Delivery failed for ${item.ghostIntent.userId}. Triggering Fallback 1 (Bot Bailout). Error:`, error.message);
+        console.error(`[Queue] Delivery failed for ${item.ghostIntent.userId}. Triggering Fallback 1 (Bot Bailout). Error:`, (error as Error).message);
         queue.shift(); // Remove the failing item
 
         try {
@@ -213,15 +213,15 @@ class MessageQueueService {
                 "m.room.message",
                 {
                     msgtype: "m.notice",
-                    body: `⚠️ Delivery Failed for ${item.ghostIntent.userId}:\n\n> ${item.plaintext}\n\n(Error: ${error.message || "Unknown"})`
+                    body: `⚠️ Delivery Failed for ${item.ghostIntent.userId}:\n\n> ${item.plaintext}\n\n(Error: ${(error as Error).message || "Unknown"})`
                 },
                 cryptoManager,
                 asToken,
                 item.prisma
             );
             return; // Fallback 1 succeeded.
-        } catch (botError: any) {
-            console.error(`[Queue] Fallback 1 (Bot Bailout) failed! Triggering Fallback 2 (Dead Letter Vault).`, botError.message);
+        } catch (botError: unknown) {
+            console.error(`[Queue] Fallback 1 (Bot Bailout) failed! Triggering Fallback 2 (Dead Letter Vault).`, (botError as Error).message);
             
             // --- Fallback 2: The Dead Letter Vault ---
             const dl: DeadLetter = {
@@ -230,7 +230,7 @@ class MessageQueueService {
                 roomId: item.roomId,
                 ghostUserId: item.ghostIntent.userId,
                 plaintext: item.plaintext,
-                errorReason: error.message || "Unknown error"
+                errorReason: (error as Error).message || "Unknown error"
             };
             this.DeadLetterVault.set(dl.id, dl);
         }
@@ -239,16 +239,16 @@ class MessageQueueService {
     /**
      * Determines if an error is fatal (should not be retried).
      */
-    private isFatalError(error: any): boolean {
+    private isFatalError(error: unknown): boolean {
         // Matrix API errors often have an HTTP status on error.status or error.httpStatus
-        const status = error.status || error.httpStatus;
+        const status = (error as Record<string, unknown>).status || (error as Record<string, unknown>).httpStatus;
         if (status) {
             if (status === 400 || status === 403 || status === 401 || status === 404) {
                 return true;
             }
         }
 
-        const msg = error.message ? error.message.toLowerCase() : "";
+        const msg = (error as Error).message ? (error as Error).message.toLowerCase() : "";
         if (msg.includes("forbidden") || msg.includes("not found") || msg.includes("decrypt") || msg.includes("unrecognized")) {
             return true;
         }

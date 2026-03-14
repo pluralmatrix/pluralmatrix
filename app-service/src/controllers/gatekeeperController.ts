@@ -12,6 +12,7 @@ export const checkMessage = async (req: Request, res: Response) => {
     try {
         const validated = GatekeeperCheckSchema.parse(req.body);
         const { event_id, sender, room_id, bot_id, type, encrypted_payload, origin_server_ts } = validated;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let content = validated.content as any;
         const isEncryptedSource = type === "m.room.encrypted";
 
@@ -38,12 +39,11 @@ export const checkMessage = async (req: Request, res: Response) => {
                     if (decrypted.event) {
                         const parsed = JSON.parse(decrypted.event);
                         content = parsed.content;
-                        break; 
-                    }
-                } catch (decErr: any) {
-                    lastError = decErr.message;
-                    if (attempt < 2) {
-                        await new Promise(resolve => setTimeout(resolve, 200));
+                        break;
+                        }
+                        } catch (decErr: unknown) {
+                        lastError = (decErr as Error).message;
+                        if (attempt < 2) {                        await new Promise(resolve => setTimeout(resolve, 200));
                     }
                 }
             }
@@ -105,7 +105,7 @@ export const checkMessage = async (req: Request, res: Response) => {
         // --- PROXY CHECK ---
         // For the immediate proxy check to decide BLOCK/ALLOW quickly, we just use the current content.
         // If it's a match, we'll fetch the original event in the background before sending the ghost message.
-        const proxyMatch = parseProxyMatch(content, system, undefined);
+        const proxyMatch = parseProxyMatch(content, system as any, undefined);
 
         if (proxyMatch) {
             // We matched! Return BLOCK immediately to Synapse so it can cache the result quickly 
@@ -118,9 +118,11 @@ export const checkMessage = async (req: Request, res: Response) => {
                 // Fire and forget background processor
                 (async () => {
                     try {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         let originalEvent: any = null;
                         if (isEdit && originalEventId) {
                             try {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 originalEvent = await (getBridge()?.getBot().getClient() as any).getEvent(room_id, originalEventId);
                                 console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
                             } catch {
@@ -129,19 +131,20 @@ export const checkMessage = async (req: Request, res: Response) => {
                         }
 
                         // Re-parse with the original event to get the rich fallbacks
-                        const finalProxyMatch = parseProxyMatch(content, system, isEdit ? originalEvent?.content : undefined);
+                        const finalProxyMatch = parseProxyMatch(content, system as any, isEdit ? originalEvent?.content : undefined);
                         if (!finalProxyMatch) return; // Should never happen since it matched above
 
-                        const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch as any;
+                        const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch;
 
                         await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prisma);
-                        
+
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         let relatesTo: any = undefined;
                         const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : content;
                         if (sourceContent["m.relates_to"]) {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             relatesTo = { ...sourceContent["m.relates_to"] } as any;
-                            console.log(`[Gatekeeper] Extracted initial relatesTo:`, JSON.stringify(relatesTo));
-                            if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
+                            console.log(`[Gatekeeper] Extracted initial relatesTo:`, JSON.stringify(relatesTo));                            if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
                             if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
                         }
                         
@@ -163,8 +166,8 @@ export const checkMessage = async (req: Request, res: Response) => {
                             },
                             senderId: sender
                         });
-                    } catch (err: any) {
-                        console.error("[Gatekeeper] Background proxy task failed:", err.message);
+                    } catch (err: unknown) {
+                        console.error("[Gatekeeper] Background proxy task failed:", (err as Error).message);
                     }
                 })();
             } else {

@@ -108,12 +108,14 @@ describe('PluralMatrix E2E Roundtrip', () => {
      * Helper: Wait for a ghost message to appear for a specific client.
      */
     async function waitForGhostMessage(targetClient: MatrixClient, targetRoomId: string, timeoutMs: number = 30000) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new Promise<any>((resolve, reject) => {
             const timeout = setTimeout(() => {
                 targetClient.off("room.message", listener);
                 reject(new Error(`Timeout waiting for ghost message in ${targetRoomId}`));
             }, timeoutMs);
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const listener = (roomIdMatch: string, event: any) => {
                 if (roomIdMatch === targetRoomId && event.sender.startsWith('@_plural_')) {
                     clearTimeout(timeout);
@@ -129,12 +131,14 @@ describe('PluralMatrix E2E Roundtrip', () => {
      * Helper: Wait for a message from the main bot.
      */
     async function waitForBotMessage(targetClient: MatrixClient, targetRoomId: string, timeoutMs: number = 10000) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new Promise<any>((resolve, reject) => {
             const timeout = setTimeout(() => {
                 targetClient.off("room.message", listener);
                 reject(new Error(`Timeout waiting for bot message in ${targetRoomId}`));
             }, timeoutMs);
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const listener = (roomIdMatch: string, event: any) => {
                 if (roomIdMatch === targetRoomId && event.sender.startsWith('@plural_bot:')) {
                     clearTimeout(timeout);
@@ -156,7 +160,9 @@ describe('PluralMatrix E2E Roundtrip', () => {
             await new Promise(resolve => setTimeout(resolve, 1000));
             try {
                 // For encrypted clients, we might need to force event processing to see the redaction
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 if ((targetClient as any).crypto) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     await (targetClient as any).crypto.processRoomEvents(targetRoomId);
                 }
                 const event = await targetClient.getEvent(targetRoomId, eventId);
@@ -416,7 +422,9 @@ describe('PluralMatrix E2E Roundtrip', () => {
         const cmdText = `pk;message`;
         
         // We expect a DM from the bot, not a ghost message in the current room
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const botDMPromise = new Promise<any>((resolve) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const onEvent = (roomId: string, event: any) => {
                 if (event.type === "m.room.message" && event.sender === "@plural_bot:localhost") {
                     if (event.content?.body?.includes("Message Information")) {

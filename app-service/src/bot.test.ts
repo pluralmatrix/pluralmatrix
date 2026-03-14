@@ -77,7 +77,7 @@ describe('Bot Event Handler', () => {
         initCommandHandler(mockBridge as unknown as Bridge, prisma, cryptoManager, "test_token", "localhost");
     });
 
-    const createMockRequest = (event: Record<string, unknown>): Request<WeakEvent> => {
+    const createMockRequest = (event: Partial<import('./types').PluralMatrixEvent>): Request<WeakEvent> => {
         return {
             getData: () => event
         } as unknown as Request<WeakEvent>;

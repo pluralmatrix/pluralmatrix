@@ -1,13 +1,14 @@
 import { OlmMachineManager } from "./OlmMachineManager";
 import { UserId, RoomId, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { maskMxid } from "../utils/privacy";
+import { PluralMatrixEventContent, PluralMatrixEvent } from "../types";
 
 // Minimal event interface
 interface MatrixEvent {
     type: string;
     sender: string;
     room_id?: string;
-    content: Record<string, unknown>;
+    content: PluralMatrixEventContent;
     event_id?: string;
     to_user_id?: string; // For to-device events in AS transactions (MSC2409)
     [key: string]: unknown;
@@ -28,13 +29,13 @@ export class TransactionRouter {
     private manager: OlmMachineManager;
     private botUserId: string;
     private onRequestCallback: (userId: string) => Promise<void>;
-    private onDecryptedEvent: (event: Record<string, unknown>) => Promise<void>;
+    private onDecryptedEvent: (event: PluralMatrixEvent) => Promise<void>;
 
     constructor(
         manager: OlmMachineManager, 
         botUserId: string, 
         onRequestCallback: (userId: string) => Promise<void>,
-        onDecryptedEvent: (event: Record<string, unknown>) => Promise<void>
+        onDecryptedEvent: (event: PluralMatrixEvent) => Promise<void>
     ) {
         this.manager = manager;
         this.botUserId = botUserId;

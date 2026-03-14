@@ -3,6 +3,7 @@ import { OlmMachineManager } from "./OlmMachineManager";
 import { RoomId, UserId, EncryptionSettings, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { PrismaClient } from "@prisma/client";
 import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest, waitForDeviceVisibility } from "./crypto-utils";
+import { PluralMatrixEventContent } from "../types";
 
 interface ToDeviceRequest {
     eventType?: string;
@@ -42,7 +43,7 @@ export async function sendEncryptedEvent(
     intent: Intent,
     roomId: string,
     eventType: string,
-    content: Record<string, unknown>,
+    content: PluralMatrixEventContent,
     manager: OlmMachineManager,
     asToken: string,
     prisma?: PrismaClient

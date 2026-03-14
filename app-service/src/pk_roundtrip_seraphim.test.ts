@@ -5,8 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Mock fetch globally
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(global as any).fetch = jest.fn().mockResolvedValue({
+(global as unknown as { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({
     ok: true,
     arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
     headers: new Map([['content-type', 'image/png']])
@@ -47,8 +46,7 @@ jest.mock('./bot', () => ({
 }));
 
 // Helper to strip non-comparable fields
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function cleanForCompare(data: any) {
+function cleanForCompare(data: unknown) {
     if (!data) return data;
     const clean = JSON.parse(JSON.stringify(data));
     
@@ -59,13 +57,12 @@ function cleanForCompare(data: any) {
         'accounts', 'switches', 'groups', 'privacy'
     ];
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recursiveClean = (obj: any) => {
+    const recursiveClean = (obj: unknown) => {
         if (Array.isArray(obj)) {
             obj.forEach(recursiveClean);
         } else if (obj && typeof obj === 'object') {
             for (const key of ignore) {
-                delete obj[key];
+                delete (obj as Record<string, unknown>)[key];
             }
             Object.values(obj).forEach(recursiveClean);
         }

@@ -4,7 +4,7 @@ import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
 import { parseCommand } from '../utils/commandParser';
-import { parseProxyMatch } from '../utils/proxyParser';
+import { parseProxyMatch, ProxyContent, ProxySystem } from '../utils/proxyParser';
 import { applyAutoproxyLatch } from '../services/autoproxyService';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 
@@ -12,8 +12,7 @@ export const checkMessage = async (req: Request, res: Response) => {
     try {
         const validated = GatekeeperCheckSchema.parse(req.body);
         const { event_id, sender, room_id, bot_id, type, encrypted_payload, origin_server_ts } = validated;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let content = validated.content as any;
+        let content = validated.content as Record<string, unknown>;
         const isEncryptedSource = type === "m.room.encrypted";
 
         // --- DECRYPTION SUPPORT (E2EE) ---
@@ -54,7 +53,7 @@ export const checkMessage = async (req: Request, res: Response) => {
             }
         }
 
-        const body = content?.body || "";
+        const body = (content?.body as string) || "";
         const cleanSender = sender.toLowerCase();
         const system = await proxyCache.getSystemRules(cleanSender, prisma);
 
@@ -62,22 +61,22 @@ export const checkMessage = async (req: Request, res: Response) => {
             return res.json({ action: "ALLOW" });
         }
 
-        if (body.startsWith("\\")) {
+        if (typeof body === 'string' && body.startsWith("\\")) {
             return res.json({ action: "ALLOW" });
         }
 
         let isEdit = false;
         let originalEventId: string | undefined = undefined;
 
-        console.log(`[Gatekeeper] Analyzing event ${event_id} - has m.new_content: ${!!content["m.new_content"]}, rel_type: ${content["m.relates_to"]?.rel_type}`);
+        console.log(`[Gatekeeper] Analyzing event ${event_id} - has m.new_content: ${!!(content as ProxyContent)["m.new_content"]}, rel_type: ${(content as ProxyContent)["m.relates_to"]?.rel_type}`);
 
-        if (content["m.new_content"] && content["m.relates_to"]?.rel_type === "m.replace") {
+        if ((content as ProxyContent)["m.new_content"] && (content as ProxyContent)["m.relates_to"]?.rel_type === "m.replace") {
             isEdit = true;
-            originalEventId = content["m.relates_to"].event_id;
+            originalEventId = (content as ProxyContent)["m.relates_to"]?.event_id;
         }
 
         // --- ZERO-FLASH FOR COMMANDS ---
-        const parsedCommand = parseCommand(body, content?.formatted_body);
+        const parsedCommand = parseCommand(body, (content as ProxyContent)?.formatted_body);
         if (parsedCommand) {
             const { cmd } = parsedCommand;
             if (["edit", "e", "reproxy", "rp", "message", "msg", "m"].includes(cmd)) {
@@ -91,8 +90,8 @@ export const checkMessage = async (req: Request, res: Response) => {
                         content: content
                     };
                     // Execute in background
-                    commandHandler.executeTargetingCommand(mockEvent, body, system).catch(e => {
-                        console.error("[Gatekeeper] Failed to execute targeting command:", e.message);
+                    commandHandler.executeTargetingCommand(mockEvent, body as string, system).catch((e: unknown) => {
+                        console.error("[Gatekeeper] Failed to execute targeting command:", (e as Error).message);
                     });
                 } else {
                     console.log(`[Gatekeeper] E2EE Match for command ${cmd} - Letting bot.ts handle execution.`);
@@ -105,7 +104,7 @@ export const checkMessage = async (req: Request, res: Response) => {
         // --- PROXY CHECK ---
         // For the immediate proxy check to decide BLOCK/ALLOW quickly, we just use the current content.
         // If it's a match, we'll fetch the original event in the background before sending the ghost message.
-        const proxyMatch = parseProxyMatch(content, system as any, undefined);
+        const proxyMatch = parseProxyMatch(content, system as unknown as ProxySystem, undefined);
 
         if (proxyMatch) {
             // We matched! Return BLOCK immediately to Synapse so it can cache the result quickly 
@@ -118,12 +117,11 @@ export const checkMessage = async (req: Request, res: Response) => {
                 // Fire and forget background processor
                 (async () => {
                     try {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        let originalEvent: any = null;
+                        let originalEvent: Record<string, unknown> | null = null;
                         if (isEdit && originalEventId) {
                             try {
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                originalEvent = await (getBridge()?.getBot().getClient() as any).getEvent(room_id, originalEventId);
+                                const botClient = getBridge()?.getBot().getClient() as unknown as { getEvent: (roomId: string, eventId: string) => Promise<Record<string, unknown>> };
+                                originalEvent = await botClient.getEvent(room_id, originalEventId);
                                 console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
                             } catch {
                                 console.warn(`[Gatekeeper] Could not fetch original event ${originalEventId} for edit proxying.`);
@@ -131,19 +129,17 @@ export const checkMessage = async (req: Request, res: Response) => {
                         }
 
                         // Re-parse with the original event to get the rich fallbacks
-                        const finalProxyMatch = parseProxyMatch(content, system as any, isEdit ? originalEvent?.content : undefined);
+                        const finalProxyMatch = parseProxyMatch(content, system as unknown as ProxySystem, isEdit ? (originalEvent?.content as Record<string, unknown> | undefined) : undefined);
                         if (!finalProxyMatch) return; // Should never happen since it matched above
 
                         const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch;
 
                         await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prisma);
 
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        let relatesTo: any = undefined;
-                        const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : content;
+                        let relatesTo: Record<string, unknown> | undefined = undefined;
+                        const sourceContent = (isEdit && originalEvent?.content ? originalEvent.content : content) as Record<string, unknown>;
                         if (sourceContent["m.relates_to"]) {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            relatesTo = { ...sourceContent["m.relates_to"] } as any;
+                            relatesTo = { ...(sourceContent["m.relates_to"] as Record<string, unknown>) };
                             console.log(`[Gatekeeper] Extracted initial relatesTo:`, JSON.stringify(relatesTo));                            if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
                             if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
                         }

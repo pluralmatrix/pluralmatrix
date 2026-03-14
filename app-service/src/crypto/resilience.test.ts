@@ -35,7 +35,7 @@ describe('Crypto Resilience Utilities', () => {
                 json: () => Promise.resolve({ success: true })
             });
 
-            const result = await doAsRequest(hsUrl, asToken, userId, "POST", "/test", { foo: "bar" });
+            const result = await doAsRequest(hsUrl, asToken, userId, "POST", "/test", { foo: "bar" }) as { success: boolean };
             
             expect(result.success).toBe(true);
             expect(mockFetch).toHaveBeenCalledTimes(2);

@@ -31,8 +31,8 @@ const mockManager = {
 // Mock matrix-sdk-crypto-nodejs
 jest.mock("@matrix-org/matrix-sdk-crypto-nodejs", () => {
     return {
-        RoomId: jest.fn().mockImplementation((id) => id),
-        UserId: jest.fn().mockImplementation((id) => id),
+        RoomId: jest.fn().mockImplementation((id: string) => id),
+        UserId: jest.fn().mockImplementation((id: string) => id),
         EncryptionSettings: jest.fn().mockImplementation(() => ({})),
         DeviceLists: jest.fn().mockImplementation(() => ({}))
     };

@@ -25,6 +25,12 @@ until [ "$(sudo docker inspect -f '{{.State.Health.Status}}' ${PROJECT_NAME}-syn
 done
 echo " Synapse is healthy!"
 
+echo "📦 Installing Backend Dependencies..."
+npm install
+
+echo "📦 Installing Frontend Dependencies..."
+(cd client && npm install)
+
 echo "🛡️  Running ESLint (Backend)..."
 npm run lint
 LINT_BACKEND_EXIT_CODE=$?
@@ -40,7 +46,7 @@ if [ $LINT_FRONTEND_EXIT_CODE -ne 0 ]; then
 fi
 
 echo "🛡️  Auditing Backend Dependencies..."
-npx audit-ci --config audit-ci.json
+npx --yes audit-ci --config audit-ci.json
 AUDIT_BACKEND_EXIT_CODE=$?
 if [ $AUDIT_BACKEND_EXIT_CODE -ne 0 ]; then
     echo "❌ Backend dependency audit failed."

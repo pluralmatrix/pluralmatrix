@@ -113,10 +113,10 @@ export class TransactionRouter {
             
             if (decrypted.event) {
                 // Decryption successful: Processing cleartext event
-                const clearEvent = JSON.parse(decrypted.event);
-                clearEvent.room_id = event.room_id;
-                clearEvent.event_id = event.event_id;
-                clearEvent.sender = event.sender;
+                const clearEvent = JSON.parse(decrypted.event) as PluralMatrixEvent;
+                clearEvent.room_id = event.room_id!;
+                clearEvent.event_id = event.event_id!;
+                clearEvent.sender = event.sender!;
                 await this.onDecryptedEvent(clearEvent);
             }
         } catch (e) {

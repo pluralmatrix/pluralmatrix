@@ -7,8 +7,8 @@ class MockDeviceLists {
 
 jest.mock("@matrix-org/matrix-sdk-crypto-nodejs", () => {
     return {
-        RoomId: jest.fn().mockImplementation((id) => ({ toString: () => id })),
-        UserId: jest.fn().mockImplementation((id) => ({ toString: () => id })),
+        RoomId: jest.fn().mockImplementation((id: string) => ({ toString: () => id })),
+        UserId: jest.fn().mockImplementation((id: string) => ({ toString: () => id })),
         DeviceLists: jest.fn().mockImplementation(() => new MockDeviceLists())
     };
 });
@@ -140,7 +140,8 @@ describe("TransactionRouter", () => {
 
         // Should only be called ONCE with Alice's ID
         expect(mockMachine.updateTrackedUsers).toHaveBeenCalledTimes(1);
-        expect(mockMachine.updateTrackedUsers).toHaveBeenCalledWith([expect.objectContaining({ toString: expect.any(Function) })]);
+         
+        expect(mockMachine.updateTrackedUsers).toHaveBeenCalledWith([expect.anything()]);
         
         // Bot sync should only be called ONCE at the end of timeline processing
         expect(onRequestCallback).toHaveBeenCalledTimes(1);

@@ -134,7 +134,7 @@ export class CommandHandler {
         }, this.cryptoManager, this.asToken, this.prisma);
     }
 
-    async sendEncryptedCustomText(intent: Intent, roomId: string, body: string, formattedBody: string, mentions?: any) {
+    async sendEncryptedCustomText(intent: Intent, roomId: string, body: string, formattedBody: string, mentions?: Record<string, unknown>) {
         const userId = intent.userId;
         const machine = await this.cryptoManager.getMachine(userId);
         const { memberId, systemId } = await this.resolveIdentity(userId);
@@ -152,13 +152,17 @@ export class CommandHandler {
     async safeRedact(roomId: string, eventId: string, reason: string, preferredIntent?: Intent) {
         const intent = preferredIntent || this.bridge.getIntent();
         try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (intent as any).matrixClient.redactEvent(roomId, eventId, reason);
-        } catch (e: any) {
-            if (e.errcode === 'M_FORBIDDEN' || e.httpStatus === 403) {
+        } catch (e: unknown) {
+            const err = e as { errcode?: string, httpStatus?: number };
+            if (err.errcode === 'M_FORBIDDEN' || err.httpStatus === 403) {
                 try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     await (this.bridge.getIntent() as any).matrixClient.redactEvent(roomId, eventId, reason);
-                } catch (fallbackErr: any) {
-                    if ((fallbackErr.errcode === 'M_FORBIDDEN' || fallbackErr.httpStatus === 403) && !this.permissionWarnedRooms.has(roomId)) {
+                } catch (fallbackErr: unknown) {
+                    const fbErr = fallbackErr as { errcode?: string, httpStatus?: number };
+                    if ((fbErr.errcode === 'M_FORBIDDEN' || fbErr.httpStatus === 403) && !this.permissionWarnedRooms.has(roomId)) {
                         console.warn(`[Bot] Lacking redaction permissions in ${roomId}.`);
                         await this.sendEncryptedText(this.bridge.getIntent(), roomId, 
                             "⚠️ I don't have permission to redact (delete) messages in this room. " +
@@ -168,7 +172,7 @@ export class CommandHandler {
                     }
                 }
             } else {
-                console.error(`[Janitor] Failed to redact message ${eventId}:`, e.message || e);
+                console.error(`[Janitor] Failed to redact message ${eventId}:`, (e as Error).message || e);
             }
         }
     }
@@ -203,14 +207,18 @@ export class CommandHandler {
 
         // 2. Slow Path: Search/History
         const scrollback = await this.getRoomMessages(roomId, 100);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let targetRoot: any = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let latestContent: any = null;
         let rootId = explicitTargetId;
 
         if (rootId) {
             // Target specific message (Reply or Manual ID)
             try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 let explicitEvent: any = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 explicitEvent = scrollback.chunk.find((e: any) => e.event_id === rootId || e.id === rootId);
                 if (!explicitEvent) {
                     explicitEvent = await botClient.getEvent(roomId, rootId);
@@ -221,8 +229,11 @@ export class CommandHandler {
 
                 if (!explicitEvent) return null;
                 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const eventSender = explicitEvent.sender || (explicitEvent as any).sender;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const eventType = explicitEvent.type || (explicitEvent as any).type;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 let content = explicitEvent.content || (explicitEvent as any).content || {};
                 
                 if (eventType === "m.room.encrypted") {
@@ -313,6 +324,7 @@ export class CommandHandler {
     /**
      * Command Execution
      */
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async executeTargetingCommand(event: any, body: string, system: any) {
         const roomId = event.room_id;
         const formattedBody = event.content?.["m.new_content"]?.formatted_body || event.content?.formatted_body;
@@ -324,6 +336,7 @@ export class CommandHandler {
 
         if (!["edit", "e", "reproxy", "rp", "message", "msg"].includes(cmd)) return false;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const relatesTo = (event.content as any)?.["m.relates_to"];
         const replyTo = relatesTo?.["m.in_reply_to"]?.event_id;
 
@@ -342,6 +355,7 @@ export class CommandHandler {
         
         let targetId: string | undefined;
         let targetSender: string | undefined;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let targetContent: any;
         let originalId: string | undefined;
 
@@ -387,13 +401,16 @@ export class CommandHandler {
         const latestFormat = targetContent["m.new_content"]?.format || targetContent.format;
         const latestFormattedBody = targetContent["m.new_content"]?.formatted_body || targetContent.formatted_body;
         
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let relatesToForReproxy: any = undefined;
         // The original root event contains the m.in_reply_to block, not necessarily the latest edit
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const originalContent = resolution?.event?.content || (resolution?.event as any)?.content || {};
         console.log(`[CommandHandler] originalContent extracted from resolution:`, JSON.stringify(originalContent));
         const sourceForRelatesTo = originalContent["m.relates_to"] ? originalContent : targetContent;
 
         if (sourceForRelatesTo["m.relates_to"]) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             relatesToForReproxy = { ...sourceForRelatesTo["m.relates_to"] } as any;
             if (relatesToForReproxy.rel_type === "m.replace") { 
                 delete relatesToForReproxy.rel_type; 
@@ -408,6 +425,7 @@ export class CommandHandler {
             if (!newText) return true;
             
             // Base the edit payload on the original target content to preserve attachments
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const editPayload: any = { ...targetContent };
             if (editPayload["m.new_content"]) {
                 delete editPayload["m.new_content"];
@@ -459,6 +477,7 @@ export class CommandHandler {
 
         } else if (cmd === "reproxy" || cmd === "rp") {
             const memberSlug = parts[1]?.toLowerCase();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const member = system.members.find((m: any) => m.slug === memberSlug);
             console.log(`[CommandHandler] Reproxy targetContent:`, JSON.stringify(targetContent));
             if (member) {
@@ -485,6 +504,7 @@ export class CommandHandler {
                 if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl);
                 
                 // Base the payload on the actual content to preserve msgtype (like m.image), URLs, info, and hashes
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const reproxyPayload: any = { ...targetContent };
                 
                 // If it was an edit, we want to reproxy the LATEST text/html, not the original
@@ -536,6 +556,7 @@ export class CommandHandler {
                 preset: "trusted_private_chat",
                 visibility: "private"
             });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (res as any).room_id || (typeof res === "string" ? res : null);
         } catch (e) {
             console.error("Failed to find or create DM room for", userId, e);
@@ -648,6 +669,7 @@ export class CommandHandler {
         }
     }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async handleCommand(event: any, cmd: string, parts: string[], system: any): Promise<any> {
         const roomId = event.room_id;
         const sender = event.sender;
@@ -724,6 +746,7 @@ ${webUrl}
                 return true;
             }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const sysPrivacy: any = targetSystem.privacy || {};
 
             if (!subCmd) {
@@ -739,6 +762,7 @@ ${webUrl}
                 }
 
                 if (isOwnSystem || sysPrivacy.member_list_privacy !== 'private') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const visibleMembers = targetSystem.members?.filter((m: any) => isOwnSystem || (m.privacy || {}).visibility !== 'private') || [];
                     card += `**Members:** ${visibleMembers.length}\n`;
                 } else {
@@ -763,6 +787,7 @@ ${webUrl}
                 }
                 
                 const isFull = subCmdArgs[0] === "full";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const visibleMembers = targetSystem.members?.filter((m: any) => isOwnSystem || (m.privacy || {}).visibility !== 'private') || [];
                 
                 if (visibleMembers.length === 0) {
@@ -770,7 +795,9 @@ ${webUrl}
                     return true;
                 }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const sortedMembers = visibleMembers.sort((a: any, b: any) => a.slug.localeCompare(b.slug));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const memberList = sortedMembers.map((m: any) => {
                     const mp = m.privacy || {};
                     let dName = m.name;
@@ -780,6 +807,7 @@ ${webUrl}
                     
                     let line = `* **${dName}** (\`${m.slug}\`)`;
                     
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const tags = m.proxyTags as any[];
                     const tag = tags[0];
                     if (tag && (isOwnSystem || mp.proxy_privacy !== 'private')) {
@@ -914,6 +942,7 @@ ${webUrl}
 
             // Issue #5: Verify user existence before linking
             try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 await (this.bridge.getIntent() as any).matrixClient.getUserProfile(targetMxid);
             } catch {
                 await this.sendRichText(this.bridge.getIntent(), roomId, `❌ Could not verify Matrix ID **${targetMxid}**. Please ensure the ID is correct and the user exists.`);
@@ -1047,6 +1076,7 @@ ${webUrl}
                 return true;
             }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let member = system?.members.find((m: any) => m.slug === slug || m.pkId === slug);
             let isOwnMember = !!member;
 
@@ -1070,6 +1100,7 @@ ${webUrl}
             }
 
             // Enforce privacy
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const mp: any = member.privacy || {};
             if (!isOwnMember && mp.visibility === 'private') {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${slug}`);
@@ -1087,6 +1118,7 @@ ${webUrl}
             if (member.description && (isOwnMember || mp.description_privacy !== 'private')) info += `\n### Description\n${member.description}\n\n`;
 
             if (isOwnMember || mp.proxy_privacy !== 'private') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const tags = ((member.proxyTags || []) as any[]).map(t => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
                 info += `--- \n* **Proxy Tags:** ${tags || "None"}`;
             }
@@ -1130,6 +1162,7 @@ ${webUrl}
                 return true;
             }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const member = system.members.find((m: any) => m.slug === targetSlug);
             if (!member) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${targetSlug}`);
@@ -1160,7 +1193,9 @@ ${webUrl}
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have any groups in your system.");
                     return true;
                 }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const sortedGroups = groups.sort((a: any, b: any) => a.slug.localeCompare(b.slug));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const groupList = sortedGroups.map((g: any) => `* **${g.displayName || g.name}** (id: \`${g.slug}\`) - ${g.members?.length || 0} members`).join("\n");
                 await this.sendRichText(this.bridge.getIntent(), roomId, `### ${system.name || "Your System"} Groups\n${groupList}`);
                 return true;
@@ -1191,6 +1226,7 @@ ${webUrl}
 
             // Commands that target a specific group: `pk;group <group> <action>`
             const groupSlug = subCmd;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const group = (system.groups || []).find((g: any) => g.slug === groupSlug || g.pkId === groupSlug);
             
             if (!group) {
@@ -1205,6 +1241,7 @@ ${webUrl}
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Group **${group.name}** has no members.`);
                     return true;
                 }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const memberList = group.members.sort((a: any, b: any) => a.slug.localeCompare(b.slug)).map((m: any) => `* **${m.name}** (\`${m.slug}\`)`).join("\n");
                 await this.sendRichText(this.bridge.getIntent(), roomId, `### Group: ${group.displayName || group.name}\n${memberList}`);
                 return true;
@@ -1217,12 +1254,14 @@ ${webUrl}
                     return true;
                 }
                 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const validMembers = system.members.filter((m: any) => memberSlugs.includes(m.slug) || memberSlugs.includes(m.pkId));
                 if (validMembers.length === 0) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, `None of the specified members were found.`);
                     return true;
                 }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const connectArr = validMembers.map((m: any) => ({ id: m.id }));
                 
                 if (action === "add") {
@@ -1321,6 +1360,7 @@ ${webUrl}
             const botUserId = this.bridge.getBot().getUserId();
             
             // Proactively fetch power levels once during room setup
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const state = await (ghostIntent as any).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "");
             const users = state.users || {};
             const ghostLevel = users[ghostUserId] || state.users_default || 0;
@@ -1355,10 +1395,11 @@ ${webUrl}
             if (changed) {
                 state.users = users;
                 console.log(`[Ghost] ${ghostUserId} pre-emptively promoting bot/owner to PL ${ghostLevel} in ${roomId}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 await (this.bridge.getIntent(ghostUserId) as any).matrixClient.sendStateEvent(roomId, "m.room.power_levels", "", state);
             }
-        } catch (e: any) {
-            console.warn(`[Ghost] Failed to pre-emptively promote system in ${roomId}:`, e.message);
+        } catch (e: unknown) {
+            console.warn(`[Ghost] Failed to pre-emptively promote system in ${roomId}:`, (e as Error).message);
         }
     }
 }

@@ -5,6 +5,7 @@ import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
 import { parseCommand } from '../utils/commandParser';
 import { parseProxyMatch, ProxyContent, ProxySystem } from '../utils/proxyParser';
+import { PluralMatrixEventContent, PluralMatrixEvent } from '../types';
 import { applyAutoproxyLatch } from '../services/autoproxyService';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 
@@ -12,7 +13,7 @@ export const checkMessage = async (req: Request, res: Response) => {
     try {
         const validated = GatekeeperCheckSchema.parse(req.body);
         const { event_id, sender, room_id, bot_id, type, encrypted_payload, origin_server_ts } = validated;
-        let content = validated.content as Record<string, unknown>;
+        let content = validated.content as PluralMatrixEventContent;
         const isEncryptedSource = type === "m.room.encrypted";
 
         // --- DECRYPTION SUPPORT (E2EE) ---
@@ -118,10 +119,10 @@ export const checkMessage = async (req: Request, res: Response) => {
                 // Fire and forget background processor
                 (async () => {
                     try {
-                        let originalEvent: Record<string, unknown> | null = null;
+                        let originalEvent: PluralMatrixEvent | null = null;
                         if (isEdit && originalEventId) {
                             try {
-                                const botClient = getBridge()?.getBot().getClient() as unknown as { getEvent: (roomId: string, eventId: string) => Promise<Record<string, unknown>> };
+                                const botClient = getBridge()?.getBot().getClient() as unknown as { getEvent: (roomId: string, eventId: string) => Promise<PluralMatrixEvent> };
                                 originalEvent = await botClient.getEvent(room_id, originalEventId);
                                 console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
                             } catch {
@@ -130,18 +131,19 @@ export const checkMessage = async (req: Request, res: Response) => {
                         }
 
                         // Re-parse with the original event to get the rich fallbacks
-                        const finalProxyMatch = parseProxyMatch(content, system as unknown as ProxySystem, isEdit ? (originalEvent?.content as Record<string, unknown> | undefined) : undefined);
+                        const finalProxyMatch = parseProxyMatch(content, system as unknown as ProxySystem, isEdit ? (originalEvent?.content as PluralMatrixEventContent | undefined) : undefined);
                         if (!finalProxyMatch) return; // Should never happen since it matched above
 
                         const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch;
 
                         await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prisma);
 
-                        let relatesTo: Record<string, unknown> | undefined = undefined;
-                        const sourceContent = (isEdit && originalEvent?.content ? originalEvent.content : content) as Record<string, unknown>;
+                        let relatesTo: PluralMatrixEventContent["m.relates_to"] | undefined = undefined;
+                        const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : content;
                         if (sourceContent["m.relates_to"]) {
-                            relatesTo = { ...(sourceContent["m.relates_to"] as Record<string, unknown>) };
-                            console.log(`[Gatekeeper] Extracted initial relatesTo:`, JSON.stringify(relatesTo));                            if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
+                            relatesTo = { ...sourceContent["m.relates_to"] };
+                            console.log(`[Gatekeeper] Extracted initial relatesTo:`, JSON.stringify(relatesTo));                            
+                            if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
                             if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
                         }
                         

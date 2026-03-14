@@ -1,4 +1,4 @@
-import { AppServiceRegistration, Bridge, Request, WeakEvent, AppService } from "matrix-appservice-bridge";
+import { Bridge, Request, WeakEvent, AppService } from "matrix-appservice-bridge";
 import { PrismaClient } from "@prisma/client";
 import * as yaml from "js-yaml";
 import * as fs from "fs";
@@ -14,6 +14,7 @@ import { messageQueue } from "./services/queue/MessageQueue";
 import { CommandHandler } from "./services/commandHandler";
 import { parseCommand } from "./utils/commandParser";
 import { parseProxyMatch, ProxySystem } from "./utils/proxyParser";
+import { PluralMatrixEvent, PluralMatrixEventContent } from "./types";
 import { applyAutoproxyLatch } from "./services/autoproxyService";
 
 // Configuration
@@ -194,11 +195,12 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
 
     // Reaction handling logic
     if (event.type === "m.reaction") {
-        const relatesTo = event.content?.["m.relates_to"] as Record<string, unknown>;
+        const relatesTo = event.content?.["m.relates_to"] as NonNullable<PluralMatrixEventContent["m.relates_to"]>;
         if (relatesTo?.rel_type === "m.annotation") {
-            const reaction = relatesTo.key as string | undefined;
+            const reaction = relatesTo.key;
             if (reaction?.includes("❌") || reaction?.toLowerCase() === "x" || reaction?.toLowerCase() === ":x:") {
-                const targetEventId = relatesTo.event_id as string;
+                const targetEventId = relatesTo.event_id;
+                if (!targetEventId) return;
                 const system = await proxyCache.getSystemRules(sender, prismaClient);
                 if (!system) return;
 
@@ -228,18 +230,18 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     if (event.type === "m.room.encrypted" && !isDecrypted) return;
     if (event.type !== "m.room.message" && !isDecrypted) return;
     
-    const content = event.content as Record<string, unknown>;
+    const content = event.content as PluralMatrixEventContent;
     if (!content) return;
 
-    let body = content.body as string; 
+    let body = content.body; 
     let isEdit = false;
     let originalEventId = eventId;
-    let originalEvent: { unsigned?: { redacted_by?: string }, content?: Record<string, unknown> } | null = null;
+    let originalEvent: PluralMatrixEvent | null = null;
 
-    if (content["m.new_content"] && (content["m.relates_to"] as Record<string, unknown>)?.rel_type === "m.replace") {
-        body = (content["m.new_content"] as Record<string, unknown>).body as string;
+    if (content["m.new_content"] && content["m.relates_to"]?.rel_type === "m.replace") {
+        body = content["m.new_content"].body;
         isEdit = true;
-        originalEventId = ((content["m.relates_to"] as Record<string, unknown>).event_id || (content["m.relates_to"] as Record<string, unknown>).id) as string;
+        originalEventId = (content["m.relates_to"].event_id || (content["m.relates_to"] as { id?: string }).id) as string;
     }
 
     if (body === undefined || body === null) return;
@@ -250,8 +252,8 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     // Edit Loop Prevention
     if (isEdit) {
         try {
-            originalEvent = (await bridgeInstance.getBot().getClient().getEvent(roomId, originalEventId)) as { unsigned?: { redacted_by?: string }, content?: Record<string, unknown> };
-            const redactedBy = originalEvent?.unsigned?.redacted_by;
+            originalEvent = (await bridgeInstance.getBot().getClient().getEvent(roomId, originalEventId as string)) as unknown as PluralMatrixEvent;
+            const redactedBy = originalEvent?.unsigned?.redacted_by as string | undefined;
             if (redactedBy === botUserId || redactedBy?.startsWith("@_plural_")) return;
         } catch {
             // Ignore errors
@@ -290,7 +292,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
             cleanBody: string,
             cleanFormattedBody?: string,
             wasAutoproxied: boolean,
-            fullContent: Record<string, unknown>
+            fullContent: PluralMatrixEventContent
         };
         const format = cleanFormattedBody ? "org.matrix.custom.html" : undefined;
 
@@ -299,7 +301,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
         // If it's an edit, redact the original root event (Matrix server will cascade redact all associated m.replace edits)
         // If it's a new message, redact the event itself
         const targetRedactionId = isEdit ? originalEventId : eventId;
-        await commandHandler.safeRedact(roomId, targetRedactionId, "PluralProxy");
+        await commandHandler.safeRedact(roomId, targetRedactionId as string, "PluralProxy");
         
         try {
             const ghostUserId = `@_plural_${system.slug}_${targetMember.slug}:${DOMAIN}`;
@@ -326,7 +328,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
             const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : event.content;
             
             if (sourceContent["m.relates_to"]) {
-                relatesTo = { ...(sourceContent["m.relates_to"] as Record<string, unknown>) };
+                relatesTo = { ...sourceContent["m.relates_to"] } as Record<string, unknown>;
                 if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
                 if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
             }
@@ -340,8 +342,8 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
 };
 
 export const startMatrixBot = async () => {
-    const reg = yaml.load(fs.readFileSync(REGISTRATION_PATH, 'utf8')) as AppServiceRegistration;
-    asToken = (reg as unknown as Record<string, unknown>).as_token as string;
+    const reg = yaml.load(fs.readFileSync(REGISTRATION_PATH, 'utf8')) as { as_token: string, hs_token: string };
+    asToken = reg.as_token;
 
     bridge = new Bridge({
         homeserverUrl: HOMESERVER_URL,
@@ -436,7 +438,7 @@ export const startMatrixBot = async () => {
         }
     }
 
-    const appServiceInstance = new AppService({ homeserverToken: (reg as unknown as Record<string, unknown>).hs_token as string });
+    const appServiceInstance = new AppService({ homeserverToken: reg.hs_token });
     const app = appServiceInstance.app;
     app.use(async (req: { method: string, path: string, body: unknown }, res: unknown, next: () => void) => {
         if (req.method === 'PUT' && req.path.includes('/transactions/')) {

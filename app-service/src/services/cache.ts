@@ -72,8 +72,8 @@ export class ProxyCacheService {
 interface LastMessage {
     rootEventId: string;
     latestEventId: string;
-    latestContent: any;
-    rootContent: any;
+    latestContent: Record<string, unknown>;
+    rootContent: Record<string, unknown>;
     sender: string;
 }
 

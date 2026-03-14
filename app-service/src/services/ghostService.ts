@@ -10,8 +10,8 @@ export interface GhostMessageOptions {
     cleanContent: string;
     format?: string;
     formattedBody?: string;
-    relatesTo?: any;
-    fullContent?: any;
+    relatesTo?: Record<string, unknown>;
+    fullContent?: Record<string, unknown>;
     system: {
         slug: string;
         systemTag?: string | null;
@@ -65,7 +65,7 @@ export const sendGhostMessage = async (options: GhostMessageOptions) => {
         }
 
         messageQueue.enqueue(roomId, senderId, intent, cleanContent, relatesTo, prisma, system.slug, format, formattedBody, fullContent);
-    } catch (e: any) {
-        console.error(`[GhostService] Failed to queue message for ${member.slug}:`, e.message);
+    } catch (e: unknown) {
+        console.error(`[GhostService] Failed to queue message for ${member.slug}:`, (e as Error).message);
     }
 };

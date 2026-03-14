@@ -44,6 +44,7 @@ describe('PluralKit Compatibility', () => {
             system: mockSystem
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pkJson: any = await generatePkJson('@user:localhost');
 
         expect(pkJson).toBeDefined();
@@ -100,6 +101,7 @@ describe('PluralKit Compatibility', () => {
             system: mockSystem
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pkJson: any = await generatePkJson('@user:localhost');
         expect(pkJson.id).toMatch(/^[a-z]{5}$/);
         expect(pkJson.members[0].id).toMatch(/^[a-z]{5}$/);

@@ -7,10 +7,10 @@ interface MatrixEvent {
     type: string;
     sender: string;
     room_id?: string;
-    content: any;
+    content: Record<string, unknown>;
     event_id?: string;
     to_user_id?: string; // For to-device events in AS transactions (MSC2409)
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 interface TransactionBody {
@@ -21,20 +21,20 @@ interface TransactionBody {
     "de.sorunome.msc2409.to_device"?: MatrixEvent[];
     "org.matrix.msc3202.to_device"?: MatrixEvent[];
     to_device?: MatrixEvent[];
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export class TransactionRouter {
     private manager: OlmMachineManager;
     private botUserId: string;
     private onRequestCallback: (userId: string) => Promise<void>;
-    private onDecryptedEvent: (event: any) => Promise<void>;
+    private onDecryptedEvent: (event: Record<string, unknown>) => Promise<void>;
 
     constructor(
         manager: OlmMachineManager, 
         botUserId: string, 
         onRequestCallback: (userId: string) => Promise<void>,
-        onDecryptedEvent: (event: any) => Promise<void>
+        onDecryptedEvent: (event: Record<string, unknown>) => Promise<void>
     ) {
         this.manager = manager;
         this.botUserId = botUserId;

@@ -9,7 +9,7 @@ export class OlmMachineManager {
     private machines: Map<string, OlmMachine> = new Map();
     private locks: Map<string, Mutex> = new Map();
     private storageRoot: string;
-    private bridge: any;
+    private bridge: { getIntent: (userId: string) => import("matrix-appservice-bridge").Intent } | undefined;
     private asToken: string | undefined;
 
     constructor(storageRoot: string = "./data/crypto") {
@@ -19,7 +19,7 @@ export class OlmMachineManager {
         }
     }
 
-    setContext(bridge: any, asToken: string) {
+    setContext(bridge: { getIntent: (userId: string) => import("matrix-appservice-bridge").Intent }, asToken: string) {
         this.bridge = bridge;
         this.asToken = asToken;
     }

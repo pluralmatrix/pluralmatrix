@@ -7,7 +7,7 @@ export const test = base.extend({
     await use(page);
     
     if (process.env.VITE_COVERAGE === 'true') {
-      const coverage: any = await page.evaluate(() => (window as any).__coverage__);
+      const coverage: unknown = await page.evaluate(() => (window as unknown as Record<string, unknown>).__coverage__);
       if (coverage) {
         console.log(`[Coverage] Captured coverage for ${page.url()}`);
         const outputDir = path.resolve(__dirname, '../../../.nyc_output');

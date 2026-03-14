@@ -1,9 +1,10 @@
 import { registerDevice, clearRegisteredDevicesCache } from './crypto-utils';
 import { Intent } from 'matrix-appservice-bridge';
+import { PrismaClient } from '@prisma/client';
 
 describe('Crypto Device Registration Persistence', () => {
-    let mockIntent: any;
-    let mockPrisma: any;
+    let mockIntent: { userId: string, matrixClient: { doRequest: jest.Mock } };
+    let mockPrisma: Record<string, Record<string, jest.Mock>>;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -29,7 +30,7 @@ describe('Crypto Device Registration Persistence', () => {
         mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: false });
         mockPrisma.member.update.mockResolvedValue({});
 
-        const newlyRegistered = await registerDevice(mockIntent as Intent, 'DEV1', mockPrisma, 'm1');
+        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'DEV1', mockPrisma as unknown as PrismaClient, 'm1');
 
         expect(newlyRegistered).toBe(true);
         expect(mockIntent.matrixClient.doRequest).toHaveBeenCalledWith('POST', expect.any(String), null, expect.objectContaining({
@@ -45,7 +46,7 @@ describe('Crypto Device Registration Persistence', () => {
         // Mock DB: ALREADY registered
         mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: true });
 
-        const newlyRegistered = await registerDevice(mockIntent as Intent, 'DEV1', mockPrisma, 'm1');
+        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'DEV1', mockPrisma as unknown as PrismaClient, 'm1');
 
         expect(newlyRegistered).toBe(false);
         expect(mockIntent.matrixClient.doRequest).not.toHaveBeenCalled();
@@ -56,12 +57,12 @@ describe('Crypto Device Registration Persistence', () => {
         mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: false });
         
         // Mock Matrix returning error object
-        const error: any = new Error('Request failed');
+        const error = new Error('Request failed') as Error & { errcode?: string; body?: string };
         error.errcode = 'M_USER_IN_USE';
         error.body = 'User ID already taken';
         mockIntent.matrixClient.doRequest.mockRejectedValue(error);
 
-        const newlyRegistered = await registerDevice(mockIntent as Intent, 'DEV1', mockPrisma, 'm1');
+        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'DEV1', mockPrisma as unknown as PrismaClient, 'm1');
 
         expect(newlyRegistered).toBe(true);
         expect(mockPrisma.member.update).toHaveBeenCalledWith({
@@ -76,7 +77,7 @@ describe('Crypto Device Registration Persistence', () => {
             update: jest.fn().mockResolvedValue({})
         };
 
-        const newlyRegistered = await registerDevice(mockIntent as Intent, 'BOT_DEV', mockPrisma, undefined, 'sys1');
+        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'BOT_DEV', mockPrisma as unknown as PrismaClient, undefined, 'sys1');
 
         expect(newlyRegistered).toBe(true);
         expect(mockPrisma.system.findUnique).toHaveBeenCalledWith({

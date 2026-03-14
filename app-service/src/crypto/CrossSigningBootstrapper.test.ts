@@ -15,11 +15,11 @@ jest.mock('fs', () => ({
 }));
 
 import * as util from 'util';
-const { _mockExecFileAsync } = util as any;
+const { _mockExecFileAsync } = util as unknown as { _mockExecFileAsync: jest.Mock };
 
 describe('CrossSigningBootstrapper', () => {
     let fetchMock: jest.Mock;
-    let mockIntent: any;
+    let mockIntent: { matrixClient: { homeserverUrl: string } };
 
     beforeEach(() => {
         jest.clearAllMocks();

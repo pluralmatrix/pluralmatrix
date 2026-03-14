@@ -15,8 +15,12 @@ jest.mock("@matrix-org/matrix-sdk-crypto-nodejs", () => {
 
 describe("TransactionRouter", () => {
     let router: TransactionRouter;
-    let mockManager: any;
-    let mockMachine: any;
+    let mockManager: { getMachine: jest.Mock };
+    let mockMachine: {
+        receiveSyncChanges: jest.Mock;
+        decryptRoomEvent: jest.Mock;
+        updateTrackedUsers: jest.Mock;
+    };
     let onRequestCallback: jest.Mock;
     let onDecryptedEvent: jest.Mock;
 
@@ -36,7 +40,7 @@ describe("TransactionRouter", () => {
             getMachine: jest.fn().mockResolvedValue(mockMachine)
         };
 
-        router = new TransactionRouter(mockManager, botUserId, onRequestCallback, onDecryptedEvent);
+        router = new TransactionRouter(mockManager as unknown as ConstructorParameters<typeof TransactionRouter>[0], botUserId, onRequestCallback, onDecryptedEvent);
     });
 
     it("should route to-device events to the correct machine", async () => {
@@ -52,7 +56,7 @@ describe("TransactionRouter", () => {
             ]
         };
 
-        await router.processTransaction(transaction as any);
+        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
 
         expect(mockManager.getMachine).toHaveBeenCalledWith("@bot:localhost");
         expect(mockMachine.receiveSyncChanges).toHaveBeenCalled();
@@ -79,7 +83,7 @@ describe("TransactionRouter", () => {
             })
         });
 
-        await router.processTransaction(transaction as any);
+        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
 
         expect(mockMachine.decryptRoomEvent).toHaveBeenCalled();
         expect(onDecryptedEvent).toHaveBeenCalledWith(expect.objectContaining({
@@ -104,7 +108,7 @@ describe("TransactionRouter", () => {
 
         mockMachine.decryptRoomEvent.mockRejectedValue(new Error("Unknown session"));
 
-        await router.processTransaction(transaction as any);
+        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
 
         expect(mockMachine.updateTrackedUsers).toHaveBeenCalled();
         expect(onRequestCallback).toHaveBeenCalledWith(botUserId);
@@ -132,7 +136,7 @@ describe("TransactionRouter", () => {
 
         mockMachine.decryptRoomEvent.mockRejectedValue(new Error("Unknown session"));
 
-        await router.processTransaction(transaction as any);
+        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
 
         // Should only be called ONCE with Alice's ID
         expect(mockMachine.updateTrackedUsers).toHaveBeenCalledTimes(1);

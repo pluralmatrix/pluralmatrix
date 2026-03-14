@@ -28,8 +28,8 @@ jest.mock('../config', () => ({
 }));
 
 describe('ghostService', () => {
-    let mockIntent: any;
-    let mockBotIntent: any;
+    let mockIntent: Record<string, jest.Mock>;
+    let mockBotIntent: Record<string, jest.Mock>;
 
     beforeEach(() => {
         jest.clearAllMocks();

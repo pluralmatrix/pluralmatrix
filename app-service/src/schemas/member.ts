@@ -8,7 +8,7 @@ export const ProxyTagSchema = z.object({
     path: ["prefix"]
 });
 
-const emptyToNull = (val: any) => (val === "" ? null : val);
+const emptyToNull = (val: unknown) => (val === "" ? null : val);
 
 export const PrivacyLevelSchema = z.enum(["public", "private"]);
 

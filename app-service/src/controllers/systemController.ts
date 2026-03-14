@@ -111,7 +111,7 @@ export const getPublicSystem = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'System not found' });
         }
 
-        const sysPrivacy: any = system.privacy || {};
+        const sysPrivacy: Record<string, unknown> = (system.privacy as Record<string, unknown>) || {};
         
         // Filter System Level Fields
         if (sysPrivacy.name_privacy === 'private') system.name = null;
@@ -123,20 +123,20 @@ export const getPublicSystem = async (req: Request, res: Response) => {
         // Filter Member List
         if (sysPrivacy.member_list_privacy === 'private') {
             system.members = [];
-            (system as any).list_privacy_enforced = true;
+            (system as Record<string, unknown>).list_privacy_enforced = true;
         } else {
             system.members = (system.members || []).filter(m => {
-                const mp: any = m.privacy || {};
+                const mp: Record<string, unknown> = (m.privacy as Record<string, unknown>) || {};
                 return mp.visibility !== 'private';
             }).map(m => {
-                const mp: any = m.privacy || {};
+                const mp: Record<string, unknown> = (m.privacy as Record<string, unknown>) || {};
                 if (mp.name_privacy === 'private') m.name = m.displayName || m.name;
                 if (mp.description_privacy === 'private') m.description = null;
                 if (mp.avatar_privacy === 'private') m.avatarUrl = null;
                 if (mp.pronoun_privacy === 'private') m.pronouns = null;
                 if (mp.proxy_privacy === 'private') m.proxyTags = [];
                 // remove privacy object so we don't leak settings
-                delete (m as any).privacy;
+                delete (m as Record<string, unknown>).privacy;
                 return m;
             });
         }
@@ -144,24 +144,24 @@ export const getPublicSystem = async (req: Request, res: Response) => {
         // Filter Group List
         if (sysPrivacy.group_list_privacy === 'private') {
             system.groups = [];
-            (system as any).group_list_privacy_enforced = true;
+            (system as Record<string, unknown>).group_list_privacy_enforced = true;
         } else {
             system.groups = (system.groups || []).filter(g => {
-                const gp: any = g.privacy || {};
+                const gp: Record<string, unknown> = (g.privacy as Record<string, unknown>) || {};
                 return gp.visibility !== 'private';
             }).map(g => {
-                const gp: any = g.privacy || {};
+                const gp: Record<string, unknown> = (g.privacy as Record<string, unknown>) || {};
                 if (gp.name_privacy === 'private') g.name = g.displayName || g.name;
                 if (gp.description_privacy === 'private') g.description = null;
                 if (gp.avatar_privacy === 'private') g.icon = null;
                 // remove privacy object
-                delete (g as any).privacy;
+                delete (g as Record<string, unknown>).privacy;
                 return g;
             });
         }
 
         // Strip system privacy object
-        delete (system as any).privacy;
+        delete (system as Record<string, unknown>).privacy;
 
         res.json(system);
     } catch (e) {
@@ -217,8 +217,9 @@ export const createSystem = async (req: AuthRequest, res: Response) => {
                 proxyCache.invalidate(mxid);
                 emitSystemUpdate(mxid);
                 return res.status(201).json(system);
-            } catch (err: any) {
-                if (err.code === 'P2002' && err.meta?.target?.includes('slug')) {
+            } catch (err: unknown) {
+                const e = err as { code?: string, meta?: { target?: string[] } };
+                if (e.code === 'P2002' && e.meta?.target?.includes('slug')) {
                     attempts++;
                     console.warn(`[SystemController] Slug race condition detected for ${localpart}, retrying (attempt ${attempts})...`);
                     continue;
@@ -279,7 +280,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
         }
 
         const currentSystemId = link.systemId;
-        const updateData: any = { name, systemTag, autoproxyId, autoproxyMode, description, avatarUrl };
+        const updateData: Record<string, unknown> = { name, systemTag, autoproxyId, autoproxyMode, description, avatarUrl };
         
         if (privacy !== undefined) {
             updateData.privacy = privacy;
@@ -308,6 +309,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
         }
 
         // If the system slug is changing, we must decommission all old ghosts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let membersToMigrate: any[] = [];
         if (slugChanged) {
             const systemWithMembers = await prisma.system.findUnique({
@@ -435,8 +437,8 @@ export const createLink = async (req: AuthRequest, res: Response) => {
         emitSystemUpdate(mxid);
         console.log(`[API] createLink successful for ${targetMxid}`);
         res.status(201).json(newLink);
-    } catch (e: any) {
-        console.error('[SystemController] Failed to create link:', e.message || e);
+    } catch (e: unknown) {
+        console.error('[SystemController] Failed to create link:', (e as Error).message || e);
         res.status(500).json({ error: 'Failed to create link' });
     }
 };

@@ -36,7 +36,7 @@ jest.mock('../services/events', () => ({
 }));
 
 describe('GatekeeperController', () => {
-    let mockRes: any;
+    let mockRes: { json: jest.Mock, status: jest.Mock };
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -61,7 +61,7 @@ describe('GatekeeperController', () => {
             body: { sender: '@unknown:localhost', room_id: '!room:localhost', event_id: '$1' }
         } as Request;
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
         expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
@@ -72,7 +72,7 @@ describe('GatekeeperController', () => {
             body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: '\\escaped' } }
         } as Request;
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
         expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
@@ -81,9 +81,9 @@ describe('GatekeeperController', () => {
         
         const req = {
             body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'lily: Hello' } }
-        } as any;
+        } as unknown as Request;
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
         expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
         expect(sendGhostMessage).toHaveBeenCalledWith(expect.objectContaining({
             cleanContent: 'Hello',
@@ -97,9 +97,9 @@ describe('GatekeeperController', () => {
         
         const req = {
             body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'Just chatting' } }
-        } as any;
+        } as unknown as Request;
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
         expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
         expect(sendGhostMessage).toHaveBeenCalled();
     });
@@ -115,7 +115,7 @@ describe('GatekeeperController', () => {
                 type: 'm.room.encrypted',
                 encrypted_payload: { body: 'lily: Secret' } // In real case this is blob, but we mock decrypted content
             }
-        } as any;
+        } as unknown as Request;
 
         // Mock machine to return decrypted content
         (cryptoManager.getMachine as jest.Mock).mockResolvedValue({
@@ -124,7 +124,7 @@ describe('GatekeeperController', () => {
             })
         });
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
         expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
         // Should NOT trigger proxy here, bot.ts will do it
         expect(sendGhostMessage).not.toHaveBeenCalled();
@@ -136,9 +136,9 @@ describe('GatekeeperController', () => {
             
             const req = {
                 body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'pk;edit test' } }
-            } as any;
+            } as unknown as Request;
 
-            await checkMessage(req, mockRes as Response);
+            await checkMessage(req, mockRes as unknown as Response);
             expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
             expect(commandHandler.executeTargetingCommand).toHaveBeenCalled();
         });
@@ -148,9 +148,9 @@ describe('GatekeeperController', () => {
             
             const req = {
                 body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'pk;rp lily' } }
-            } as any;
+            } as unknown as Request;
 
-            await checkMessage(req, mockRes as Response);
+            await checkMessage(req, mockRes as unknown as Response);
             expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
             expect(commandHandler.executeTargetingCommand).toHaveBeenCalled();
         });
@@ -166,7 +166,7 @@ describe('GatekeeperController', () => {
                     type: 'm.room.encrypted',
                     encrypted_payload: {}
                 }
-            } as any;
+            } as unknown as Request;
 
             (cryptoManager.getMachine as jest.Mock).mockResolvedValue({
                 decryptRoomEvent: jest.fn().mockResolvedValue({
@@ -174,7 +174,7 @@ describe('GatekeeperController', () => {
                 })
             });
 
-            await checkMessage(req, mockRes as Response);
+            await checkMessage(req, mockRes as unknown as Response);
             expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
             expect(commandHandler.executeTargetingCommand).not.toHaveBeenCalled();
         });
@@ -185,7 +185,7 @@ describe('GatekeeperController', () => {
             body: { invalid: 'data' } // Missing required fields
         } as Request;
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
         expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
@@ -198,13 +198,13 @@ describe('GatekeeperController', () => {
                 type: 'm.room.encrypted',
                 encrypted_payload: { body: 'lily: Secret' }
             }
-        } as any;
+        } as unknown as Request;
 
         (cryptoManager.getMachine as jest.Mock).mockResolvedValue({
             decryptRoomEvent: jest.fn().mockRejectedValue(new Error('Decryption Failed'))
         });
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
         expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
@@ -214,11 +214,11 @@ describe('GatekeeperController', () => {
         
         const req = {
             body: { sender: '@alice:localhost', room_id: '!room:localhost', event_id: '$1', content: { body: 'lily: Hello' } }
-        } as any;
+        } as unknown as Request;
 
-        (prisma as any).system = { update: jest.fn().mockResolvedValue({}) };
+        (prisma as unknown as { system: { update: jest.Mock } }).system = { update: jest.fn().mockResolvedValue({}) };
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
 
         // Wait a tick for async background task
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -245,7 +245,7 @@ describe('GatekeeperController', () => {
                     'm.relates_to': { rel_type: 'm.replace', event_id: '$orig' }
                 } 
             }
-        } as any;
+        } as unknown as Request;
 
         const mockClient = {
             getEvent: jest.fn().mockResolvedValue({
@@ -260,7 +260,7 @@ describe('GatekeeperController', () => {
             getBot: () => ({ getUserId: () => '@bot:localhost', getClient: () => mockClient })
         });
 
-        await checkMessage(req, mockRes as Response);
+        await checkMessage(req, mockRes as unknown as Response);
 
         await new Promise(resolve => setTimeout(resolve, 0));
 

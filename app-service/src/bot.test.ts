@@ -19,7 +19,7 @@ jest.mock('@prisma/client', () => ({
 
 import { handleEvent, prisma, setAsToken, cryptoManager, initCommandHandler } from './bot';
 import * as botModule from './bot';
-import { Request } from 'matrix-appservice-bridge';
+import { Request, Bridge, WeakEvent } from 'matrix-appservice-bridge';
 
 const mockBotClient = {
     redactEvent: jest.fn().mockResolvedValue({}),
@@ -74,13 +74,13 @@ describe('Bot Event Handler', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         setAsToken("test_token");
-        initCommandHandler(mockBridge as any, prisma, cryptoManager, "test_token", "localhost");
+        initCommandHandler(mockBridge as unknown as Bridge, prisma, cryptoManager, "test_token", "localhost");
     });
 
-    const createMockRequest = (event: any): Request<any> => {
+    const createMockRequest = (event: Record<string, unknown>): Request<WeakEvent> => {
         return {
             getData: () => event
-        } as any;
+        } as unknown as Request<WeakEvent>;
     };
 
     describe('Janitor Logic', () => {
@@ -93,7 +93,7 @@ describe('Bot Event Handler', () => {
                 content: { body: "" }
             };
 
-            await handleEvent(createMockRequest(event), mockBridge as any, prisma);
+            await handleEvent(createMockRequest(event), mockBridge as unknown as Bridge, prisma);
 
             // Should redact via commandHandler.safeRedact (which calls botClient.redactEvent)
             expect(mockBotClient.redactEvent).toHaveBeenCalledWith("!room:localhost", "$123", "ZeroFlash");
@@ -130,7 +130,7 @@ describe('Bot Event Handler', () => {
             const ghostInvite = jest.spyOn(mockIntent, 'invite');
             const ghostSetTopic = jest.spyOn(mockIntent, 'setRoomTopic');
 
-            await handleEvent(createMockRequest(event), mockBridge as any, prisma);
+            await handleEvent(createMockRequest(event), mockBridge as unknown as Bridge, prisma);
 
             expect(ghostJoin).toHaveBeenCalled();
             expect(ghostInvite).toHaveBeenCalledWith(roomId, primaryUser);
@@ -163,7 +163,7 @@ describe('Bot Event Handler', () => {
             const ghostInvite = jest.spyOn(mockIntent, 'invite');
             const ghostSetTopic = jest.spyOn(mockIntent, 'setRoomTopic');
 
-            await handleEvent(createMockRequest(event), mockBridge as any, prisma);
+            await handleEvent(createMockRequest(event), mockBridge as unknown as Bridge, prisma);
 
             // Should NOT invite owner (sender)
             expect(ghostInvite).not.toHaveBeenCalledWith(roomId, ownerMxid);
@@ -201,7 +201,7 @@ describe('Bot Event Handler', () => {
             const infoSpy = jest.spyOn(botModule.commandHandler, 'handleMessageInfoRequest').mockResolvedValue(undefined);
             const redactSpy = jest.spyOn(botModule.commandHandler, 'safeRedact').mockResolvedValue(undefined);
 
-            await handleEvent(createMockRequest(event), mockBridge as any, prisma);
+            await handleEvent(createMockRequest(event), mockBridge as unknown as Bridge, prisma);
 
             expect(infoSpy).toHaveBeenCalledWith("!room:localhost", "@alice:localhost", "$target1", false);
             expect(redactSpy).toHaveBeenCalledWith("!room:localhost", "$react1", "Cleanup");
@@ -228,7 +228,7 @@ describe('Bot Event Handler', () => {
             const pingSpy = jest.spyOn(botModule.commandHandler, 'handleMessagePingRequest').mockResolvedValue(undefined);
             const redactSpy = jest.spyOn(botModule.commandHandler, 'safeRedact').mockResolvedValue(undefined);
 
-            await handleEvent(createMockRequest(event), mockBridge as any, prisma);
+            await handleEvent(createMockRequest(event), mockBridge as unknown as Bridge, prisma);
 
             expect(pingSpy).toHaveBeenCalledWith("!room:localhost", "@alice:localhost", "$target2");
             expect(redactSpy).toHaveBeenCalledWith("!room:localhost", "$react2", "Cleanup");
@@ -253,7 +253,7 @@ describe('Bot Event Handler', () => {
             };
 
             // Mock the target event as belonging to a different system
-            (mockBotClient as any).getEvent.mockResolvedValue({
+            (mockBotClient as { getEvent: jest.Mock }).getEvent.mockResolvedValue({
                 sender: "@_plural_othersys_bob:localhost",
                 event_id: "$target3",
                 type: "m.room.message"
@@ -261,7 +261,7 @@ describe('Bot Event Handler', () => {
 
             const redactSpy = jest.spyOn(botModule.commandHandler, 'safeRedact').mockResolvedValue(undefined);
 
-            await handleEvent(createMockRequest(event), mockBridge as any, prisma);
+            await handleEvent(createMockRequest(event), mockBridge as unknown as Bridge, prisma);
 
             // Should not redact the target event or the reaction
             expect(redactSpy).not.toHaveBeenCalled();
@@ -300,7 +300,7 @@ describe('Bot Event Handler', () => {
 
             const ghostSetTopic = jest.spyOn(mockIntent, 'setRoomTopic');
 
-            await handleEvent(createMockRequest(event), mockBridge as any, prisma);
+            await handleEvent(createMockRequest(event), mockBridge as unknown as Bridge, prisma);
 
             // Should clear the topic
             expect(ghostSetTopic).toHaveBeenCalledWith(roomId, "");

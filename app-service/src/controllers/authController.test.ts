@@ -116,7 +116,7 @@ import { me } from './authController';
 
 describe('AuthController - me', () => {
     it('should return req.user', () => {
-        const mockReq = { user: { mxid: '@test:localhost' } } as unknown as import('express').Request;
+        const mockReq = { user: { mxid: '@test:localhost' } } as Partial<import('express').Request> as import('express').Request;
         const mockRes = { json: jest.fn() } as unknown as import('express').Response;
 
         me(mockReq, mockRes);

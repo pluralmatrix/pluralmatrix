@@ -30,7 +30,7 @@ app.use(bodyParser.json());
 
 // Mock auth middleware injecting the user
 const mockAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    (req as unknown as Record<string, unknown>).user = { mxid: '@alice:localhost' };
+    req.user = { mxid: '@alice:localhost' };
     next();
 };
 

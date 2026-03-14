@@ -24,7 +24,7 @@ describe('importController', () => {
         mockReq = {
             user: { mxid: '@test:localhost' },
             body: {}
-        } as unknown as import('express').Request;
+        } as Partial<import('express').Request> as import('express').Request;
         mockRes = {
             json: jest.fn(),
             status: jest.fn().mockReturnThis(),

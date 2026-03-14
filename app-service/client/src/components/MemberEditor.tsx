@@ -77,7 +77,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
 
     const handleTagChange = (index: number, field: string, value: string) => {
         const newTags = [...formData.proxyTags];
-        newTags[index][field] = value;
+        (newTags[index] as Record<string, string | undefined>)[field] = value;
         setFormData({ ...formData, proxyTags: newTags });
     };
 
@@ -117,7 +117,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
         e.preventDefault();
         
         // Basic validation for proxy tags
-        const validTags = formData.proxyTags.filter((t: { prefix: string; suffix?: string }) => t.prefix.trim().length > 0);
+        const validTags = formData.proxyTags.filter((t: { prefix?: string; suffix?: string }) => t.prefix && t.prefix.trim().length > 0);
         if (validTags.length === 0) {
             alert('At least one proxy tag with a prefix is required.');
             return;
@@ -380,11 +380,11 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                                 data-testid={testId}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
-                                                    setFormData((prev: { groups: string[]; [key: string]: unknown }) => ({
+                                                    setFormData((prev) => ({
                                                         ...prev,
                                                         groups: isSelected 
-                                                            ? prev.groups.filter((id: string) => id !== group.id)
-                                                            : [...prev.groups, group.id]
+                                                            ? (prev.groups as string[]).filter((id: string) => id !== group.id)
+                                                            : [...(prev.groups as string[]), group.id]
                                                     }));
                                                 }}
                                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
@@ -412,7 +412,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                             <p className="text-xs text-matrix-muted">If private, this member will not appear in the system member list for others.</p>
                                         </div>
                                         <PrivacyToggle 
-                                            value={formData.privacy.visibility} 
+                                            value={formData.privacy.visibility as "public" | "private" | undefined} 
                                             onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, visibility: v } })} 
                                         />
                                     </div>
@@ -423,7 +423,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                                         <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
                                             <span className="text-sm font-medium capitalize">{field} Privacy</span>
                                             <PrivacyToggle 
-                                                value={formData.privacy[`${field}_privacy`]} 
+                                                value={formData.privacy[`${field}_privacy`] as "public" | "private" | undefined} 
                                                 onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, [`${field}_privacy`]: v } })} 
                                             />
                                         </div>

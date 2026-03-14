@@ -88,7 +88,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
         setFormData(prev => {
             const exists = prev.members.includes(memberId);
             if (exists) {
-                return { ...prev, members: prev.members.filter((id: string) => id !== memberId) };
+                return { ...prev, members: (prev.members as string[]).filter((id) => (id as string) !== memberId) };
             } else {
                 return { ...prev, members: [...prev.members, memberId] };
             }
@@ -130,11 +130,11 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex sm:items-center sm:justify-center p-0 sm:p-4">
                 <div className="bg-matrix-light sm:rounded-3xl p-6 w-full max-w-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
                     <div className="flex justify-between items-center mb-6 shrink-0">
-                        <h2 data-testid="group-editor-title" className="text-2xl font-bold text-white">{group.displayName || group.name}</h2>
+                        <h2 data-testid="group-editor-title" className="text-2xl font-bold text-white">{group?.displayName || group?.name}</h2>
                         <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted"><X /></button>
                     </div>
                     <div className="space-y-4 overflow-y-auto flex-1 custom-scrollbar pb-4">
-                        {group.description && <p className="text-matrix-muted">{group.description}</p>}
+                        {group?.description && <p className="text-matrix-muted">{group.description}</p>}
                         <h3 className="text-lg font-bold mt-4">Members</h3>
                         <div className="flex flex-wrap gap-2">
                             {systemMembers.filter(m => (formData.members as string[]).includes(m.id)).map(m => (
@@ -328,7 +328,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                                         <p className="text-xs text-matrix-muted">If private, this group will not appear in group lists for others.</p>
                                     </div>
                                     <PrivacyToggle 
-                                        value={formData.privacy.visibility} 
+                                        value={formData.privacy.visibility as "public" | "private" | undefined} 
                                         onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, visibility: v } })} 
                                     />
                                 </div>
@@ -339,7 +339,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
                                     <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
                                         <span className="text-sm font-medium capitalize">{field} Privacy</span>
                                         <PrivacyToggle 
-                                            value={formData.privacy[`${field}_privacy`]} 
+                                            value={formData.privacy[`${field}_privacy`] as "public" | "private" | undefined} 
                                             onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, [`${field}_privacy`]: v } })} 
                                         />
                                     </div>

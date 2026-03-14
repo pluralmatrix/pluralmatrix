@@ -407,7 +407,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSave, onCancel }) => 
                                         <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
                                             <span className="text-sm font-medium capitalize">{field.replace('_', ' ')} Privacy</span>
                                             <PrivacyToggle 
-                                                value={(formData.privacy as Record<string, string>)[`${field}_privacy`]} 
+                                                value={(formData.privacy as Record<string, string>)[`${field}_privacy`] as "public" | "private" | undefined} 
                                                 onChange={(v) => {
                                                     setFormData({ 
                                                         ...formData, 

@@ -86,16 +86,16 @@ const PublicSystemPage: React.FC = () => {
                 <div className="space-y-4">
                     <div className="space-y-1">
                         <h2 className="text-4xl font-bold tracking-tight text-white">
-                            {system.name || "Unnamed System"}
+                            {(system.name as string) || "Unnamed System"}
                         </h2>
-                        {system.systemTag && (
+                        {Boolean(system.systemTag) && (
                             <div className="text-xl font-normal text-matrix-muted/80 flex items-center">
                                 <span className="bg-white/5 px-2 py-0.5 rounded text-sm uppercase tracking-wider mr-2 text-xs font-bold font-mono">Suffix Tag</span>
-                                {system.systemTag}
+                                {system.systemTag as string}
                             </div>
                         )}
                     </div>
-                    <p className="text-matrix-muted font-medium">This system has {system.members.length} registered members.</p>
+                    <p className="text-matrix-muted font-medium">This system has {(system.members as unknown[]).length} registered members.</p>
                 </div>
 
                 {/* Search & Filter */}
@@ -134,7 +134,7 @@ const PublicSystemPage: React.FC = () => {
                                         member={member as unknown as React.ComponentProps<typeof MemberCard>['member']} 
                                         isReadOnly={true}
                                         isAutoproxy={system.autoproxyId === member.id}
-                                        onEdit={(m) => setSelectedMember(m)}
+                                        onEdit={(m) => setSelectedMember(m as unknown as Record<string, unknown>)}
                                         onDelete={() => {}}
                                     />
                                 ))}

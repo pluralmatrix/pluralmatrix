@@ -278,10 +278,10 @@ const DashboardPage: React.FC = () => {
                 {/* Hero / Stats */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div className="flex items-center gap-6">
-                        {system?.avatarUrl && (
+                        {Boolean(system?.avatarUrl) && (
                             <img 
-                                src={getAvatarUrl(system.avatarUrl)!} 
-                                alt={system?.name || "System"} 
+                                src={getAvatarUrl(system?.avatarUrl as string)!} 
+                                alt={(system?.name as string) || "System"} 
                                 className="w-24 h-24 rounded-3xl object-cover shadow-xl border-2 border-white/5"
                             />
                         )}
@@ -289,7 +289,7 @@ const DashboardPage: React.FC = () => {
                             <div className="space-y-1">
                                 <div className="flex items-center gap-3 group">
                                     <h2 data-testid="system-title" className="text-4xl font-bold tracking-tight text-white">
-                                        {system?.name || "Unnamed System"}
+                                        {(system?.name as string) || "Unnamed System"}
                                     </h2>
                                     {isOwner && (
                                         <button 
@@ -302,16 +302,16 @@ const DashboardPage: React.FC = () => {
                                         </button>
                                     )}
                                 </div>
-                                {system?.systemTag && (
+                                {Boolean(system?.systemTag) && (
                                     <div className="text-xl font-normal text-matrix-muted/80 flex items-center">
                                         <span className="bg-white/5 px-2 py-0.5 rounded text-sm uppercase tracking-wider mr-2 text-xs font-bold font-mono">Suffix Tag</span>
-                                        {system.systemTag}
+                                        {system?.systemTag as string}
                                     </div>
                                 )}
                             </div>
                             <p className="text-matrix-muted font-medium mt-4">This system has {members.length} registered members.</p>
-                            {system?.description && (
-                                <p className="text-matrix-muted/80 text-sm italic max-w-2xl mt-2 line-clamp-3">{system.description}</p>
+                            {Boolean(system?.description) && (
+                                <p className="text-matrix-muted/80 text-sm italic max-w-2xl mt-2 line-clamp-3">{system?.description as string}</p>
                             )}
                         </div>
                     </div>
@@ -451,7 +451,7 @@ const DashboardPage: React.FC = () => {
                                     key={member.id as string} 
                                     member={member as unknown as React.ComponentProps<typeof MemberCard>['member']}                                    isReadOnly={!isOwner}
                                     isAutoproxy={system?.autoproxyId === member.id}
-                                    onEdit={(m) => { setSelectedMember(m); setIsEditing(true); }}
+                                    onEdit={(m) => { setSelectedMember(m as unknown as Record<string, unknown>); setIsEditing(true); }}
                                     onDelete={handleDelete}
                                     onToggleAutoproxy={handleToggleAutoproxy}
                                 />
@@ -488,20 +488,18 @@ const DashboardPage: React.FC = () => {
 
             {/* Modals */}
             {isEditing && (
-                <MemberEditor 
-                    member={selectedMember} 
-                    systemGroups={groups}
-                    isReadOnly={!isOwner}
+                <MemberEditor
+                    member={selectedMember as React.ComponentProps<typeof MemberEditor>['member']}
+                    systemGroups={groups as React.ComponentProps<typeof MemberEditor>['systemGroups']}                    isReadOnly={!isOwner}
                     onSave={() => { setIsEditing(false); fetchData(true); }}
                     onCancel={() => setIsEditing(false)}
                 />
             )}
 
             {isEditingGroup && (
-                <GroupEditor 
-                    group={selectedGroup}
-                    systemMembers={members}
-                    isReadOnly={!isOwner}
+                <GroupEditor
+                    group={selectedGroup as React.ComponentProps<typeof GroupEditor>['group']}
+                    systemMembers={members as React.ComponentProps<typeof GroupEditor>['systemMembers']}                    isReadOnly={!isOwner}
                     onSave={() => { setIsEditingGroup(false); fetchData(true); }}
                     onCancel={() => setIsEditingGroup(false)}
                 />

@@ -477,8 +477,8 @@ export class CommandHandler {
 
         } else if (cmd === "reproxy" || cmd === "rp") {
             const memberSlug = parts[1]?.toLowerCase();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const member = system.members.find((m: any) => m.slug === memberSlug);
+         
+            const member = system.members.find((m: Record<string, unknown>) => m.slug === memberSlug);
             console.log(`[CommandHandler] Reproxy targetContent:`, JSON.stringify(targetContent));
             if (member) {
                 if (!latestText) {
@@ -746,8 +746,8 @@ ${webUrl}
                 return true;
             }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const sysPrivacy: any = targetSystem.privacy || {};
+         
+            const sysPrivacy = (targetSystem.privacy as Record<string, unknown>) || {};
 
             if (!subCmd) {
                 // Display system info card
@@ -762,8 +762,8 @@ ${webUrl}
                 }
 
                 if (isOwnSystem || sysPrivacy.member_list_privacy !== 'private') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const visibleMembers = targetSystem.members?.filter((m: any) => isOwnSystem || (m.privacy || {}).visibility !== 'private') || [];
+         
+                    const visibleMembers = targetSystem.members?.filter((m: Record<string, unknown>) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
                     card += `**Members:** ${visibleMembers.length}\n`;
                 } else {
                     card += `**Members:** (Private)\n`;
@@ -787,39 +787,39 @@ ${webUrl}
                 }
                 
                 const isFull = subCmdArgs[0] === "full";
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const visibleMembers = targetSystem.members?.filter((m: any) => isOwnSystem || (m.privacy || {}).visibility !== 'private') || [];
+         
+                const visibleMembers = targetSystem.members?.filter((m: Record<string, unknown>) => isOwnSystem || ((m.privacy as Record<string, unknown>) || {}).visibility !== 'private') || [];
                 
                 if (visibleMembers.length === 0) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "No system members found or they are all private.");
                     return true;
                 }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const sortedMembers = visibleMembers.sort((a: any, b: any) => a.slug.localeCompare(b.slug));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const memberList = sortedMembers.map((m: any) => {
-                    const mp = m.privacy || {};
-                    let dName = m.name;
+         
+                const sortedMembers = visibleMembers.sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.slug as string).localeCompare(b.slug as string));
+         
+                const memberList = sortedMembers.map((m: Record<string, unknown>) => {
+                    const mp = (m.privacy as Record<string, unknown>) || {};
+                    let dName = m.name as string;
                     if (!isOwnSystem && mp.name_privacy === 'private') {
-                        dName = m.displayName || m.name;
+                        dName = (m.displayName || m.name) as string;
                     }
                     
-                    let line = `* **${dName}** (\`${m.slug}\`)`;
+                    let line = `* **${dName}** (\`${m.slug as string}\`)`;
                     
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const tags = m.proxyTags as any[];
+         
+                    const tags = m.proxyTags as Record<string, unknown>[];
                     const tag = tags[0];
                     if (tag && (isOwnSystem || mp.proxy_privacy !== 'private')) {
-                        line += ` - \`${tag.prefix || ""}text${tag.suffix || ""}\``;
+                        line += ` - \`${tag.prefix as string || ""}text${tag.suffix as string || ""}\``;
                     }
 
                     if (isFull) {
                         if (m.pronouns && (isOwnSystem || mp.pronoun_privacy !== 'private')) {
-                            line += `\n  *Pronouns:* ${m.pronouns}`;
+                            line += `\n  *Pronouns:* ${m.pronouns as string}`;
                         }
                         if (m.description && (isOwnSystem || mp.description_privacy !== 'private')) {
-                            line += `\n  *Description:* ${m.description.split('\n')[0].substring(0, 100)}${m.description.length > 100 ? '...' : ''}`;
+                            line += `\n  *Description:* ${(m.description as string).split('\n')[0].substring(0, 100)}${(m.description as string).length > 100 ? '...' : ''}`;
                         }
                     }
                     return line;
@@ -1076,8 +1076,8 @@ ${webUrl}
                 return true;
             }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let member = system?.members.find((m: any) => m.slug === slug || m.pkId === slug);
+         
+            let member = system?.members.find((m: Record<string, unknown>) => m.slug === slug || m.pkId === slug);
             let isOwnMember = !!member;
 
             if (!member) {
@@ -1100,8 +1100,8 @@ ${webUrl}
             }
 
             // Enforce privacy
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const mp: any = member.privacy || {};
+         
+            const mp = (member.privacy as Record<string, unknown>) || {};
             if (!isOwnMember && mp.visibility === 'private') {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${slug}`);
                 return true;
@@ -1118,8 +1118,8 @@ ${webUrl}
             if (member.description && (isOwnMember || mp.description_privacy !== 'private')) info += `\n### Description\n${member.description}\n\n`;
 
             if (isOwnMember || mp.proxy_privacy !== 'private') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const tags = ((member.proxyTags || []) as any[]).map(t => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
+         
+                const tags = ((member.proxyTags || []) as Record<string, unknown>[]).map((t: Record<string, unknown>) => `\`${t.prefix || ""}text${t.suffix || ""}\``).join(", ");
                 info += `--- \n* **Proxy Tags:** ${tags || "None"}`;
             }
 
@@ -1162,8 +1162,8 @@ ${webUrl}
                 return true;
             }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const member = system.members.find((m: any) => m.slug === targetSlug);
+         
+            const member = system.members.find((m: Record<string, unknown>) => m.slug === targetSlug);
             if (!member) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${targetSlug}`);
                 return true;
@@ -1193,10 +1193,10 @@ ${webUrl}
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have any groups in your system.");
                     return true;
                 }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const sortedGroups = groups.sort((a: any, b: any) => a.slug.localeCompare(b.slug));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const groupList = sortedGroups.map((g: any) => `* **${g.displayName || g.name}** (id: \`${g.slug}\`) - ${g.members?.length || 0} members`).join("\n");
+         
+                const sortedGroups = groups.sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.slug as string).localeCompare(b.slug as string));
+         
+                const groupList = sortedGroups.map((g: Record<string, unknown>) => `* **${(g.displayName || g.name) as string}** (id: \`${g.slug as string}\`) - ${(g.members as unknown[])?.length || 0} members`).join("\n");
                 await this.sendRichText(this.bridge.getIntent(), roomId, `### ${system.name || "Your System"} Groups\n${groupList}`);
                 return true;
             }
@@ -1226,8 +1226,8 @@ ${webUrl}
 
             // Commands that target a specific group: `pk;group <group> <action>`
             const groupSlug = subCmd;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const group = (system.groups || []).find((g: any) => g.slug === groupSlug || g.pkId === groupSlug);
+         
+            const group = (system.groups || []).find((g: Record<string, unknown>) => g.slug === groupSlug || g.pkId === groupSlug);
             
             if (!group) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No group found with ID: ${groupSlug}`);
@@ -1241,8 +1241,8 @@ ${webUrl}
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Group **${group.name}** has no members.`);
                     return true;
                 }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const memberList = group.members.sort((a: any, b: any) => a.slug.localeCompare(b.slug)).map((m: any) => `* **${m.name}** (\`${m.slug}\`)`).join("\n");
+         
+                const memberList = (group.members as Record<string, unknown>[]).sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.slug as string).localeCompare(b.slug as string)).map((m: Record<string, unknown>) => `* **${m.name as string}** (\`${m.slug as string}\`)`).join("\n");
                 await this.sendRichText(this.bridge.getIntent(), roomId, `### Group: ${group.displayName || group.name}\n${memberList}`);
                 return true;
             }
@@ -1254,15 +1254,15 @@ ${webUrl}
                     return true;
                 }
                 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const validMembers = system.members.filter((m: any) => memberSlugs.includes(m.slug) || memberSlugs.includes(m.pkId));
+         
+                const validMembers = (system.members as Record<string, unknown>[]).filter((m: Record<string, unknown>) => memberSlugs.includes(m.slug as string) || memberSlugs.includes(m.pkId as string));
                 if (validMembers.length === 0) {
                     await this.sendEncryptedText(this.bridge.getIntent(), roomId, `None of the specified members were found.`);
                     return true;
                 }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const connectArr = validMembers.map((m: any) => ({ id: m.id }));
+         
+                const connectArr = validMembers.map((m: Record<string, unknown>) => ({ id: m.id as string }));
                 
                 if (action === "add") {
                     await this.prisma.group.update({

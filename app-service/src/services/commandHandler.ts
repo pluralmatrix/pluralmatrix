@@ -1,6 +1,6 @@
 import { Bridge, Intent } from "matrix-appservice-bridge";
 import { PrismaClient } from '@prisma/client';
-import { SystemWithRelations } from '../types';
+import { SystemWithRelations, PluralMatrixEvent, IntentWithClient, PluralMatrixEventContent } from '../types';
 import { marked } from "marked";
 import { RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { OlmMachineManager } from "../crypto/OlmMachineManager";
@@ -153,14 +153,12 @@ export class CommandHandler {
     async safeRedact(roomId: string, eventId: string, reason: string, preferredIntent?: Intent) {
         const intent = preferredIntent || this.bridge.getIntent();
         try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (intent as any).matrixClient.redactEvent(roomId, eventId, reason);
+            await (intent as unknown as IntentWithClient).matrixClient.redactEvent(roomId, eventId, reason);
         } catch (e: unknown) {
             const err = e as { errcode?: string, httpStatus?: number };
             if (err.errcode === 'M_FORBIDDEN' || err.httpStatus === 403) {
                 try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    await (this.bridge.getIntent() as any).matrixClient.redactEvent(roomId, eventId, reason);
+                    await (this.bridge.getIntent() as unknown as IntentWithClient).matrixClient.redactEvent(roomId, eventId, reason);
                 } catch (fallbackErr: unknown) {
                     const fbErr = fallbackErr as { errcode?: string, httpStatus?: number };
                     if ((fbErr.errcode === 'M_FORBIDDEN' || fbErr.httpStatus === 403) && !this.permissionWarnedRooms.has(roomId)) {
@@ -208,34 +206,26 @@ export class CommandHandler {
 
         // 2. Slow Path: Search/History
         const scrollback = await this.getRoomMessages(roomId, 100);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let targetRoot: any = null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let latestContent: any = null;
+        let targetRoot: PluralMatrixEvent | null = null;
+        let latestContent: PluralMatrixEventContent | null = null;
         let rootId = explicitTargetId;
 
         if (rootId) {
             // Target specific message (Reply or Manual ID)
             try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                let explicitEvent: any = null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                explicitEvent = scrollback.chunk.find((e: any) => e.event_id === rootId || e.id === rootId);
+                let explicitEvent: PluralMatrixEvent | null = null;
+                explicitEvent = scrollback.chunk.find((e: PluralMatrixEvent) => e.event_id === rootId || e.id === rootId);
                 if (!explicitEvent) {
-                    explicitEvent = await botClient.getEvent(roomId, rootId);
+                    explicitEvent = await botClient.getEvent(roomId, rootId) as unknown as PluralMatrixEvent;
                     if (explicitEvent && !explicitEvent.event_id) {
                         explicitEvent.event_id = rootId;
                     }
                 }
 
                 if (!explicitEvent) return null;
-                
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const eventSender = explicitEvent.sender || (explicitEvent as any).sender;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const eventType = explicitEvent.type || (explicitEvent as any).type;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                let content = explicitEvent.content || (explicitEvent as any).content || {};
+                const eventSender = explicitEvent.sender || explicitEvent.sender;
+                const eventType = explicitEvent.type || explicitEvent.type;
+                let content = explicitEvent.content || explicitEvent.content || {};
                 
                 if (eventType === "m.room.encrypted") {
                     try {
@@ -249,7 +239,7 @@ export class CommandHandler {
                 
                 const rel = content["m.relates_to"];
                 if (rel?.rel_type === "m.replace") {
-                    rootId = rel.event_id || rel.id;
+                    rootId = rel.event_id || (rel as { id?: string }).id;
                 }
                 
                 targetRoot = { ...explicitEvent, sender: eventSender, type: eventType, content };
@@ -325,8 +315,7 @@ export class CommandHandler {
     /**
      * Command Execution
      */
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async executeTargetingCommand(event: any, body: string, system: SystemWithRelations | null) {
+    async executeTargetingCommand(event: PluralMatrixEvent, body: string, system: SystemWithRelations | null) {
         const roomId = event.room_id;
         const formattedBody = event.content?.["m.new_content"]?.formatted_body || event.content?.formatted_body;
         
@@ -336,9 +325,7 @@ export class CommandHandler {
         const { cmd, parts, cleanFormattedBody } = parsed;
 
         if (!["edit", "e", "reproxy", "rp", "message", "msg"].includes(cmd)) return false;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const relatesTo = (event.content as any)?.["m.relates_to"];
+        const relatesTo = event.content?.["m.relates_to"];
         const replyTo = relatesTo?.["m.in_reply_to"]?.event_id;
 
         const subCmd = parts[1]?.toLowerCase();
@@ -356,14 +343,13 @@ export class CommandHandler {
         
         let targetId: string | undefined;
         let targetSender: string | undefined;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let targetContent: any;
+        let targetContent: PluralMatrixEventContent | undefined;
         let originalId: string | undefined;
 
         if (resolution) {
             targetSender = resolution.event.sender;
-            targetContent = resolution.latestContent;
-            targetId = resolution.event.event_id || resolution.event.id;
+            targetContent = resolution.latestContent || undefined;
+            targetId = resolution.event.event_id || (resolution.event as { id?: string }).id;
             originalId = resolution.originalId;
         }
 
@@ -401,18 +387,14 @@ export class CommandHandler {
         const latestText = targetContent["m.new_content"]?.body || targetContent.body;
         const latestFormat = targetContent["m.new_content"]?.format || targetContent.format;
         const latestFormattedBody = targetContent["m.new_content"]?.formatted_body || targetContent.formatted_body;
-        
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let relatesToForReproxy: any = undefined;
+        let relatesToForReproxy: Record<string, unknown> | undefined = undefined;
         // The original root event contains the m.in_reply_to block, not necessarily the latest edit
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const originalContent = resolution?.event?.content || (resolution?.event as any)?.content || {};
+        const originalContent = resolution?.event?.content || resolution?.event?.content || {};
         console.log(`[CommandHandler] originalContent extracted from resolution:`, JSON.stringify(originalContent));
         const sourceForRelatesTo = originalContent["m.relates_to"] ? originalContent : targetContent;
 
         if (sourceForRelatesTo["m.relates_to"]) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            relatesToForReproxy = { ...sourceForRelatesTo["m.relates_to"] } as any;
+            relatesToForReproxy = { ...sourceForRelatesTo["m.relates_to"] };
             if (relatesToForReproxy.rel_type === "m.replace") { 
                 delete relatesToForReproxy.rel_type; 
                 delete relatesToForReproxy.event_id; 
@@ -426,8 +408,7 @@ export class CommandHandler {
             if (!newText) return true;
             
             // Base the edit payload on the original target content to preserve attachments
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const editPayload: any = { ...targetContent };
+            const editPayload: PluralMatrixEventContent = { ...targetContent };
             if (editPayload["m.new_content"]) {
                 delete editPayload["m.new_content"];
             }
@@ -506,8 +487,7 @@ export class CommandHandler {
                 if (member.avatarUrl) await intent.setAvatarUrl(member.avatarUrl);
                 
                 // Base the payload on the actual content to preserve msgtype (like m.image), URLs, info, and hashes
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const reproxyPayload: any = { ...targetContent };
+                const reproxyPayload: PluralMatrixEventContent = { ...targetContent };
                 
                 // If it was an edit, we want to reproxy the LATEST text/html, not the original
                 // We've already extracted latestText, latestFormat, and latestFormattedBody
@@ -558,8 +538,7 @@ export class CommandHandler {
                 preset: "trusted_private_chat",
                 visibility: "private"
             });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (res as any).room_id || (typeof res === "string" ? res : null);
+            return (res as { room_id?: string }).room_id || (typeof res === "string" ? res : null);
         } catch (e) {
             console.error("Failed to find or create DM room for", userId, e);
             return null;
@@ -671,8 +650,7 @@ export class CommandHandler {
         }
     }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async handleCommand(event: any, cmd: string, parts: string[], system: SystemWithRelations | null): Promise<any> {
+    async handleCommand(event: PluralMatrixEvent, cmd: string, parts: string[], system: SystemWithRelations | null): Promise<boolean> {
         const roomId = event.room_id;
         const sender = event.sender;
 
@@ -945,8 +923,7 @@ ${webUrl}
 
             // Issue #5: Verify user existence before linking
             try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await (this.bridge.getIntent() as any).matrixClient.getUserProfile(targetMxid);
+                await (this.bridge.getIntent() as unknown as IntentWithClient).matrixClient.getUserProfile(targetMxid);
             } catch {
                 await this.sendRichText(this.bridge.getIntent(), roomId, `❌ Could not verify Matrix ID **${targetMxid}**. Please ensure the ID is correct and the user exists.`);
                 return true;
@@ -1338,7 +1315,7 @@ ${webUrl}
         if (["edit", "e", "reproxy", "rp", "message", "msg"].includes(cmd)) {
             if (!system && cmd !== "message" && cmd !== "msg") return true;
             const handled = await this.executeTargetingCommand(event, `pk;${cmd} ${parts.slice(1).join(" ")}`, system);
-            if (handled) {
+            if (handled && event.event_id) {
                 await this.safeRedact(roomId, event.event_id, "PluralCommand");
             }
             return true;
@@ -1363,9 +1340,8 @@ ${webUrl}
             const botUserId = this.bridge.getBot().getUserId();
             
             // Proactively fetch power levels once during room setup
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const state = await (ghostIntent as any).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "");
-            const users = state.users || {};
+            const state = await (ghostIntent as unknown as IntentWithClient).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "");
+            const users = (state.users as Record<string, number>) || {};
             const ghostLevel = users[ghostUserId] || state.users_default || 0;
             
             // Only proceed if the ghost has authority to promote others
@@ -1398,8 +1374,7 @@ ${webUrl}
             if (changed) {
                 state.users = users;
                 console.log(`[Ghost] ${ghostUserId} pre-emptively promoting bot/owner to PL ${ghostLevel} in ${roomId}`);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await (this.bridge.getIntent(ghostUserId) as any).matrixClient.sendStateEvent(roomId, "m.room.power_levels", "", state);
+                await (this.bridge.getIntent(ghostUserId) as unknown as IntentWithClient).matrixClient.sendStateEvent(roomId, "m.room.power_levels", "", state);
             }
         } catch (e: unknown) {
             console.warn(`[Ghost] Failed to pre-emptively promote system in ${roomId}:`, (e as Error).message);

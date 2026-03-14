@@ -122,7 +122,7 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
         });
 
         // Sync updated profile to Matrix (under the new slug if it changed)
-        await syncGhostProfile(updated as unknown as Record<string, unknown>, (updated as unknown as Record<string, unknown>).system as Record<string, unknown>);
+        await syncGhostProfile(updated, updated.system);
 
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);

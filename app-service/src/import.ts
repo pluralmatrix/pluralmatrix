@@ -9,6 +9,7 @@ import imageSize from 'image-size';
 import os from 'os';
 import { config } from './config';
 import { PKExport, PluralKitMember, PluralKitSystem, PluralKitGroup } from './types';
+import { Member, System } from '@prisma/client';
 
 export interface AvatarMigrationError {
     slug: string;
@@ -215,7 +216,7 @@ export const migrateAvatar = async (url: string): Promise<{ mxcUrl?: string, err
 /**
  * Sets the global profile for a ghost user.
  */
-export const syncGhostProfile = async (member: Record<string, unknown>, system: Record<string, unknown>) => {
+export const syncGhostProfile = async (member: Partial<Member>, system: Partial<System>) => {
     try {
         const bridge = getBridge();
         if (!bridge) return;
@@ -230,15 +231,15 @@ export const syncGhostProfile = async (member: Record<string, unknown>, system: 
         const intent = bridge.getIntent(ghostUserId);
 
         const finalDisplayName = system.systemTag 
-            ? `${(member.displayName as string) || (member.name as string)} ${system.systemTag as string}`
-            : ((member.displayName as string) || (member.name as string));
+            ? `${member.displayName || member.name} ${system.systemTag}`
+            : (member.displayName || member.name);
 
         console.log(`[Ghost] Syncing global profile for ${ghostUserId}`);
         
         await intent.ensureRegistered();
-        await intent.setDisplayName(finalDisplayName);
+        if (finalDisplayName) await intent.setDisplayName(finalDisplayName);
         if (member.avatarUrl) {
-            await intent.setAvatarUrl(member.avatarUrl as string);
+            await intent.setAvatarUrl(member.avatarUrl);
         }
     } catch (e: unknown) {
         console.warn(`[Ghost] Failed to sync profile for ${member.slug}:`, (e as Error).message);
@@ -250,7 +251,7 @@ export const syncGhostProfile = async (member: Record<string, unknown>, system: 
 /**
  * Cleanup a ghost user when a member is deleted.
  */
-export const decommissionGhost = async (member: Record<string, unknown>, system: Record<string, unknown>) => {
+export const decommissionGhost = async (member: Partial<Member>, system: Partial<System>) => {
     try {
         const bridge = getBridge();
         if (!bridge) return;

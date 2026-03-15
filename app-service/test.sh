@@ -47,6 +47,13 @@ if [ $LINT_FRONTEND_EXIT_CODE -ne 0 ]; then
     echo "❌ Frontend lint failed."
 fi
 
+echo "🛡️  Checking Code Formatting..."
+../format.sh --check
+FORMAT_EXIT_CODE=$?
+if [ $FORMAT_EXIT_CODE -ne 0 ]; then
+    echo "❌ Code formatting check failed. Run ./format.sh from project root to fix."
+fi
+
 echo "🛡️  Auditing Backend Dependencies..."
 npx --yes audit-ci --config audit-ci.json
 AUDIT_BACKEND_EXIT_CODE=$?
@@ -101,7 +108,7 @@ sudo docker compose -f ../docker-compose.yml restart app-service
 sleep 5
 
 # Final verdict
-if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ] && [ $LINT_BACKEND_EXIT_CODE -eq 0 ] && [ $LINT_FRONTEND_EXIT_CODE -eq 0 ] && [ $AUDIT_BACKEND_EXIT_CODE -eq 0 ] && [ $AUDIT_FRONTEND_EXIT_CODE -eq 0 ] && [ $BUILD_FRONTEND_EXIT_CODE -eq 0 ]; then
+if [ $JEST_EXIT_CODE -eq 0 ] && [ $PW_EXIT_CODE -eq 0 ] && [ $LINT_BACKEND_EXIT_CODE -eq 0 ] && [ $LINT_FRONTEND_EXIT_CODE -eq 0 ] && [ $FORMAT_EXIT_CODE -eq 0 ] && [ $AUDIT_BACKEND_EXIT_CODE -eq 0 ] && [ $AUDIT_FRONTEND_EXIT_CODE -eq 0 ] && [ $BUILD_FRONTEND_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "🏆 ALL TESTS PASSED SUCCESSFULLY! 🏅"
     exit 0
@@ -110,6 +117,7 @@ else
     echo "🛑 TEST SUITE FAILED. Please review the errors above."
     [ $LINT_BACKEND_EXIT_CODE -ne 0 ] && echo " - Backend Lint Failed"
     [ $LINT_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Lint Failed"
+    [ $FORMAT_EXIT_CODE -ne 0 ] && echo " - Code Formatting Check Failed"
     [ $AUDIT_BACKEND_EXIT_CODE -ne 0 ] && echo " - Backend Audit Failed"
     [ $AUDIT_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Audit Failed"
     [ $BUILD_FRONTEND_EXIT_CODE -ne 0 ] && echo " - Frontend Build Failed"

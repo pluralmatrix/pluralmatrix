@@ -1,5 +1,8 @@
 # PluralMatrix: Developer Notes 🌌
 
+## Context Mandate
+* **ALWAYS** read `README.md` and `docs/ARCHITECTURE.md` for context about the project before starting significant tasks.
+
 ## Git Mandate
 * **NEVER** do a `git checkout` or `git reset --hard` to discard changes or start over without explicit permission from the user. It is irreversible and the user must be in the loop. Do not unilaterally throw away or discard work!
 * **NEVER** commit and push to GitHub without stopping and asking for explicit permission first.

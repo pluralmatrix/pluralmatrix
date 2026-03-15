@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.nyc_output
+test-results
+coverage-ui
+playwright-report
+blob-report
+build
+_site

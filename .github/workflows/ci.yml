@@ -38,6 +38,10 @@ jobs:
           cd app-service/client
           npm run build
 
+      - name: Check Code Formatting
+        if: always()
+        run: ./format.sh --check
+
       - name: Run Backend Lint
         if: always()
         run: |

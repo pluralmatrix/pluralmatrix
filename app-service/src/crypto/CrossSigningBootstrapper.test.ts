@@ -104,27 +104,27 @@ describe('CrossSigningBootstrapper', () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
 
         // 1. Device Signing Upload Check
-        const keysCallUrl = new URL(fetchMock.mock.calls[0][0]);
-        const keysCallArgs = fetchMock.mock.calls[0][1];
+        const keysCallUrl = new URL((fetchMock.mock.calls as string[][])[0][0]);
+        const keysCallArgs = (fetchMock.mock.calls as { method: string, headers: Record<string, string>, body: string }[][])[0][1];
         
         expect(keysCallUrl.pathname).toBe('/_matrix/client/v3/keys/device_signing/upload');
         expect(keysCallUrl.searchParams.get('user_id')).toBe('@ghost:localhost');
         expect(keysCallArgs.method).toBe('POST');
         expect(keysCallArgs.headers['Authorization']).toBe('Bearer as_token_123');
         
-        const keysBody = JSON.parse(keysCallArgs.body);
+        const keysBody = JSON.parse(keysCallArgs.body) as { auth: unknown, master_key: unknown };
         expect(keysBody.auth).toEqual({ type: 'm.login.dummy' }); // Ensure UIA is bypassed via AS token
         expect(keysBody.master_key).toBeDefined();
 
         // 2. Signatures Upload Check
-        const sigCallUrl = new URL(fetchMock.mock.calls[1][0]);
-        const sigCallArgs = fetchMock.mock.calls[1][1];
+        const sigCallUrl = new URL((fetchMock.mock.calls as string[][])[1][0]);
+        const sigCallArgs = (fetchMock.mock.calls as { method: string, headers: Record<string, string>, body: string }[][])[1][1];
         
         expect(sigCallUrl.pathname).toBe('/_matrix/client/v3/keys/signatures/upload');
         expect(sigCallUrl.searchParams.get('user_id')).toBe('@ghost:localhost');
         expect(sigCallArgs.method).toBe('POST');
         
-        const sigBody = JSON.parse(sigCallArgs.body);
+        const sigBody = JSON.parse(sigCallArgs.body) as Record<string, unknown>;
         expect(sigBody["@ghost:localhost"]).toBeDefined();
 
         // Assert Return Value

@@ -124,7 +124,7 @@ describe('System Controller', () => {
 
             const res = await request(app).get('/system');
             expect(res.status).toBe(200);
-            expect(res.body.slug).toBe('alice');
+            expect((res.body as { slug: string }).slug).toBe('alice');
         });
 
         it('should return 404 if system does not exist', async () => {
@@ -133,7 +133,7 @@ describe('System Controller', () => {
             const res = await request(app).get('/system');
 
             expect(res.status).toBe(404);
-            expect(prisma.system.create).not.toHaveBeenCalled();
+            expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
         });
 
         it('should handle errors gracefully', async () => {
@@ -155,8 +155,8 @@ describe('System Controller', () => {
             const res = await request(app).post('/system');
 
             expect(res.status).toBe(201);
-            expect(prisma.system.create).toHaveBeenCalledTimes(2);
-            expect(res.body.id).toBe('sys1');
+            expect(jest.spyOn(prisma.system, 'create')).toHaveBeenCalledTimes(2);
+            expect((res.body as { id: string }).id).toBe('sys1');
         });
         
         it('should return 400 if system already exists', async () => {
@@ -165,7 +165,7 @@ describe('System Controller', () => {
             const res = await request(app).post('/system');
 
             expect(res.status).toBe(400);
-            expect(prisma.system.create).not.toHaveBeenCalled();
+            expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
         });
 
         it('should handle errors gracefully', async () => {
@@ -191,9 +191,9 @@ describe('System Controller', () => {
             const res = await request(app).delete('/system');
 
             expect(res.status).toBe(200);
-            expect(decommissionGhost).toHaveBeenCalledWith(mockSystem.members[0], mockSystem);
-            expect(prisma.system.delete).toHaveBeenCalledWith({ where: { id: 'sys1' } });
-            expect(proxyCache.invalidate).toHaveBeenCalledWith('@alice:localhost');
+            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(mockSystem.members[0], mockSystem);
+            expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys1' } });
+            expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@alice:localhost');
         });
 
         it('should return 403 if user is not linked to any system', async () => {
@@ -202,7 +202,7 @@ describe('System Controller', () => {
             const res = await request(app).delete('/system');
 
             expect(res.status).toBe(403);
-            expect(prisma.system.delete).not.toHaveBeenCalled();
+            expect(jest.spyOn(prisma.system, 'delete')).not.toHaveBeenCalled();
         });
 
         it('should handle errors gracefully', async () => {
@@ -224,10 +224,10 @@ describe('System Controller', () => {
             const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
 
             expect(res.status).toBe(201);
-            expect(prisma.accountLink.create).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.objectContaining({ matrixId: '@bob:localhost', systemId: 'sys1', isPrimary: false })
-            }));
-            expect(proxyCache.invalidate).toHaveBeenCalledWith('@bob:localhost');
+            expect(jest.spyOn(prisma.accountLink, 'create')).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({ matrixId: '@bob:localhost', systemId: 'sys1', isPrimary: false }) as unknown
+            }) as unknown);
+            expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@bob:localhost');
             expect(emitSystemUpdate).toHaveBeenCalledTimes(2);
         });
 
@@ -239,7 +239,7 @@ describe('System Controller', () => {
             const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('already has members');
+            expect((res.body as { error: string }).error).toContain('already has members');
         });
 
         it('should fail if already linked to same system', async () => {
@@ -250,7 +250,7 @@ describe('System Controller', () => {
             const res = await request(app).post('/links').send({ targetMxid: '@alice_alt:localhost' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('already linked');
+            expect((res.body as { error: string }).error).toContain('already linked');
         });
 
         it('should delete empty target system if it was the only link', async () => {
@@ -263,7 +263,7 @@ describe('System Controller', () => {
 
             await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
 
-            expect(prisma.system.delete).toHaveBeenCalledWith({ where: { id: 'sys2' } });
+            expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys2' } });
         });
 
         it('should handle errors gracefully', async () => {
@@ -286,13 +286,13 @@ describe('System Controller', () => {
             const res = await request(app).delete('/links/@bob:localhost');
 
             expect(res.status).toBe(200);
-            expect(prisma.accountLink.delete).toHaveBeenCalledWith({ where: { matrixId: '@bob:localhost' } });
+            expect(jest.spyOn(prisma.accountLink, 'delete')).toHaveBeenCalledWith({ where: { matrixId: '@bob:localhost' } });
         });
 
         it('should prevent deleting own account', async () => {
             const res = await request(app).delete('/links/@alice:localhost');
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('cannot unlink your own account');
+            expect((res.body as { error: string }).error).toContain('cannot unlink your own account');
         });
 
         it('should assign a new primary if primary is deleted', async () => {
@@ -306,7 +306,7 @@ describe('System Controller', () => {
 
             await request(app).delete('/links/@bob:localhost');
 
-            expect(prisma.accountLink.update).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.accountLink, 'update')).toHaveBeenCalledWith(expect.objectContaining({
                 where: { matrixId: '@alice:localhost' },
                 data: { isPrimary: true }
             }));
@@ -330,7 +330,7 @@ describe('System Controller', () => {
             
             // To pass the "own account" check, we use a different target
             await request(app).delete('/links/@bob:localhost');
-            expect(prisma.system.delete).toHaveBeenCalledWith({ where: { id: 'sys1' } });
+            expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys1' } });
         });
 
         it('should handle errors gracefully', async () => {
@@ -349,12 +349,12 @@ describe('System Controller', () => {
             const res = await request(app).post('/links/primary').send({ targetMxid: '@bob:localhost' });
 
             expect(res.status).toBe(200);
-            expect(prisma.$transaction).toHaveBeenCalled();
-            expect(prisma.accountLink.updateMany).toHaveBeenCalledWith({
+            expect(jest.spyOn(prisma, '$transaction')).toHaveBeenCalled();
+            expect(jest.spyOn(prisma.accountLink, 'updateMany')).toHaveBeenCalledWith({
                 where: { systemId: 'sys1' },
                 data: { isPrimary: false }
             });
-            expect(prisma.accountLink.update).toHaveBeenCalledWith({
+            expect(jest.spyOn(prisma.accountLink, 'update')).toHaveBeenCalledWith({
                 where: { matrixId: '@bob:localhost' },
                 data: { isPrimary: true }
             });
@@ -382,13 +382,13 @@ describe('System Controller', () => {
 
             expect(res.status).toBe(200);
             expect(res.body).toHaveLength(1);
-            expect(res.body[0].eventId).toBe('$1');
+            expect((res.body as { eventId: string }[])[0].eventId).toBe('$1');
         });
 
         it('should delete a dead letter', async () => {
             const res = await request(app).delete('/dlq/dl123');
             expect(res.status).toBe(200);
-            expect(messageQueue.deleteDeadLetter).toHaveBeenCalledWith('dl123');
+            expect(jest.spyOn(messageQueue, 'deleteDeadLetter')).toHaveBeenCalledWith('dl123');
         });
 
         it('should handle get errors gracefully', async () => {
@@ -429,9 +429,9 @@ describe('System Controller', () => {
             expect(res.status).toBe(200);
             
             // Should decommission the old ghosts
-            expect(decommissionGhost).toHaveBeenCalledTimes(2);
-            expect(decommissionGhost).toHaveBeenCalledWith(mockSystemWithMembers.members[0], mockSystemWithMembers);
-            expect(decommissionGhost).toHaveBeenCalledWith(mockSystemWithMembers.members[1], mockSystemWithMembers);
+            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledTimes(2);
+            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(mockSystemWithMembers.members[0], mockSystemWithMembers);
+            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(mockSystemWithMembers.members[1], mockSystemWithMembers);
             
             // Should sync the new ghosts under the updated system
             expect(syncGhostProfile).toHaveBeenCalledTimes(2);
@@ -455,7 +455,7 @@ describe('System Controller', () => {
             expect(res.status).toBe(200);
             
             // Should NOT decommission or resync
-            expect(decommissionGhost).not.toHaveBeenCalled();
+            expect(jest.mocked(decommissionGhost)).not.toHaveBeenCalled();
             expect(syncGhostProfile).not.toHaveBeenCalled();
         });
 
@@ -469,13 +469,13 @@ describe('System Controller', () => {
                 .send({ description: 'Test', avatarUrl: 'mxc://example.com/123' });
 
             expect(res.status).toBe(200);
-            expect(prisma.system.update).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.system, 'update')).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({
                     description: 'Test',
                     avatarUrl: 'mxc://example.com/123'
-                })
-            }));
-            expect(decommissionGhost).not.toHaveBeenCalled();
+                }) as unknown
+            }) as unknown);
+            expect(jest.mocked(decommissionGhost)).not.toHaveBeenCalled();
             expect(syncGhostProfile).not.toHaveBeenCalled();
         });
 
@@ -485,8 +485,8 @@ describe('System Controller', () => {
                 .send({ slug: 'INVALID SLUG WITH SPACES' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toBe('Invalid input format');
-            expect(prisma.system.update).not.toHaveBeenCalled();
+            expect((res.body as { error: string }).error).toBe('Invalid input format');
+            expect(jest.spyOn(prisma.system, 'update')).not.toHaveBeenCalled();
         });
 
         it('should handle errors gracefully', async () => {
@@ -512,12 +512,12 @@ describe('System Controller', () => {
             const res = await request(app).get('/public/sys1');
 
             expect(res.status).toBe(200);
-            expect(res.body.slug).toBe('sys1');
-            expect(res.body.name).toBe('Public System');
+            expect((res.body as { slug: string }).slug).toBe('sys1');
+            expect((res.body as { name: string }).name).toBe('Public System');
             // Ensure internal fields are missing
-            expect(res.body.id).toBeUndefined();
-            expect(res.body.autoproxyId).toBeUndefined();
-            expect(res.body.pkId).toBeUndefined();
+            expect((res.body as { id: string }).id).toBeUndefined();
+            expect((res.body as { autoproxyId: string }).autoproxyId).toBeUndefined();
+            expect((res.body as { pkId: string }).pkId).toBeUndefined();
         });
 
         it('should return 404 if system not found', async () => {

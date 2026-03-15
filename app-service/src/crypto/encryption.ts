@@ -23,7 +23,7 @@ async function dispatchToDevice(intent: Intent, asToken: string, ghostUserId: st
     const typedReq = req as ToDeviceRequest;
     const eventType = (typedReq.eventType || typedReq.event_type) as string;
     const txnId = (typedReq.txnId || typedReq.txn_id) as string;
-    const body = typeof typedReq.body === 'string' ? JSON.parse(typedReq.body) : (typedReq.messages ? { messages: typedReq.messages } : typedReq);
+    const body = typeof typedReq.body === 'string' ? JSON.parse(typedReq.body) as Record<string, unknown> : (typedReq.messages ? { messages: typedReq.messages } : typedReq) as Record<string, unknown>;
 
     await doAsRequest(
         hsUrl, 
@@ -53,7 +53,7 @@ export async function sendEncryptedEvent(
     // 1. Check if room is encrypted
     let isEncrypted = false;
     try {
-        const encryptionState = await intent.matrixClient.getRoomStateEvent(roomId, "m.room.encryption", "");
+        const encryptionState = (await intent.matrixClient.getRoomStateEvent(roomId, "m.room.encryption", "")) as { algorithm?: string };
         if (encryptionState && encryptionState.algorithm === "m.megolm.v1.aes-sha2") {
             isEncrypted = true;
         }
@@ -144,7 +144,7 @@ export async function sendEncryptedEvent(
         const contentToEncrypt = { ...content };
         
         const encryptedContentString = await machine.encryptRoomEvent(rustRoomId, eventType, JSON.stringify(contentToEncrypt));
-        const encryptedPayload = JSON.parse(encryptedContentString);
+        const encryptedPayload = JSON.parse(encryptedContentString) as Record<string, unknown>;
         
         if (relatesTo) {
             encryptedPayload["m.relates_to"] = relatesTo;

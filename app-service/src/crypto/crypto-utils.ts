@@ -22,7 +22,7 @@ export async function doAsRequest(
     path: string,
     body: Record<string, unknown> | null,
     msc3202DeviceId?: string
-    ) {    const url = new URL(`${hsUrl}${path}`);
+    ): Promise<Record<string, unknown>> {    const url = new URL(`${hsUrl}${path}`);
     url.searchParams.set("user_id", targetUserId);
     if (msc3202DeviceId) {
         url.searchParams.set("org.matrix.msc3202.device_id", msc3202DeviceId);
@@ -62,7 +62,7 @@ export async function doAsRequest(
                 error.status = res.status;
                 error.body = text;
                 throw error;            }
-            return res.json();
+            return (await res.json()) as Record<string, unknown>;
         } catch (e: unknown) {
             if ((e as { status?: number }).status === 429 || (e as Error).message?.includes("M_LIMIT_EXCEEDED")) {
                 // Already handled above if possible, but catch network-level or other errors here
@@ -168,7 +168,7 @@ export async function registerDevice(intent: Intent, deviceId: string, prisma?: 
                 let isRateLimit = (e as Error).message?.includes("M_LIMIT_EXCEEDED");
                 if (!isRateLimit && err.body) {
                     try {
-                        const parsedBody = typeof err.body === 'string' ? JSON.parse(err.body) : err.body;
+                        const parsedBody = typeof err.body === 'string' ? JSON.parse(err.body) as Record<string, unknown> : err.body;
                         isRateLimit = (parsedBody as { errcode?: string }).errcode === "M_LIMIT_EXCEEDED";
                     } catch { /* Ignore */ }
                 }
@@ -236,7 +236,7 @@ export async function waitForDeviceVisibility(
                 { device_keys: { [targetUserId]: [] } }
             );
 
-            const devices = response.device_keys?.[targetUserId] || {};
+            const devices = (response.device_keys as Record<string, unknown>)?.[targetUserId] as Record<string, unknown> || {};
             if (devices[targetDeviceId]) {
                 return true;
             }
@@ -277,7 +277,7 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
         switch (typedReq.type as unknown as RequestType) {
             case RequestType.KeysUpload:
                 try {
-                    response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}"), deviceId);
+                    response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}") as Record<string, unknown>, deviceId);
                 } catch (err: unknown) {
                     if ((err as { body?: string }).body && (err as { body: string }).body.includes("already exists")) {
                         response = { "one_time_key_counts": { "signed_curve25519": 50 } };
@@ -285,28 +285,28 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
                 }                break;
 
             case RequestType.KeysQuery: {
-                const queryBody = JSON.parse(typedReq.body || "{}");
+                const queryBody = JSON.parse(typedReq.body || "{}") as Record<string, unknown>;
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/query", queryBody);
-                const devCount = Object.keys(response?.device_keys || {}).length;
+                const devCount = Object.keys((response?.device_keys as Record<string, unknown>) || {}).length;
                 console.log(`[KEY_EXCHANGE] KeysQuery success for ${userId}. Found ${devCount} users.`);
                 break;
             }
 
             case RequestType.KeysClaim: {
-                const claimBody = JSON.parse(typedReq.body || "{}");
+                const claimBody = JSON.parse(typedReq.body || "{}") as Record<string, unknown>;
                 response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/claim", claimBody);
-                const OTKCount = response?.one_time_keys ? Object.keys(response.one_time_keys).length : 0;
+                const OTKCount = response?.one_time_keys ? Object.keys(response.one_time_keys as Record<string, unknown>).length : 0;
                 console.log(`[KEY_EXCHANGE] KeysClaim success for ${userId}. Obtained OTKs for ${OTKCount} users.`);
                 break;
             }
             
             case RequestType.SignatureUpload:
-                response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/signatures/upload", JSON.parse(typedReq.body || "{}"));
+                response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/signatures/upload", JSON.parse(typedReq.body || "{}") as Record<string, unknown>);
                 break;
 
             case RequestType.ToDevice:
                 console.log(`[KEY_EXCHANGE] Sending ToDevice ${typedReq.eventType} from ${userId}`);
-                response = await doAsRequest(hsUrl, asToken, userId, "PUT", `/_matrix/client/v3/sendToDevice/${encodeURIComponent(typedReq.eventType || "")}/${encodeURIComponent(typedReq.txnId || "")}`, JSON.parse(typedReq.body || "{}"));
+                response = await doAsRequest(hsUrl, asToken, userId, "PUT", `/_matrix/client/v3/sendToDevice/${encodeURIComponent(typedReq.eventType || "")}/${encodeURIComponent(typedReq.txnId || "")}`, JSON.parse(typedReq.body || "{}") as Record<string, unknown>);
                 break;
 
             default:

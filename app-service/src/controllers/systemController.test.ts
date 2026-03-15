@@ -512,12 +512,13 @@ describe('System Controller', () => {
             const res = await request(app).get('/public/sys1');
 
             expect(res.status).toBe(200);
-            expect((res.body as { slug: string }).slug).toBe('sys1');
-            expect((res.body as { name: string }).name).toBe('Public System');
+            const body = res.body as Partial<import('@prisma/client').System>;
+            expect(body.slug).toBe('sys1');
+            expect(body.name).toBe('Public System');
             // Ensure internal fields are missing
-            expect((res.body as { id: string }).id).toBeUndefined();
-            expect((res.body as { autoproxyId: string }).autoproxyId).toBeUndefined();
-            expect((res.body as { pkId: string }).pkId).toBeUndefined();
+            expect(body.id).toBeUndefined();
+            expect(body.autoproxyId).toBeUndefined();
+            expect(body.pkId).toBeUndefined();
         });
 
         it('should return 404 if system not found', async () => {

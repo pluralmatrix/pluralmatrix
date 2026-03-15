@@ -115,6 +115,26 @@ jobs:
           cd app-service
           npx jest --forceExit
 
+      - name: Dump Docker Logs on Failure
+        if: failure()
+        run: |
+          echo "=== App Service Logs ==="
+          sudo docker logs --tail 500 pluralmatrix-app-service || true
+          echo "=== Synapse Logs ==="
+          sudo docker logs --tail 500 pluralmatrix-synapse || true
+          sudo docker logs pluralmatrix-app-service > app-service-logs.txt 2>&1 || true
+          sudo docker logs pluralmatrix-synapse > synapse-logs.txt 2>&1 || true
+
+      - name: Upload Docker Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: docker-logs-backend
+          path: |
+            app-service-logs.txt
+            synapse-logs.txt
+          retention-days: 7
+
   e2e-tests:
     name: Playwright UI Tests
     runs-on: ubuntu-latest
@@ -169,6 +189,26 @@ jobs:
         run: |
           cd app-service
           sudo docker run --rm --network host --ipc=host -v "$(pwd)/..:/app" -w /app/app-service mcr.microsoft.com/playwright:v1.58.2-jammy npx playwright test
+        
+      - name: Dump Docker Logs on Failure
+        if: failure()
+        run: |
+          echo "=== App Service Logs ==="
+          sudo docker logs --tail 500 pluralmatrix-app-service || true
+          echo "=== Synapse Logs ==="
+          sudo docker logs --tail 500 pluralmatrix-synapse || true
+          sudo docker logs pluralmatrix-app-service > app-service-logs.txt 2>&1 || true
+          sudo docker logs pluralmatrix-synapse > synapse-logs.txt 2>&1 || true
+
+      - name: Upload Docker Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: docker-logs-e2e
+          path: |
+            app-service-logs.txt
+            synapse-logs.txt
+          retention-days: 7
         
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4

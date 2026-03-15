@@ -18,16 +18,8 @@ export default tseslint.config(
       },
     },
     rules: {
-      "@typescript-eslint/no-explicit-any": "error",
+      // We use @typescript-eslint/no-unused-vars instead (enabled by default in recommendedTypeChecked)
       "no-unused-vars": "off",
-
-      // Ignoring strict rules related to Jest mocks/any propagation for now
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/unbound-method": "off",
     },
   },
   {

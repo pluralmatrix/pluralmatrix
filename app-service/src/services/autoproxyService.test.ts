@@ -1,7 +1,6 @@
 import { applyProxyEffects } from './autoproxyService';
 import { PrismaClient } from '@prisma/client';
 import { proxyCache } from './cache';
-import { emitSystemUpdate } from './events';
 import { SystemWithRelations } from '../types';
 
 jest.mock('./cache', () => ({
@@ -12,7 +11,10 @@ jest.mock('./events', () => ({
 }));
 
 describe('autoproxyService', () => {
-  let mockPrisma: any;
+  let mockPrisma: {
+    system: { update: jest.Mock };
+    switch: { create: jest.Mock };
+  };
 
   beforeEach(() => {
     mockPrisma = {
@@ -31,13 +33,14 @@ describe('autoproxyService', () => {
     } as unknown as SystemWithRelations;
 
     // Triggered by member m2, unproxied
-    await applyProxyEffects(sys, 'm2', false, '@alice', mockPrisma as PrismaClient);
+    await applyProxyEffects(sys, 'm2', false, '@alice', mockPrisma as unknown as PrismaClient);
 
     expect(mockPrisma.system.update).toHaveBeenCalledWith({
       where: { id: 'sys1' },
       data: { autoproxyId: 'm2' },
     });
-    expect(proxyCache.invalidate).toHaveBeenCalledWith('@alice');
+    const proxyCacheMock = proxyCache as { invalidate: jest.Mock };
+    expect(proxyCacheMock.invalidate).toHaveBeenCalledWith('@alice');
   });
 
   it('should autoswitch new', async () => {
@@ -48,7 +51,7 @@ describe('autoproxyService', () => {
       switches: [{ members: [{ memberId: 'm1' }] }],
     } as unknown as SystemWithRelations;
 
-    await applyProxyEffects(sys, 'm2', true, '@alice', mockPrisma as PrismaClient);
+    await applyProxyEffects(sys, 'm2', true, '@alice', mockPrisma as unknown as PrismaClient);
 
     expect(mockPrisma.switch.create).toHaveBeenCalledWith({
       data: {
@@ -66,7 +69,7 @@ describe('autoproxyService', () => {
       switches: [{ members: [{ memberId: 'm1' }] }],
     } as unknown as SystemWithRelations;
 
-    await applyProxyEffects(sys, 'm2', true, '@alice', mockPrisma as PrismaClient);
+    await applyProxyEffects(sys, 'm2', true, '@alice', mockPrisma as unknown as PrismaClient);
 
     expect(mockPrisma.switch.create).toHaveBeenCalledWith({
       data: {

@@ -841,6 +841,72 @@ describe('PluralMatrix E2E Roundtrip', () => {
     console.log(`[E2E-Latch] SUCCESS: Latch mode perfectly matches PluralKit behavior.`);
   }, 60000);
 
+  it('should support front mode autoproxying and switch tracking', async () => {
+    const slugFront1 = `ghost-front-1-${Date.now()}`;
+    const slugFront2 = `ghost-front-2-${Date.now()}`;
+
+    // 1. Create two members
+    const res1 = await fetch(`http://localhost:9000/api/members`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Fronter 1', slug: slugFront1, proxyTags: [{ prefix: 'f1:', suffix: '' }] }),
+    });
+    if (!res1.ok) console.error(await res1.text());
+
+    const res2 = await fetch(`http://localhost:9000/api/members`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Fronter 2', slug: slugFront2, proxyTags: [{ prefix: 'f2:', suffix: '' }] }),
+    });
+    if (!res2.ok) console.error(await res2.text());
+
+    // 2. Set autoproxy to front
+    const frontModePromise = waitForBotMessage(client, roomId);
+    await client.sendText(roomId, 'pk;autoproxy front');
+    const botResponse1 = await frontModePromise;
+    expect(botResponse1.content.body).toContain('front mode enabled');
+
+    // 3. Log a switch to Fronter 1
+    const switch1Promise = waitForBotMessage(client, roomId);
+    await client.sendText(roomId, `pk;switch ${slugFront1}`);
+    const botResponse2 = await switch1Promise;
+    expect(botResponse2.content.body).toContain('Switch logged');
+
+    // Allow cache/DB to update
+    await new Promise((r) => setTimeout(r, 1000));
+
+    // 4. Send a message with NO prefix. It should autoproxy as Fronter 1!
+    const auto1Promise = waitForGhostMessage(client, roomId);
+    await client.sendText(roomId, 'Front mode test message');
+    const auto1 = await auto1Promise;
+    expect(auto1.sender).toContain(slugFront1);
+    expect(auto1.content.body).toBe('Front mode test message');
+
+    // 5. Log a switch to Fronter 2
+    const switch2Promise = waitForBotMessage(client, roomId);
+    await client.sendText(roomId, `pk;switch ${slugFront2}`);
+    const botResponse3 = await switch2Promise;
+    expect(botResponse3.content.body).toContain('Switch logged');
+
+    // Allow cache/DB to update
+    await new Promise((r) => setTimeout(r, 1000));
+
+    // 6. Send a message with NO prefix. It should now autoproxy as Fronter 2!
+    const auto2Promise = waitForGhostMessage(client, roomId);
+    await client.sendText(roomId, 'Second front mode message');
+    const auto2 = await auto2Promise;
+    expect(auto2.sender).toContain(slugFront2);
+    expect(auto2.content.body).toBe('Second front mode message');
+
+    // 7. Clear the switch
+    const switchOutPromise = waitForBotMessage(client, roomId);
+    await client.sendText(roomId, 'pk;switch out');
+    const botResponse4 = await switchOutPromise;
+    expect(botResponse4.content.body).toContain('switch-out');
+
+    console.log(`[E2E-Front] SUCCESS: Front mode seamlessly follows switch tracking.`);
+  }, 60000);
+
   it('should proxy a message in an ENCRYPTED room with 4-way verification', async () => {
     const messageBody = `Secure E2E ${Math.random().toString(36).substring(7)}`;
     const proxyPrefix = `e2e-sec-${Math.random().toString(36).substring(7)}:`;

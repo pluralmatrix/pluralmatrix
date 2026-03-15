@@ -70,12 +70,10 @@ describe('proxyParser', () => {
   });
 
   it('should handle autoproxy front mode correctly', () => {
-    const frontSystem = { 
-      ...system, 
-      autoproxyMode: 'front', 
-      switches: [
-        { members: [{ memberId: 'm2' }] }
-      ] 
+    const frontSystem = {
+      ...system,
+      autoproxyMode: 'front',
+      switches: [{ members: [{ memberId: 'm2' }] }],
     };
     const content = { body: 'Fronting text' };
 

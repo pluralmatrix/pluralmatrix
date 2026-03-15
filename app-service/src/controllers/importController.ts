@@ -25,7 +25,7 @@ const getExportFilename = async (mxid: string, prefix: string, ext: string) => {
 export const importPluralKit = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        const jsonData = PluralKitImportSchema.parse(req.body) as unknown as import('../types').PKExport;
+        const jsonData = PluralKitImportSchema.parse(req.body) as import('../types').PKExport;
         const result = await importFromPluralKit(mxid, jsonData);
         const { count, systemSlug, failedAvatars } = result;
         proxyCache.invalidate(mxid);

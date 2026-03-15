@@ -1,6 +1,7 @@
-import { login } from './authController';
-import { prisma } from '../bot';
+import { Request, Response } from 'express';
 import * as auth from '../auth';
+import { prisma } from '../bot';
+import { login } from './authController';
 
 jest.mock('../bot', () => ({
     prisma: {
@@ -29,8 +30,8 @@ jest.mock('../services/cache', () => ({
 }));
 
 describe('AuthController - login', () => {
-    let mockReq: import('express').Request;
-    let mockRes: import('express').Response;
+    let mockReq: Request;
+    let mockRes: Response;
     let jsonMock: jest.Mock;
     let statusMock: jest.Mock;
 
@@ -38,13 +39,13 @@ describe('AuthController - login', () => {
         jest.clearAllMocks();
         mockReq = {
             body: { mxid: '@alice:localhost', password: 'password' }
-        } as Partial<import('express').Request> as import('express').Request;
+        } as Partial<Request> as Request;
         jsonMock = jest.fn();
         statusMock = jest.fn().mockReturnThis();
         mockRes = {
             json: jsonMock,
             status: statusMock
-        } as Partial<import('express').Response> as import('express').Response;
+        } as Partial<Response> as Response;
     });
 
     it('should return token and hasSystem: true if user has a system', async () => {
@@ -120,9 +121,9 @@ import { me } from './authController';
 
 describe('AuthController - me', () => {
     it('should return req.user', () => {
-        const mockReq = { user: { mxid: '@test:localhost' } } as Partial<import('express').Request> as import('express').Request;
+        const mockReq = { user: { mxid: '@test:localhost' } } as Partial<Request> as Request;
         const jsonMockMe = jest.fn();
-        const mockRes = { json: jsonMockMe } as Partial<import('express').Response> as import('express').Response;
+        const mockRes = { json: jsonMockMe } as Partial<Response> as Response;
 
         me(mockReq, mockRes);
 

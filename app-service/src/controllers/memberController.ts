@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../bot';
 import { AuthRequest } from '../auth';
 import { MemberSchema } from '../schemas/member';
@@ -53,7 +54,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
                 description,
                 pronouns,
                 color,
-                privacy: privacy ? privacy as import('@prisma/client').Prisma.InputJsonObject : undefined,
+                privacy: privacy ? privacy as Prisma.InputJsonObject : undefined,
                 groups: groups ? { connect: groups.map(id => ({ id })) } : undefined
             }
         });
@@ -114,7 +115,7 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: {
                 ...prismaUpdateData,
-                privacy: privacy === undefined ? undefined : (privacy as import('@prisma/client').Prisma.InputJsonObject),
+                privacy: privacy === undefined ? undefined : (privacy as Prisma.InputJsonObject),
                 groups: groups ? { set: groups.map(groupId => ({ id: groupId })) } : undefined
             },
             include: { system: true }

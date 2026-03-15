@@ -124,7 +124,7 @@ export const checkMessage = async (req: Request, res: Response) => {
                         let originalEvent: PluralMatrixEvent | null = null;
                         if (isEdit && originalEventId) {
                             try {
-                                const botClient = getBridge()?.getBot().getClient() as unknown as { getEvent: (roomId: string, eventId: string) => Promise<PluralMatrixEvent> };
+                                const botClient = (getBridge()?.getBot().getClient() as unknown) as { getEvent: (roomId: string, eventId: string) => Promise<PluralMatrixEvent> };
                                 originalEvent = await botClient.getEvent(room_id, originalEventId);
                                 console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
                             } catch {

@@ -4,6 +4,22 @@
 # This script runs the Python unit tests for the Plural Gatekeeper module.
 # It automatically executes them inside the running Synapse container.
 
+cd "$(dirname "$0")"
+
+echo "🛡️  Running Python Type Checks (mypy)..."
+# Ensure mypy is installed locally for tests
+if ! command -v mypy &> /dev/null; then
+    echo "Installing mypy..."
+    python3 -m pip install mypy mypy-extensions types-setuptools --break-system-packages --quiet || true
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+mypy --config-file mypy.ini .
+MYPY_EXIT_CODE=$?
+if [ $MYPY_EXIT_CODE -ne 0 ]; then
+    echo "❌ Python type checks failed."
+    exit 1
+fi
+
 echo "🚀 Running PluralGatekeeper Module Tests..."
 
 # Determine Project Name

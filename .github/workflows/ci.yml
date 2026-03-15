@@ -42,6 +42,13 @@ jobs:
         if: always()
         run: ./format.sh --check
 
+      - name: Run Python Type Checks (mypy)
+        if: always()
+        run: |
+          python3 -m pip install mypy mypy-extensions types-setuptools --break-system-packages
+          export PATH="$HOME/.local/bin:$PATH"
+          mypy --config-file synapse/modules/mypy.ini synapse/modules/
+
       - name: Run Backend Lint
         if: always()
         run: |
@@ -106,8 +113,7 @@ jobs:
 
       - name: Run Synapse Module Unit Tests
         run: |
-          cd synapse/modules
-          ./test.sh
+          sudo docker exec pluralmatrix-synapse bash -c "cd /modules && python3 -m unittest test_plural_gatekeeper.py -v"
 
       - name: Regenerate Prisma Client
         run: |

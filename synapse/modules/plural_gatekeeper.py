@@ -10,7 +10,7 @@ from synapse.module_api import ModuleApi
 logger = logging.getLogger(__name__)
 
 
-def to_mutable(obj):
+def to_mutable(obj: Any) -> Any:
     """Recursively convert immutable types to standard mutable ones."""
     if isinstance(obj, Mapping):
         return {k: to_mutable(v) for k, v in obj.items()}
@@ -29,7 +29,7 @@ class PluralGatekeeper:
         )
         self.bot_id = config.get("bot_id", f"@plural_bot:{self.api.server_name}")
         self.gatekeeper_secret = config.get("gatekeeper_secret")
-        self._cache = {}  # (room_id, event_id) -> is_proxy: bool
+        self._cache: Dict[Tuple[str, str], bool] = {}  # (room_id, event_id) -> is_proxy: bool
 
         # Robust Feature Detection
         try:
@@ -41,7 +41,7 @@ class PluralGatekeeper:
             self.has_visibility_hook = False
 
         # Register callbacks
-        callbacks = {
+        callbacks: Dict[str, Any] = {
             "check_event_allowed": self.check_event_allowed,
             "on_new_event": self.on_new_event,
         }
@@ -62,8 +62,8 @@ class PluralGatekeeper:
 
     async def _is_proxy_message(self, event: Any) -> bool:
         """Check with App Service Brain and cache results."""
-        event_id = getattr(event, "event_id", None)
-        room_id = getattr(event, "room_id", "")
+        event_id = str(getattr(event, "event_id", ""))
+        room_id = str(getattr(event, "room_id", ""))
 
         cache_key = (room_id, event_id)
 
@@ -117,7 +117,7 @@ class PluralGatekeeper:
 
             with urllib.request.urlopen(req, timeout=1.5) as response:
                 result = json.load(response)
-                is_proxy = result.get("action") == "BLOCK"
+                is_proxy: bool = result.get("action") == "BLOCK"
 
                 if event_id:
                     self._cache[cache_key] = is_proxy
@@ -140,7 +140,7 @@ class PluralGatekeeper:
         if event_type != "m.room.message":
             return (True, None)
         is_proxy = await self._is_proxy_message(event)
-        event_dict = to_mutable(event.get_dict())
+        event_dict: Dict[str, Any] = to_mutable(event.get_dict())
         if is_proxy:
             if "content" in event_dict:
                 # Clear body does two things for unencrypted messages:

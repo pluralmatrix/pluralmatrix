@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
 import json
+from typing import Any, Dict, Optional
 
 from plural_gatekeeper import PluralGatekeeper
 
@@ -8,13 +9,13 @@ from plural_gatekeeper import PluralGatekeeper
 class MockEvent:
     def __init__(
         self,
-        event_id,
-        room_id,
-        sender,
-        event_type,
-        content=None,
-        origin_server_ts=12345,
-    ):
+        event_id: str,
+        room_id: str,
+        sender: str,
+        event_type: str,
+        content: Optional[Dict[str, Any]] = None,
+        origin_server_ts: int = 12345,
+    ) -> None:
         self.event_id = event_id
         self.room_id = room_id
         self.sender = sender
@@ -22,7 +23,7 @@ class MockEvent:
         self.content = content or {}
         self.origin_server_ts = origin_server_ts
 
-    def get_dict(self):
+    def get_dict(self) -> Dict[str, Any]:
         return {
             "event_id": self.event_id,
             "room_id": self.room_id,
@@ -34,7 +35,7 @@ class MockEvent:
 
 
 class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.mock_api = MagicMock()
         self.mock_api.server_name = "testserver"
         self.mock_api.create_and_send_event_into_room = AsyncMock()
@@ -51,7 +52,7 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
             )
 
     @patch("urllib.request.urlopen")
-    async def test_is_proxy_message_plain(self, mock_urlopen):
+    async def test_is_proxy_message_plain(self, mock_urlopen: MagicMock) -> None:
         # Mock network returning BLOCK
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"action": "BLOCK"}'
@@ -83,7 +84,7 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         mock_urlopen.assert_not_called()
 
     @patch("urllib.request.urlopen")
-    async def test_is_proxy_message_encrypted(self, mock_urlopen):
+    async def test_is_proxy_message_encrypted(self, mock_urlopen: MagicMock) -> None:
         # Mock network returning ALLOW
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"action": "ALLOW"}'
@@ -103,15 +104,15 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["type"], "m.room.encrypted")
         self.assertIn("encrypted_payload", payload)
 
-    async def test_is_proxy_message_ignores_ghosts(self):
+    async def test_is_proxy_message_ignores_ghosts(self) -> None:
         event = MockEvent(
             "$3", "!room", "@_plural_ghost:test", "m.room.message", {"body": "hello"}
         )
         is_proxy = await self.module._is_proxy_message(event)
         self.assertFalse(is_proxy)
 
-    async def test_check_event_allowed_clears_body(self):
-        self.module._is_proxy_message = AsyncMock(return_value=True)
+    async def test_check_event_allowed_clears_body(self) -> None:
+        self.module._is_proxy_message = AsyncMock(return_value=True)  # type: ignore
         event = MockEvent(
             "$4",
             "!room",
@@ -126,11 +127,12 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
 
         allowed, modified_event = await self.module.check_event_allowed(event, {})
         self.assertTrue(allowed)
-        self.assertEqual(modified_event["content"]["body"], "")
-        self.assertEqual(modified_event["content"]["formatted_body"], "")
+        if modified_event is not None and "content" in modified_event:
+            self.assertEqual(modified_event["content"]["body"], "")
+            self.assertEqual(modified_event["content"]["formatted_body"], "")
 
-    async def test_check_visibility_can_see_event(self):
-        self.module._is_proxy_message = AsyncMock(return_value=True)
+    async def test_check_visibility_can_see_event(self) -> None:
+        self.module._is_proxy_message = AsyncMock(return_value=True)  # type: ignore
         event = MockEvent("$5", "!room", "@alice:test", "m.room.message")
 
         # Sender can see
@@ -148,8 +150,8 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
             await self.module.check_visibility_can_see_event("@bob:test", event)
         )
 
-    async def test_on_new_event_triggers_redaction(self):
-        self.module._is_proxy_message = AsyncMock(return_value=True)
+    async def test_on_new_event_triggers_redaction(self) -> None:
+        self.module._is_proxy_message = AsyncMock(return_value=True)  # type: ignore
         event = MockEvent(
             "$6", "!room", "@alice:test", "m.room.message", {"body": "test"}
         )

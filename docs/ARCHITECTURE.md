@@ -52,13 +52,15 @@ A small Cargo project that compiles to a binary used by the App Service. It's es
 
 ### `/app-service/`
 The core backend application.
-*   **`prisma/schema.prisma`**: The database schema defining `System`, `Member`, and `AccountLink`.
+*   **`prisma/schema.prisma`**: The database schema defining core entities like `System`, `Member`, `Group`, and `AccountLink`, along with privacy settings and PluralKit compatibility fields.
 *   **`client/`**: The React/Vite dashboard frontend. Uses standard routing, Context for auth, and Tailwind for styling.
 *   **`src/`**:
     *   **`index.ts`**: Express server setup. Exposes port 9000 for the Web/API and 9001 for the internal Synapse gatekeeper check.
     *   **`bot.ts`**: Initializes `matrix-appservice-bridge`, handles AS registration, bot lifecycle, and generic unencrypted matrix event callbacks.
     *   **`controllers/`**: Express route controllers.
         *   `gatekeeperController.ts`: Handles the high-speed check from Synapse, handles E2EE decryption for the check, and triggers the async background proxying.
+        *   `systemController.ts`, `memberController.ts`, `groupController.ts`: REST API endpoints for the dashboard frontend.
+        *   `importController.ts`: Handles mapping and importing PluralKit configuration and assets.
     *   **`crypto/`**:
         *   `OlmMachineManager.ts`: Manages a pool of active `OlmMachine` instances (one for the bot, one for each active ghost).
         *   `TransactionRouter.ts`: Custom routing of E2EE events pushed by Synapse.
@@ -101,8 +103,11 @@ PluralMatrix employs a comprehensive testing strategy that covers backend unit t
     - Triggered on push or PR to the `main` branch.
     - Sets up a Node.js 22 environment.
     - Runs `./setup.sh --ci` to generate placeholder configuration files and keys without hanging on user input.
+    - Configures sccache (`crazy-max/ghaction-github-runtime@v4`) to speed up Rust crypto sidecar builds.
     - Uses `./restart-stack.sh` to boot the full Docker-based PluralMatrix stack (Synapse + Postgres + App Service) so E2E integration works against a real local server.
-    - Runs the Python module tests, installs Playwright dependencies, and then runs the full `app-service/test.sh` suite.
+    - Runs the Python module tests and verifies the frontend build.
+    - Runs the full test battery (`app-service/test.sh`).
+    - Enforces code quality and security via backend/frontend linters, `audit-ci` (for strict backend vulnerability whitelisting), and `npm audit`.
 
 ## 7. Deployment & Initialization Flow
 
@@ -139,6 +144,6 @@ A core philosophy of PluralMatrix is that users own their system data.
 
 ### PluralKit Compatibility
 The system provides first-class support for migrating to and from Discord-based setups via PluralKit.
-* **Import:** `importController.ts` handles parsing standard PluralKit JSON exports. It not only maps the data to the local Prisma schema but also actively downloads the external Discord avatar URLs and re-uploads them to the local Matrix Media Repository (MXC URIs) so that the Matrix system doesn't rely on Discord's CDNs.
+* **Import:** `importController.ts` handles parsing standard PluralKit JSON exports. It maps systems, members, groups, proxy tags, and privacy settings to the local Prisma schema. It also actively downloads the external Discord avatar URLs and re-uploads them to the local Matrix Media Repository (MXC URIs) so that the Matrix system doesn't rely on Discord's CDNs.
 * **Export:** Users can export their full system state as a ZIP file containing the JSON metadata and all local avatar image assets, ensuring true offline data ownership.
 * **Roundtrip Fidelity:** The database specifically stores `pkId` alongside the primary `slug` to ensure that importing and later exporting data maintains the original random 5-character IDs expected by other PluralKit-compatible tools.

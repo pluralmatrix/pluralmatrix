@@ -87,7 +87,7 @@ PluralMatrix requires access to message content to function. Users and server ad
 4. Invite `@plural_bot:yourdomain.com` to the rooms you wish to use it in.
 5. Access the dashboard at `http://localhost:9000`.
 
-**Note:** By default, PluralMatrix launches its own Synapse demo server for local testing, but it can be easily configured to integrate with any existing Matrix homeserver.
+**Note:** By default, PluralMatrix launches its own Synapse demo server for local testing, but it can be easily configured to integrate with any existing Matrix homeserver. See our [Existing Server Integration Guide](docs/INTEGRATING_EXISTING_HOMESERVER.md) for detailed instructions.
 
 ## Client Configuration <a name="client-configuration" href="#client-configuration">#</a>
 

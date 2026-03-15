@@ -14,7 +14,7 @@ import { messageQueue } from "./services/queue/MessageQueue";
 import { CommandHandler } from "./services/commandHandler";
 import { parseCommand } from "./utils/commandParser";
 import { parseProxyMatch } from "./utils/proxyParser";
-import { PluralMatrixEvent, PluralMatrixEventContent } from "./types";
+import { IntentWithClient, PluralMatrixEvent, PluralMatrixEventContent } from "./types";
 import { applyAutoproxyLatch } from "./services/autoproxyService";
 
 // Configuration
@@ -102,9 +102,9 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                         if (primaryLink) {
                             // 1. Set Room Name: "[Sender Name], [Ghost Name]"
                             try {
-                                const intentClient = ghostIntent as unknown as { matrixClient: { getUserProfile: (id: string) => Promise<{ displayname?: string }> } };
-                                const senderProfile = await intentClient.matrixClient.getUserProfile(sender);
-                                const ghostProfile = await intentClient.matrixClient.getUserProfile(targetUserId);
+                                const intentClient = ghostIntent as unknown as IntentWithClient;
+                                const senderProfile = await intentClient.matrixClient.getUserProfile(sender) as { displayname?: string };
+                                const ghostProfile = await intentClient.matrixClient.getUserProfile(targetUserId) as { displayname?: string };
                                 const senderName = senderProfile.displayname || sender;
                                 const ghostName = ghostProfile.displayname || targetUserId;
                                 const roomName = `${senderName}, ${ghostName}`;
@@ -324,17 +324,16 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                 // Ignore errors
             }
 
-            let relatesTo: Record<string, unknown> | undefined = undefined;
+            let relatesTo: PluralMatrixEventContent["m.relates_to"] | undefined = undefined;
             // If it's an edit, we want the *original* event's relations (e.g. what it was replying to)
             // since the edit event itself only contains the m.replace relation.
             const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : event.content;
-            
+
             if (sourceContent["m.relates_to"]) {
-                relatesTo = { ...sourceContent["m.relates_to"] } as Record<string, unknown>;
+                relatesTo = { ...sourceContent["m.relates_to"] } as NonNullable<PluralMatrixEventContent["m.relates_to"]>;
                 if (relatesTo.rel_type === "m.replace") { delete relatesTo.rel_type; delete relatesTo.event_id; }
                 if (Object.keys(relatesTo).length === 0) relatesTo = undefined;
             }
-
             messageQueue.enqueue(roomId, sender, intent, cleanBody, relatesTo, prismaClient, system.slug, format, cleanFormattedBody, proxyMatch.fullContent);
         } catch {
                 // Ignore errors

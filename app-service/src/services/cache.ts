@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { SystemWithRelations } from '../types';
+import { SystemWithRelations, PluralMatrixEventContent } from '../types';
 import { config } from '../config';
 
 interface CacheEntry {
@@ -66,8 +66,8 @@ export class ProxyCacheService {
 interface LastMessage {
     rootEventId: string;
     latestEventId: string;
-    latestContent: Record<string, unknown>;
-    rootContent: Record<string, unknown>;
+    latestContent: PluralMatrixEventContent;
+    rootContent: PluralMatrixEventContent;
     sender: string;
 }
 

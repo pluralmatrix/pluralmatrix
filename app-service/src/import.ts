@@ -110,7 +110,7 @@ export const generateSlug = (name: string, defaultId: string): string => {
  * Extracts alphabetic-only lowercase prefix for slug resolution.
  */
 export const getCleanPrefix = (pkMember: LooseMember): string => {
-    const firstPrefix = pkMember.proxy_tags?.find((t: Record<string, unknown>) => t.prefix)?.prefix || "";
+    const firstPrefix = (pkMember.proxy_tags as { prefix?: string }[])?.find(t => t.prefix)?.prefix || "";
     return (firstPrefix).replace(/[^a-zA-Z]/g, '').toLowerCase();
 };
 
@@ -435,9 +435,10 @@ export const importFromPluralKit = async (mxid: string, jsonData: PKExport): Pro
     for (const pkMember of processedMembers) {
         try {
             const slug = pkMember.finalSlug;
-            const proxyTags = (pkMember.proxy_tags || [])
-                .filter((t: Record<string, unknown>) => t.prefix)
-                .map((t: Record<string, unknown>) => ({ prefix: t.prefix, suffix: t.suffix || "" }));
+            const rawTags = (pkMember.proxy_tags || []) as { prefix?: string, suffix?: string }[];
+            const proxyTags = rawTags
+                .filter(t => t.prefix)
+                .map(t => ({ prefix: t.prefix, suffix: t.suffix || "" }));
 
             const migrationResult = await migrateAvatar(pkMember.avatar_url as string);
             const avatarUrl = migrationResult?.mxcUrl;
@@ -681,7 +682,7 @@ export const generatePkJson = async (mxid: string, avatarUrlMap?: Record<string,
             autoproxy_enabled: true,
             message_count: 0,
             last_message_timestamp: null,
-            proxy_tags: (m.proxyTags as Array<Record<string, unknown>>).map(t => ({
+            proxy_tags: (m.proxyTags as Array<{ prefix?: string, suffix?: string }>).map(t => ({
                 prefix: t.prefix || null,
                 suffix: t.suffix || null
             })),
@@ -1018,7 +1019,7 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
         const ext = filename.split('.').pop() || 'png';
         const contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
-        let affectedMembers: Record<string, unknown>[] = [];
+        let affectedMembers: import('@prisma/client').Member[] = [];
         let affectedGroups: LooseGroup[] = [];
 
         if (isGroupIcon) {
@@ -1040,10 +1041,10 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
             const validation = validateImageBuffer(data);
             if (!validation.valid) {
                 for (const member of affectedMembers) {
-                    failedAvatars.push({ slug: member.slug as string, name: member.name as string, error: validation.error! });
+                    failedAvatars.push({ slug: member.slug, name: member.name, error: validation.error! });
                 }
                 for (const group of affectedGroups) {
-                    failedAvatars.push({ slug: group.slug as string, name: group.name as string, error: validation.error! });
+                    failedAvatars.push({ slug: group.slug || 'unknown-group', name: group.name || 'Unknown Group', error: validation.error! });
                 }
                 continue;
             }
@@ -1052,15 +1053,15 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
 
             for (const member of affectedMembers) {
                 const updated = await prisma.member.update({
-                    where: { id: member.id as string },
+                    where: { id: member.id },
                     data: { avatarUrl: mxcUrl }
                 });
                 try {
                     await syncGhostProfile(updated, system);
                 } catch (syncErr: unknown) {
                     failedAvatars.push({ 
-                        slug: member.slug as string, 
-                        name: member.name as string, 
+                        slug: member.slug, 
+                        name: member.name, 
                         error: `Matrix Profile Sync Failed after avatar upload: ${(syncErr as Error).message || 'Unknown error'}` 
                     });
                 }
@@ -1077,10 +1078,10 @@ export const importAvatarsZip = async (mxid: string, zipBuffer: Buffer): Promise
         } catch (e: unknown) {
             console.error(`[Import] Failed to re-upload avatar ${filename}:`, e);
             for (const member of affectedMembers) {
-                failedAvatars.push({ slug: member.slug as string, name: member.name as string, error: (e as Error).message });
+                failedAvatars.push({ slug: member.slug, name: member.name, error: (e as Error).message });
             }
             for (const group of affectedGroups) {
-                failedAvatars.push({ slug: group.slug as string, name: group.name as string, error: (e as Error).message });
+                failedAvatars.push({ slug: group.slug || 'unknown-group', name: group.name || 'Unknown Group', error: (e as Error).message });
             }
         }
     }

@@ -135,7 +135,7 @@ export class CommandHandler {
         }, this.cryptoManager, this.asToken, this.prisma);
     }
 
-    async sendEncryptedCustomText(intent: Intent, roomId: string, body: string, formattedBody: string, mentions?: Record<string, unknown>) {
+    async sendEncryptedCustomText(intent: Intent, roomId: string, body: string, formattedBody: string, mentions?: { user_ids?: string[] }) {
         const userId = intent.userId;
         const machine = await this.cryptoManager.getMachine(userId);
         const { memberId, systemId } = await this.resolveIdentity(userId);
@@ -385,7 +385,7 @@ export class CommandHandler {
         const latestText = targetContent["m.new_content"]?.body || targetContent.body;
         const latestFormat = targetContent["m.new_content"]?.format || targetContent.format;
         const latestFormattedBody = targetContent["m.new_content"]?.formatted_body || targetContent.formatted_body;
-        let relatesToForReproxy: Record<string, unknown> | undefined = undefined;
+        let relatesToForReproxy: PluralMatrixEventContent["m.relates_to"] | undefined = undefined;
         // The original root event contains the m.in_reply_to block, not necessarily the latest edit
         const originalContent = resolution?.event?.content || resolution?.event?.content || {};
         console.log(`[CommandHandler] originalContent extracted from resolution:`, JSON.stringify(originalContent));
@@ -1205,7 +1205,7 @@ ${webUrl}
             // Commands that target a specific group: `pk;group <group> <action>`
             const groupSlug = subCmd;
          
-            const group = (system.groups || []).find((g: Record<string, unknown>) => g.slug === groupSlug || g.pkId === groupSlug);
+            const group = (system.groups || []).find((g: import('@prisma/client').Group) => g.slug === groupSlug || g.pkId === groupSlug);
             
             if (!group) {
                 await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No group found with ID: ${groupSlug}`);
@@ -1338,7 +1338,7 @@ ${webUrl}
             const botUserId = this.bridge.getBot().getUserId();
             
             // Proactively fetch power levels once during room setup
-            const state = await (ghostIntent as unknown as IntentWithClient).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "") as { users?: Record<string, number>, users_default?: number } & Record<string, unknown>;
+            const state = await (ghostIntent as unknown as IntentWithClient).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "") as { users?: Record<string, number>, users_default?: number };
             const users = state.users || {};
             const ghostLevel = users[ghostUserId] || state.users_default || 0;
             

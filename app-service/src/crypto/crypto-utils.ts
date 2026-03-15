@@ -13,16 +13,27 @@ export const clearRegisteredDevicesCache = () => {
     registeredDevices = new Set<string>();
 };
 
+interface MatrixKeysQueryResponse {
+    device_keys?: Record<string, Record<string, unknown>>;
+    master_keys?: Record<string, unknown>;
+    [key: string]: unknown;
+}
+
+interface MatrixKeysClaimResponse {
+    one_time_keys?: Record<string, Record<string, unknown>>;
+    [key: string]: unknown;
+}
+
 // Helper to perform raw fetch using AS Token (MSC3202 style)
-export async function doAsRequest(
+export async function doAsRequest<T = Record<string, unknown>>(
     hsUrl: string, 
     asToken: string, 
     targetUserId: string,
     method: string,
     path: string,
-    body: Record<string, unknown> | null,
+    body?: Record<string, unknown> | null,
     msc3202DeviceId?: string
-    ): Promise<Record<string, unknown>> {    const url = new URL(`${hsUrl}${path}`);
+): Promise<T> {    const url = new URL(`${hsUrl}${path}`);
     url.searchParams.set("user_id", targetUserId);
     if (msc3202DeviceId) {
         url.searchParams.set("org.matrix.msc3202.device_id", msc3202DeviceId);
@@ -62,7 +73,7 @@ export async function doAsRequest(
                 error.status = res.status;
                 error.body = text;
                 throw error;            }
-            return (await res.json()) as Record<string, unknown>;
+            return (await res.json()) as T;
         } catch (e: unknown) {
             if ((e as { status?: number }).status === 429 || (e as Error).message?.includes("M_LIMIT_EXCEEDED")) {
                 // Already handled above if possible, but catch network-level or other errors here
@@ -227,7 +238,7 @@ export async function waitForDeviceVisibility(
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            const response = await doAsRequest(
+            const response = await doAsRequest<MatrixKeysQueryResponse>(
                 hsUrl, 
                 asToken, 
                 intent.userId, 
@@ -236,7 +247,7 @@ export async function waitForDeviceVisibility(
                 { device_keys: { [targetUserId]: [] } }
             );
 
-            const devices = (response.device_keys as Record<string, unknown>)?.[targetUserId] as Record<string, unknown> || {};
+            const devices = response.device_keys?.[targetUserId] || {};
             if (devices[targetDeviceId]) {
                 return true;
             }
@@ -286,16 +297,18 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
 
             case RequestType.KeysQuery: {
                 const queryBody = JSON.parse(typedReq.body || "{}") as Record<string, unknown>;
-                response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/query", queryBody);
-                const devCount = Object.keys((response?.device_keys as Record<string, unknown>) || {}).length;
+                const queryResponse = await doAsRequest<MatrixKeysQueryResponse>(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/query", queryBody);
+                response = queryResponse;
+                const devCount = Object.keys(queryResponse.device_keys || {}).length;
                 console.log(`[KEY_EXCHANGE] KeysQuery success for ${userId}. Found ${devCount} users.`);
                 break;
             }
 
             case RequestType.KeysClaim: {
                 const claimBody = JSON.parse(typedReq.body || "{}") as Record<string, unknown>;
-                response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/claim", claimBody);
-                const OTKCount = response?.one_time_keys ? Object.keys(response.one_time_keys as Record<string, unknown>).length : 0;
+                const claimResponse = await doAsRequest<MatrixKeysClaimResponse>(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/claim", claimBody);
+                response = claimResponse;
+                const OTKCount = claimResponse.one_time_keys ? Object.keys(claimResponse.one_time_keys).length : 0;
                 console.log(`[KEY_EXCHANGE] KeysClaim success for ${userId}. Obtained OTKs for ${OTKCount} users.`);
                 break;
             }

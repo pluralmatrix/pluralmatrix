@@ -2,6 +2,7 @@ import { getBridge, cryptoManager, prisma } from '../bot';
 import { messageQueue } from './queue/MessageQueue';
 import { registerDevice } from '../crypto/crypto-utils';
 import { config } from '../config';
+import { PluralMatrixEventContent } from '../types';
 
 const DOMAIN = config.synapseDomain;
 
@@ -10,8 +11,8 @@ export interface GhostMessageOptions {
     cleanContent: string;
     format?: string;
     formattedBody?: string;
-    relatesTo?: Record<string, unknown>;
-    fullContent?: Record<string, unknown>;
+    relatesTo?: PluralMatrixEventContent["m.relates_to"];
+    fullContent?: PluralMatrixEventContent;
     system: {
         slug: string;
         systemTag?: string | null;

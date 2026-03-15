@@ -81,7 +81,7 @@ describe('Member Controller', () => {
             const res = await request(app).get('/members');
 
             expect(res.status).toBe(500);
-            expect(res.body.error).toBe('Failed to fetch members');
+            expect((res.body as { error: string }).error).toBe('Failed to fetch members');
         });
     });
 
@@ -101,10 +101,10 @@ describe('Member Controller', () => {
                 });
 
             expect(res.status).toBe(201);
-            expect(prisma.member.create).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.member, 'create')).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({
                     groups: { connect: [{ id: 'g1' }, { id: 'g2' }] }
-                })
+                }) as unknown
             }));
         });
 
@@ -125,13 +125,13 @@ describe('Member Controller', () => {
                 });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('already in use');
+            expect((res.body as { error: string }).error).toContain('already in use');
         });
 
         it('should return 400 for Zod validation error', async () => {
             const res = await request(app).post('/members').send({ name: '' });
             expect(res.status).toBe(400);
-            expect(res.body.error).toBe('Invalid input format');
+            expect((res.body as { error: string }).error).toBe('Invalid input format');
         });
 
         it('should handle unexpected errors gracefully', async () => {
@@ -168,10 +168,10 @@ describe('Member Controller', () => {
                 });
 
             expect(res.status).toBe(200);
-            expect(prisma.member.update).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.member, 'update')).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({
                     groups: { set: [{ id: 'g3' }] }
-                })
+                }) as unknown
             }));
         });
         it('should decommission the old ghost when the member slug is changed', async () => {
@@ -224,8 +224,8 @@ describe('Member Controller', () => {
                 .send({ slug: 'INVALID SLUG WITH SPACES AND CAPS' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toBe('Invalid input format');
-            expect(prisma.member.update).not.toHaveBeenCalled();
+            expect((res.body as { error: string }).error).toBe('Invalid input format');
+            expect(jest.spyOn(prisma.member, 'update')).not.toHaveBeenCalled();
         });
 
         it('should reject duplicate proxy tags on update', async () => {
@@ -246,7 +246,7 @@ describe('Member Controller', () => {
                 });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('already in use');
+            expect((res.body as { error: string }).error).toContain('already in use');
         });
 
         it('should return 404 if member not found', async () => {
@@ -283,7 +283,7 @@ describe('Member Controller', () => {
 
             expect(res.status).toBe(200);
             expect(decommissionGhost).toHaveBeenCalledWith(mockMember, mockSystem);
-            expect(prisma.member.delete).toHaveBeenCalledWith({ where: { id: 'm1' } });
+            expect(jest.spyOn(prisma.member, 'delete')).toHaveBeenCalledWith({ where: { id: 'm1' } });
         });
 
         it('should return 403 if user not linked to system', async () => {
@@ -321,7 +321,7 @@ describe('Member Controller', () => {
 
             expect(res.status).toBe(200);
             expect(decommissionGhost).toHaveBeenCalledTimes(2);
-            expect(prisma.member.deleteMany).toHaveBeenCalledWith({ where: { systemId: 'sys1' } });
+            expect(jest.spyOn(prisma.member, 'deleteMany')).toHaveBeenCalledWith({ where: { systemId: 'sys1' } });
         });
 
         it('should return 403 if user not linked to system', async () => {

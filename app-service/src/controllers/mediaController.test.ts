@@ -59,7 +59,7 @@ describe('Media Controller', () => {
                 .send(Buffer.from('fake_image_data'));
 
             expect(response.status).toBe(200);
-            expect(response.body).toEqual({ content_uri: 'mxc://localhost/12345' });
+            expect(response.body as unknown).toEqual({ content_uri: 'mxc://localhost/12345' });
             expect(fetchMock).toHaveBeenCalledWith(
                 expect.stringContaining('_matrix/media/v3/upload?filename=avatar.png'),
                 expect.objectContaining({
@@ -79,7 +79,7 @@ describe('Media Controller', () => {
                 .send(Buffer.from('fake_gif_data'));
 
             expect(response.status).toBe(400);
-            expect(response.body.error).toContain('must be in .jpg, .png, or .webp');
+            expect((response.body as { error: string }).error).toContain('must be in .jpg, .png, or .webp');
             expect(fetchMock).not.toHaveBeenCalled();
         });
 
@@ -92,7 +92,7 @@ describe('Media Controller', () => {
                 .send(oversizedBuffer);
 
             expect(response.status).toBe(400);
-            expect(response.body.error).toContain('under 1024 KB');
+            expect((response.body as { error: string }).error).toContain('under 1024 KB');
             expect(fetchMock).not.toHaveBeenCalled();
         });
 
@@ -109,7 +109,7 @@ describe('Media Controller', () => {
                 .send(Buffer.from('data'));
                 
             expect(response.status).toBe(500);
-            expect(response.body.error).toBe('AS_TOKEN is not configured');
+            expect((response.body as { error: string }).error).toBe('AS_TOKEN is not configured');
         });
 
         it('should pass through Synapse API errors', async () => {
@@ -125,7 +125,7 @@ describe('Media Controller', () => {
                 .send(Buffer.from('data'));
 
             expect(response.status).toBe(429);
-            expect(response.body.errcode).toBe('M_LIMIT_EXCEEDED');
+            expect((response.body as { errcode: string }).errcode).toBe('M_LIMIT_EXCEEDED');
         });
     });
 

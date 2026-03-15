@@ -51,10 +51,10 @@ describe('importController', () => {
 
             await importController.importPluralKit(mockReq, mockRes);
 
-            expect(importService.importFromPluralKit).toHaveBeenCalledWith('@test:localhost', validData);
+            expect(jest.spyOn(importService, 'importFromPluralKit')).toHaveBeenCalledWith('@test:localhost', validData);
             expect(proxyCache.invalidate).toHaveBeenCalledWith('@test:localhost');
             expect(emitSystemUpdate).toHaveBeenCalledWith('@test:localhost');
-            expect(mockRes.json).toHaveBeenCalledWith({
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({
                 success: true,
                 count: 0,
                 systemSlug: 'sys1',
@@ -67,9 +67,9 @@ describe('importController', () => {
 
             await importController.importPluralKit(mockReq, mockRes);
 
-            expect(importService.importFromPluralKit).not.toHaveBeenCalled();
-            expect(mockRes.status).toHaveBeenCalledWith(400);
-            expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid JSON format' });
+            expect(jest.spyOn(importService, 'importFromPluralKit')).not.toHaveBeenCalled();
+            expect(jest.spyOn(mockRes, 'status')).toHaveBeenCalledWith(400);
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ error: 'Invalid JSON format' });
         });
 
         it('should return 400 when importFromPluralKit throws', async () => {
@@ -84,8 +84,8 @@ describe('importController', () => {
 
             await importController.importPluralKit(mockReq, mockRes);
 
-            expect(mockRes.status).toHaveBeenCalledWith(400);
-            expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid JSON format' });
+            expect(jest.spyOn(mockRes, 'status')).toHaveBeenCalledWith(400);
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ error: 'Invalid JSON format' });
         });
     });
 
@@ -97,8 +97,8 @@ describe('importController', () => {
 
             await importController.exportPluralKitZip(mockReq, mockRes);
 
-            expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/zip');
-            expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('attachment; filename=pluralkit_export_test-sys_'));
+            expect(jest.spyOn(mockRes, 'setHeader')).toHaveBeenCalledWith('Content-Type', 'application/zip');
+            expect(jest.spyOn(mockRes, 'setHeader')).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('attachment; filename=pluralkit_export_test-sys_'));
             expect(importService.exportSystemZip).toHaveBeenCalledWith('@test:localhost', mockRes, 'pk');
         });
 
@@ -107,8 +107,8 @@ describe('importController', () => {
 
             await importController.exportPluralKitZip(mockReq, mockRes);
 
-            expect(mockRes.status).toHaveBeenCalledWith(500);
-            expect(mockRes.json).toHaveBeenCalledWith({ error: 'Export failed' });
+            expect(jest.spyOn(mockRes, 'status')).toHaveBeenCalledWith(500);
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ error: 'Export failed' });
         });
     });
 
@@ -118,7 +118,7 @@ describe('importController', () => {
 
             await importController.exportBackupZip(mockReq, mockRes);
 
-            expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('attachment; filename=backup_system_'));
+            expect(jest.spyOn(mockRes, 'setHeader')).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('attachment; filename=backup_system_'));
             expect(importService.exportSystemZip).toHaveBeenCalledWith('@test:localhost', mockRes, 'backup');
         });
 
@@ -128,8 +128,8 @@ describe('importController', () => {
 
             await importController.exportBackupZip(mockReq, mockRes);
 
-            expect(mockRes.status).toHaveBeenCalledWith(500);
-            expect(mockRes.json).toHaveBeenCalledWith({ error: 'Export failed' });
+            expect(jest.spyOn(mockRes, 'status')).toHaveBeenCalledWith(500);
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ error: 'Export failed' });
         });
     });
 
@@ -145,10 +145,10 @@ describe('importController', () => {
 
             await importController.importZip(mockReq, mockRes);
 
-            expect(importService.importSystemZip).toHaveBeenCalledWith('@test:localhost', mockReq.body);
+            expect(jest.spyOn(importService, 'importSystemZip')).toHaveBeenCalledWith('@test:localhost', mockReq.body);
             expect(proxyCache.invalidate).toHaveBeenCalledWith('@test:localhost');
             expect(emitSystemUpdate).toHaveBeenCalledWith('@test:localhost');
-            expect(mockRes.json).toHaveBeenCalledWith({
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({
                 success: true,
                 count: 5,
                 systemSlug: 'zip-sys',
@@ -161,8 +161,8 @@ describe('importController', () => {
 
             await importController.importZip(mockReq, mockRes);
 
-            expect(mockRes.status).toHaveBeenCalledWith(400);
-            expect(mockRes.json).toHaveBeenCalledWith({ error: 'Failed to process ZIP backup' });
+            expect(jest.spyOn(mockRes, 'status')).toHaveBeenCalledWith(400);
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ error: 'Failed to process ZIP backup' });
         });
     });
 
@@ -177,8 +177,8 @@ describe('importController', () => {
 
             await importController.exportPluralKitJson(mockReq, mockRes);
 
-            expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json');
-            expect(mockRes.send).toHaveBeenCalledWith('{"version":2}');
+            expect(jest.spyOn(mockRes, 'setHeader')).toHaveBeenCalledWith('Content-Type', 'application/json');
+            expect(jest.spyOn(mockRes, 'send')).toHaveBeenCalledWith('{"version":2}');
         });
 
         it('should return 404 if system not found', async () => {
@@ -186,8 +186,8 @@ describe('importController', () => {
 
             await importController.exportPluralKitJson(mockReq, mockRes);
 
-            expect(mockRes.status).toHaveBeenCalledWith(404);
-            expect(mockRes.json).toHaveBeenCalledWith({ error: 'System not found' });
+            expect(jest.spyOn(mockRes, 'status')).toHaveBeenCalledWith(404);
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ error: 'System not found' });
         });
 
         it('should return 500 on internal failure', async () => {
@@ -195,8 +195,8 @@ describe('importController', () => {
 
             await importController.exportPluralKitJson(mockReq, mockRes);
 
-            expect(mockRes.status).toHaveBeenCalledWith(500);
-            expect(mockRes.json).toHaveBeenCalledWith({ error: 'Export failed' });
+            expect(jest.spyOn(mockRes, 'status')).toHaveBeenCalledWith(500);
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ error: 'Export failed' });
         });
     });
 });

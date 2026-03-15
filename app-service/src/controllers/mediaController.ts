@@ -37,7 +37,7 @@ export const uploadMedia = async (req: Request, res: Response) => {
                 'Authorization': `Bearer ${config.asToken}`,
                 'Content-Type': contentType
             },
-            body: req.body
+            body: req.body as unknown as BodyInit
         });
 
         const data = await response.json() as { content_uri?: string, error?: string };

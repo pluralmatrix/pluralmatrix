@@ -66,7 +66,7 @@ export const exportBackupZip = async (req: AuthRequest, res: Response) => {
 export const importZip = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        const result = await importSystemZip(mxid, req.body);
+        const result = await importSystemZip(mxid, req.body as Buffer);
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
         res.json({ 

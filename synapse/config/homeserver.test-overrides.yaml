@@ -18,14 +18,14 @@ rc_message:
   per_second: 1000
   burst_count: 10000
 
-# Specific rate limit for the /createRoom endpoint. 
+# Specific rate limit for the /createRoom endpoint.
 # Note: Synapse does not support a `per_user` sub-block for this specific key!
 rc_room_creation:
   per_second: 500
   burst_count: 1000
 
 # Creating a room forces the creator to join it, which hits the join limit.
-# You need to relax both local and remote to prevent the server from choking 
+# You need to relax both local and remote to prevent the server from choking
 # and leaving you with ghost rooms.
 rc_joins:
   local:
@@ -35,7 +35,7 @@ rc_joins:
     per_second: 500
     burst_count: 1000
 
-# Spaces rely heavily on invites to link the hierarchy together. 
+# Spaces rely heavily on invites to link the hierarchy together.
 # You'll hit invite limits almost immediately without these overrides.
 rc_invites:
   per_room:

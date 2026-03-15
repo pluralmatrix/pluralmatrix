@@ -1,160 +1,174 @@
-import { Intent } from "matrix-appservice-bridge";
-import { OlmMachineManager } from "./OlmMachineManager";
-import { RoomId, UserId, EncryptionSettings, DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
-import { PrismaClient } from "@prisma/client";
-import { processCryptoRequests, registerDevice, doAsRequest, dispatchRequest, waitForDeviceVisibility } from "./crypto-utils";
-import { PluralMatrixEventContent } from "../types";
+import { Intent } from 'matrix-appservice-bridge';
+import { OlmMachineManager } from './OlmMachineManager';
+import { RoomId, UserId, EncryptionSettings, DeviceLists } from '@matrix-org/matrix-sdk-crypto-nodejs';
+import { PrismaClient } from '@prisma/client';
+import {
+  processCryptoRequests,
+  registerDevice,
+  doAsRequest,
+  dispatchRequest,
+  waitForDeviceVisibility,
+} from './crypto-utils';
+import { PluralMatrixEventContent } from '../types';
 
 interface ToDeviceRequest {
-    eventType?: string;
-    event_type?: string;
-    txnId?: string;
-    txn_id?: string;
-    body?: string | Record<string, unknown>;
-    messages?: Record<string, unknown>;
-    [key: string]: unknown;
+  eventType?: string;
+  event_type?: string;
+  txnId?: string;
+  txn_id?: string;
+  body?: string | Record<string, unknown>;
+  messages?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 /**
  * Manually dispatches to-device messages (like Megolm room keys) to Synapse.
  */
 async function dispatchToDevice(intent: Intent, asToken: string, ghostUserId: string, req: unknown) {
-    const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
-    const typedReq = req as ToDeviceRequest;
-    const eventType = (typedReq.eventType || typedReq.event_type) as string;
-    const txnId = (typedReq.txnId || typedReq.txn_id) as string;
-    const body = typeof typedReq.body === 'string' ? JSON.parse(typedReq.body) as Record<string, unknown> : (typedReq.messages ? { messages: typedReq.messages } : typedReq) as Record<string, unknown>;
+  const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, '');
+  const typedReq = req as ToDeviceRequest;
+  const eventType = (typedReq.eventType || typedReq.event_type) as string;
+  const txnId = (typedReq.txnId || typedReq.txn_id) as string;
+  const body =
+    typeof typedReq.body === 'string'
+      ? (JSON.parse(typedReq.body) as Record<string, unknown>)
+      : ((typedReq.messages ? { messages: typedReq.messages } : typedReq) as Record<string, unknown>);
 
-    await doAsRequest(
-        hsUrl, 
-        asToken, 
-        ghostUserId, 
-        "PUT", 
-        `/_matrix/client/v3/sendToDevice/${encodeURIComponent(eventType)}/${encodeURIComponent(txnId)}`, 
-        body
-    );
+  await doAsRequest(
+    hsUrl,
+    asToken,
+    ghostUserId,
+    'PUT',
+    `/_matrix/client/v3/sendToDevice/${encodeURIComponent(eventType)}/${encodeURIComponent(txnId)}`,
+    body,
+  );
 }
 
 /**
- * Encrypts and sends a room event, ensuring that Megolm session keys 
+ * Encrypts and sends a room event, ensuring that Megolm session keys
  * are shared with all recipients before the message is dispatched.
  */
 export async function sendEncryptedEvent(
-    intent: Intent,
-    roomId: string,
-    eventType: string,
-    content: PluralMatrixEventContent,
-    manager: OlmMachineManager,
-    asToken: string,
-    prisma?: PrismaClient
+  intent: Intent,
+  roomId: string,
+  eventType: string,
+  content: PluralMatrixEventContent,
+  manager: OlmMachineManager,
+  asToken: string,
+  prisma?: PrismaClient,
 ) {
-    const ghostUserId = intent.userId;
+  const ghostUserId = intent.userId;
 
-    // 1. Check if room is encrypted
-    let isEncrypted = false;
-    try {
-        const encryptionState = (await intent.matrixClient.getRoomStateEvent(roomId, "m.room.encryption", "")) as { algorithm?: string };
-        if (encryptionState && encryptionState.algorithm === "m.megolm.v1.aes-sha2") {
-            isEncrypted = true;
-        }
-    } catch {
-        // Not encrypted
+  // 1. Check if room is encrypted
+  let isEncrypted = false;
+  try {
+    const encryptionState = (await intent.matrixClient.getRoomStateEvent(roomId, 'm.room.encryption', '')) as {
+      algorithm?: string;
+    };
+    if (encryptionState && encryptionState.algorithm === 'm.megolm.v1.aes-sha2') {
+      isEncrypted = true;
+    }
+  } catch {
+    // Not encrypted
+  }
+
+  if (!isEncrypted) {
+    return intent.sendEvent(roomId, eventType, content);
+  }
+
+  try {
+    const machine = await manager.getMachine(ghostUserId);
+
+    // Try to resolve memberId if it's a ghost
+    let memberId = undefined;
+    if (prisma && ghostUserId.startsWith('@_plural_')) {
+      const parts = ghostUserId.split(':')[0].split('_');
+      const memberSlug = parts[parts.length - 1];
+      const systemSlug = parts[parts.length - 2];
+
+      if (memberSlug && systemSlug) {
+        const member = await prisma.member.findFirst({
+          where: {
+            slug: memberSlug,
+            system: { slug: systemSlug },
+          },
+          select: { id: true },
+        });
+        memberId = member?.id;
+      }
     }
 
-    if (!isEncrypted) {
-        return intent.sendEvent(roomId, eventType, content);
+    // Ensure device is registered on HS (MSC3202 requirement)
+    const isNewDevice = await registerDevice(intent, machine.deviceId.toString(), prisma, memberId);
+
+    // 2. Prepare recipients
+    const members = await intent.matrixClient.getJoinedRoomMembers(roomId);
+    const rustUserIds = members.map((m: string) => new UserId(m));
+    const rustRoomId = new RoomId(roomId);
+
+    // Step A: Discovery & Identity Phase
+    // UNIFIED DISCOVERY HACK: Force the SDK to recognize device list changes.
+    // This is necessary because Appservice users don't receive /sync updates.
+    const changedDevices = new DeviceLists(rustUserIds, []);
+    await machine.receiveSyncChanges('[]', changedDevices, {}, []);
+    await machine.updateTrackedUsers(rustUserIds);
+
+    // Pass 1: Publish identity and handle background discovery (KeysQuery)
+    await processCryptoRequests(machine, intent, asToken);
+
+    if (isNewDevice) {
+      // New ghost identity: Wait for HS propagation by polling for own visibility
+      await waitForDeviceVisibility(machine, intent, asToken, ghostUserId, machine.deviceId.toString());
     }
 
-    try {
-        const machine = await manager.getMachine(ghostUserId);
-
-        // Try to resolve memberId if it's a ghost
-        let memberId = undefined;
-        if (prisma && ghostUserId.startsWith('@_plural_')) {
-            const parts = ghostUserId.split(':')[0].split('_');
-            const memberSlug = parts[parts.length - 1];
-            const systemSlug = parts[parts.length - 2];
-            
-            if (memberSlug && systemSlug) {
-                const member = await prisma.member.findFirst({
-                    where: { 
-                        slug: memberSlug,
-                        system: { slug: systemSlug }
-                    },
-                    select: { id: true }
-                });
-                memberId = member?.id;
-            }
-        }
-
-        // Ensure device is registered on HS (MSC3202 requirement)
-        const isNewDevice = await registerDevice(intent, machine.deviceId.toString(), prisma, memberId);
-
-        // 2. Prepare recipients
-        const members = await intent.matrixClient.getJoinedRoomMembers(roomId);
-        const rustUserIds = members.map((m: string) => new UserId(m));
-        const rustRoomId = new RoomId(roomId);
-
-        // Step A: Discovery & Identity Phase
-        // UNIFIED DISCOVERY HACK: Force the SDK to recognize device list changes.
-        // This is necessary because Appservice users don't receive /sync updates.
-        const changedDevices = new DeviceLists(rustUserIds, []);
-        await machine.receiveSyncChanges("[]", changedDevices, {}, []);
-        await machine.updateTrackedUsers(rustUserIds);
-        
-        // Pass 1: Publish identity and handle background discovery (KeysQuery)
-        await processCryptoRequests(machine, intent, asToken);
-        
-        if (isNewDevice) {
-            // New ghost identity: Wait for HS propagation by polling for own visibility
-            await waitForDeviceVisibility(machine, intent, asToken, ghostUserId, machine.deviceId.toString());
-        }
-
-        // Pass 2: CRITICAL - Explicitly execute the KeysClaimRequest for missing sessions
-        const missingSessionsReq = await machine.getMissingSessions(rustUserIds);
-        if (missingSessionsReq) {
-            // Found missing Olm sessions: Dispatching KeysClaim
-            await dispatchRequest(machine, intent, asToken, missingSessionsReq);
-            // Drain any background discovery triggered by the claim
-            await processCryptoRequests(machine, intent, asToken);
-        }
-        
-        // Step B: Key Sharing Phase
-        const settings = new EncryptionSettings();
-        settings.onlyAllowTrustedDevices = false;
-        
-        const shareRequests = await machine.shareRoomKey(rustRoomId, rustUserIds, settings);
-
-        if (shareRequests && shareRequests.length > 0) {
-            // Sharing Megolm keys with recipients
-            for (const req of shareRequests) {
-                try {
-                    await dispatchToDevice(intent, asToken, ghostUserId, req);
-                } catch (dispatchErr: unknown) {
-                    console.error(`[Crypto]   - Failed to dispatch:`, (dispatchErr as Error).message);
-                }
-            }
-        }
-
-        // Pass 3: Final cleanup
-        await processCryptoRequests(machine, intent, asToken);
-
-        // Step C: Finally encrypt
-        const relatesTo = content["m.relates_to"];
-        const contentToEncrypt = { ...content };
-        
-        const encryptedContentString = await machine.encryptRoomEvent(rustRoomId, eventType, JSON.stringify(contentToEncrypt));
-        const encryptedPayload = JSON.parse(encryptedContentString) as Record<string, unknown>;
-        
-        if (relatesTo) {
-            encryptedPayload["m.relates_to"] = relatesTo;
-        }
-        
-        // Step D: Send encrypted event
-        return intent.sendEvent(roomId, "m.room.encrypted", encryptedPayload);
-
-    } catch (e: unknown) {
-        console.error(`[Crypto] Encryption failed for ${ghostUserId} in ${roomId}:`, (e as Error).message || e);
-        throw e;
+    // Pass 2: CRITICAL - Explicitly execute the KeysClaimRequest for missing sessions
+    const missingSessionsReq = await machine.getMissingSessions(rustUserIds);
+    if (missingSessionsReq) {
+      // Found missing Olm sessions: Dispatching KeysClaim
+      await dispatchRequest(machine, intent, asToken, missingSessionsReq);
+      // Drain any background discovery triggered by the claim
+      await processCryptoRequests(machine, intent, asToken);
     }
+
+    // Step B: Key Sharing Phase
+    const settings = new EncryptionSettings();
+    settings.onlyAllowTrustedDevices = false;
+
+    const shareRequests = await machine.shareRoomKey(rustRoomId, rustUserIds, settings);
+
+    if (shareRequests && shareRequests.length > 0) {
+      // Sharing Megolm keys with recipients
+      for (const req of shareRequests) {
+        try {
+          await dispatchToDevice(intent, asToken, ghostUserId, req);
+        } catch (dispatchErr: unknown) {
+          console.error(`[Crypto]   - Failed to dispatch:`, (dispatchErr as Error).message);
+        }
+      }
+    }
+
+    // Pass 3: Final cleanup
+    await processCryptoRequests(machine, intent, asToken);
+
+    // Step C: Finally encrypt
+    const relatesTo = content['m.relates_to'];
+    const contentToEncrypt = { ...content };
+
+    const encryptedContentString = await machine.encryptRoomEvent(
+      rustRoomId,
+      eventType,
+      JSON.stringify(contentToEncrypt),
+    );
+    const encryptedPayload = JSON.parse(encryptedContentString) as Record<string, unknown>;
+
+    if (relatesTo) {
+      encryptedPayload['m.relates_to'] = relatesTo;
+    }
+
+    // Step D: Send encrypted event
+    return intent.sendEvent(roomId, 'm.room.encrypted', encryptedPayload);
+  } catch (e: unknown) {
+    console.error(`[Crypto] Encryption failed for ${ghostUserId} in ${roomId}:`, (e as Error).message || e);
+    throw e;
+  }
 }

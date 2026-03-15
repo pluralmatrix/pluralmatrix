@@ -1,11 +1,11 @@
-use std::env;
-use std::path::Path;
+use anyhow::{Context, Result};
 use matrix_sdk_crypto::OlmMachine;
 use matrix_sdk_sqlite::SqliteCryptoStore;
-use ruma::{UserId, OwnedDeviceId};
+use ruma::{OwnedDeviceId, UserId};
 use serde::Serialize;
 use serde_json::json;
-use anyhow::{Context, Result};
+use std::env;
+use std::path::Path;
 
 #[derive(Serialize)]
 struct BootstrapOutput {
@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
     let store = SqliteCryptoStore::open(store_path, None)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to open sqlite store: {}", e))?;
-        
+
     let machine = OlmMachine::with_store(&user_id, &device_id, store, None)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize OlmMachine: {}", e))?;
@@ -69,12 +69,14 @@ mod tests {
         let dir = tempdir()?;
         let user_id = UserId::parse("@test:localhost")?;
         let device_id = OwnedDeviceId::from("TEST_DEVICE".to_string());
-        
+
         let store = SqliteCryptoStore::open(dir.path(), None).await?;
-        let machine = OlmMachine::with_store(&user_id, &device_id, store, None).await.unwrap();
+        let machine = OlmMachine::with_store(&user_id, &device_id, store, None)
+            .await
+            .unwrap();
 
         let bootstrap_reqs = machine.bootstrap_cross_signing(true).await.unwrap();
-        
+
         let upload_keys = json!({
             "master_key": bootstrap_reqs.upload_signing_keys_req.master_key,
             "self_signing_key": bootstrap_reqs.upload_signing_keys_req.self_signing_key,
@@ -83,7 +85,7 @@ mod tests {
 
         assert!(upload_keys.get("master_key").is_some());
         assert!(upload_keys.get("self_signing_key").is_some());
-        
+
         Ok(())
     }
 }

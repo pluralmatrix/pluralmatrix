@@ -1,89 +1,84 @@
 {
-    "version": 2,
-    "id": "oryii",
-    "uuid": "267a25b1-9e31-4074-8419-4ec1d6ebc488",
-    "name": "Seraphim",
-    "description": null,
-    "tag": "\u26e9\ufe0f Seraphim \u26e9\ufe0f",
-    "pronouns": null,
-    "avatar_url": null,
-    "banner": null,
-    "color": "8f00ff",
-    "created": "2020-12-23T16:37:19.051719Z",
-    "webhook_url": null,
-    "privacy": {
+  "version": 2,
+  "id": "oryii",
+  "uuid": "267a25b1-9e31-4074-8419-4ec1d6ebc488",
+  "name": "Seraphim",
+  "description": null,
+  "tag": "\u26e9\ufe0f Seraphim \u26e9\ufe0f",
+  "pronouns": null,
+  "avatar_url": null,
+  "banner": null,
+  "color": "8f00ff",
+  "created": "2020-12-23T16:37:19.051719Z",
+  "webhook_url": null,
+  "privacy": {
+    "name_privacy": "public",
+    "avatar_privacy": "public",
+    "description_privacy": "public",
+    "banner_privacy": "public",
+    "pronoun_privacy": "public",
+    "member_list_privacy": "public",
+    "group_list_privacy": "public",
+    "front_privacy": "public",
+    "front_history_privacy": "public"
+  },
+  "config": {
+    "timezone": "UTC",
+    "pings_enabled": true,
+    "latch_timeout": null,
+    "member_default_private": false,
+    "group_default_private": false,
+    "show_private_info": true,
+    "member_limit": 1000,
+    "group_limit": 250,
+    "case_sensitive_proxy_tags": true,
+    "proxy_error_message_enabled": true,
+    "hid_display_split": false,
+    "hid_display_caps": false,
+    "hid_list_padding": "off",
+    "card_show_color_hex": false,
+    "proxy_switch": "off",
+    "name_format": null,
+    "description_templates": []
+  },
+  "accounts": [1234567891234567891, 1234567891234567892, 1234567891234567893, 1234567891234567894],
+  "members": [
+    {
+      "id": "udhgx",
+      "uuid": "8937d466-b250-4681-b72e-ef82b406a3b2",
+      "name": "Riven \ud80c\udda9\ud81a\udc77\ud80c\uddaa",
+      "display_name": null,
+      "color": "00ff30",
+      "birthday": null,
+      "pronouns": "She/Her & It/Its",
+      "avatar_url": "https://cdn.pluralkit.me/images/sl/v5foprewj6a7upparqannf3m.webp",
+      "webhook_avatar_url": null,
+      "banner": null,
+      "description": "bao, bao!   I'm Riven, aka baofox! \ud83e\udd8a I'm Judgement itself, and I make sure everything makes sense and are all following the rules! Any decisions we make must pass through me! I try to always do what is just and right for all of us!\n\nMy green form is my happy form! My mad form is Lyrafox.\n\nI'm super friendly and playful, but  pls  ask before touching me,  bao!\n\nFull Name: Riven HexZychron SwordSong\nGlyph: \ud80c\udda9\ud81a\udc77\ud80c\uddaa (The Sky: A defender)\nNature: Lawful Good\nAge: 20,322\nBirthday: 3/18/1994\nHeight: 6'3\"\nWeight: 1,100lbs (Armored)\nOrientation: Pansexual\nPower Class: S (Cataclysmic)\nAlignment: Scorn",
+      "created": "2024-03-29T14:03:06.74722Z",
+      "keep_proxy": false,
+      "tts": false,
+      "autoproxy_enabled": true,
+      "message_count": 16034,
+      "last_message_timestamp": "2026-02-20T22:43:37.731167Z",
+      "proxy_tags": [
+        {
+          "prefix": "Ri:",
+          "suffix": null
+        }
+      ],
+      "privacy": {
+        "visibility": "public",
         "name_privacy": "public",
-        "avatar_privacy": "public",
         "description_privacy": "public",
         "banner_privacy": "public",
+        "birthday_privacy": "public",
         "pronoun_privacy": "public",
-        "member_list_privacy": "public",
-        "group_list_privacy": "public",
-        "front_privacy": "public",
-        "front_history_privacy": "public"
-    },
-    "config": {
-        "timezone": "UTC",
-        "pings_enabled": true,
-        "latch_timeout": null,
-        "member_default_private": false,
-        "group_default_private": false,
-        "show_private_info": true,
-        "member_limit": 1000,
-        "group_limit": 250,
-        "case_sensitive_proxy_tags": true,
-        "proxy_error_message_enabled": true,
-        "hid_display_split": false,
-        "hid_display_caps": false,
-        "hid_list_padding": "off",
-        "card_show_color_hex": false,
-        "proxy_switch": "off",
-        "name_format": null,
-        "description_templates": []
-    },
-    "accounts": [
-        1234567891234567891,
-        1234567891234567892,
-        1234567891234567893,
-        1234567891234567894
-    ],
-    "members": [
-        {
-            "id": "udhgx",
-            "uuid": "8937d466-b250-4681-b72e-ef82b406a3b2",
-            "name": "Riven \ud80c\udda9\ud81a\udc77\ud80c\uddaa",
-            "display_name": null,
-            "color": "00ff30",
-            "birthday": null,
-            "pronouns": "She/Her & It/Its",
-            "avatar_url": "https://cdn.pluralkit.me/images/sl/v5foprewj6a7upparqannf3m.webp",
-            "webhook_avatar_url": null,
-            "banner": null,
-            "description": "bao, bao!   I'm Riven, aka baofox! \ud83e\udd8a I'm Judgement itself, and I make sure everything makes sense and are all following the rules! Any decisions we make must pass through me! I try to always do what is just and right for all of us!\n\nMy green form is my happy form! My mad form is Lyrafox.\n\nI'm super friendly and playful, but  pls  ask before touching me,  bao!\n\nFull Name: Riven HexZychron SwordSong\nGlyph: \ud80c\udda9\ud81a\udc77\ud80c\uddaa (The Sky: A defender)\nNature: Lawful Good\nAge: 20,322\nBirthday: 3/18/1994\nHeight: 6'3\"\nWeight: 1,100lbs (Armored)\nOrientation: Pansexual\nPower Class: S (Cataclysmic)\nAlignment: Scorn",
-            "created": "2024-03-29T14:03:06.74722Z",
-            "keep_proxy": false,
-            "tts": false,
-            "autoproxy_enabled": true,
-            "message_count": 16034,
-            "last_message_timestamp": "2026-02-20T22:43:37.731167Z",
-            "proxy_tags": [
-                {
-                    "prefix": "Ri:",
-                    "suffix": null
-                }
-            ],
-            "privacy": {
-                "visibility": "public",
-                "name_privacy": "public",
-                "description_privacy": "public",
-                "banner_privacy": "public",
-                "birthday_privacy": "public",
-                "pronoun_privacy": "public",
-                "avatar_privacy": "public",
-                "metadata_privacy": "public",
-                "proxy_privacy": "public"
-            }
-        }
-    ],
-    "switches": []
+        "avatar_privacy": "public",
+        "metadata_privacy": "public",
+        "proxy_privacy": "public"
+      }
+    }
+  ],
+  "switches": []
 }

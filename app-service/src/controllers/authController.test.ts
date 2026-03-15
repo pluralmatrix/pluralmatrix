@@ -4,129 +4,135 @@ import { prisma } from '../bot';
 import { login } from './authController';
 
 jest.mock('../bot', () => ({
-    prisma: {
-        accountLink: {
-            findUnique: jest.fn()
-        },
-        system: {
-            create: jest.fn()
-        }
-    }
+  prisma: {
+    accountLink: {
+      findUnique: jest.fn(),
+    },
+    system: {
+      create: jest.fn(),
+    },
+  },
 }));
 
 jest.mock('../auth', () => ({
-    loginToMatrix: jest.fn(),
-    generateToken: jest.fn().mockReturnValue('mock_token')
+  loginToMatrix: jest.fn(),
+  generateToken: jest.fn().mockReturnValue('mock_token'),
 }));
 
 jest.mock('../utils/slug', () => ({
-    ensureUniqueSlug: jest.fn()
+  ensureUniqueSlug: jest.fn(),
 }));
 
 jest.mock('../services/cache', () => ({
-    proxyCache: {
-        invalidate: jest.fn()
-    }
+  proxyCache: {
+    invalidate: jest.fn(),
+  },
 }));
 
 describe('AuthController - login', () => {
-    let mockReq: Request;
-    let mockRes: Response;
-    let jsonMock: jest.Mock;
-    let statusMock: jest.Mock;
+  let mockReq: Request;
+  let mockRes: Response;
+  let jsonMock: jest.Mock;
+  let statusMock: jest.Mock;
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockReq = {
-            body: { mxid: '@alice:localhost', password: 'password' }
-        } as Partial<Request> as Request;
-        jsonMock = jest.fn();
-        statusMock = jest.fn().mockReturnThis();
-        mockRes = {
-            json: jsonMock,
-            status: statusMock
-        } as Partial<Response> as Response;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockReq = {
+      body: { mxid: '@alice:localhost', password: 'password' },
+    } as Partial<Request> as Request;
+    jsonMock = jest.fn();
+    statusMock = jest.fn().mockReturnThis();
+    mockRes = {
+      json: jsonMock,
+      status: statusMock,
+    } as Partial<Response> as Response;
+  });
+
+  it('should return token and hasSystem: true if user has a system', async () => {
+    (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
+    (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: 'link1' });
+
+    await login(mockReq, mockRes);
+
+    expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: 'mock_token',
+        hasSystem: true,
+      }),
+    );
+  });
+
+  it('should auto-format mxid if missing @ or domain', async () => {
+    (mockReq.body as { mxid: string }).mxid = 'ALICE';
+    (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
+    (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: 'link1' });
+
+    await login(mockReq, mockRes);
+
+    expect(jest.spyOn(prisma.accountLink, 'findUnique')).toHaveBeenCalledWith({
+      where: { matrixId: '@alice:localhost' },
     });
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mxid: '@alice:localhost',
+      }),
+    );
+  });
 
-    it('should return token and hasSystem: true if user has a system', async () => {
-        (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
-        (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: "link1" });
+  it('should return token and hasSystem: false if user has no system', async () => {
+    (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
+    (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
 
-        await login(mockReq, mockRes);
+    await login(mockReq, mockRes);
 
-        expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
-        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
-            token: 'mock_token',
-            hasSystem: true
-        }));
-    });
+    expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: 'mock_token',
+        hasSystem: false,
+      }),
+    );
+  });
 
-    it('should auto-format mxid if missing @ or domain', async () => {
-        (mockReq.body as { mxid: string }).mxid = 'ALICE';
-        (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
-        (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: "link1" });
+  it('should return 401 if matrix login fails', async () => {
+    (auth.loginToMatrix as jest.Mock).mockResolvedValue(false);
 
-        await login(mockReq, mockRes);
+    await login(mockReq, mockRes);
 
-        expect(jest.spyOn(prisma.accountLink, 'findUnique')).toHaveBeenCalledWith({
-            where: { matrixId: '@alice:localhost' }
-        });
-        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
-            mxid: '@alice:localhost'
-        }));
-    });
+    expect(statusMock).toHaveBeenCalledWith(401);
+    expect(jsonMock).toHaveBeenCalledWith({ error: 'Invalid Matrix credentials' });
+  });
 
-    it('should return token and hasSystem: false if user has no system', async () => {
-        (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
-        (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+  it('should return 400 for invalid inputs', async () => {
+    mockReq.body = { mxid: 'just-string' }; // Missing password
 
-        await login(mockReq, mockRes);
+    await login(mockReq, mockRes);
 
-        expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
-        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
-            token: 'mock_token',
-            hasSystem: false
-        }));
-    });
+    expect(statusMock).toHaveBeenCalledWith(400);
+    expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid input format' }));
+  });
 
-    it('should return 401 if matrix login fails', async () => {
-        (auth.loginToMatrix as jest.Mock).mockResolvedValue(false);
+  it('should return 500 on unexpected errors', async () => {
+    (auth.loginToMatrix as jest.Mock).mockRejectedValue(new Error('Matrix server down'));
 
-        await login(mockReq, mockRes);
+    await login(mockReq, mockRes);
 
-        expect(statusMock).toHaveBeenCalledWith(401);
-        expect(jsonMock).toHaveBeenCalledWith({ error: 'Invalid Matrix credentials' });
-    });
-
-    it('should return 400 for invalid inputs', async () => {
-        mockReq.body = { mxid: 'just-string' }; // Missing password
-
-        await login(mockReq, mockRes);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid input format' }));
-    });
-
-    it('should return 500 on unexpected errors', async () => {
-        (auth.loginToMatrix as jest.Mock).mockRejectedValue(new Error('Matrix server down'));
-
-        await login(mockReq, mockRes);
-
-        expect(statusMock).toHaveBeenCalledWith(500);
-        expect(jsonMock).toHaveBeenCalledWith({ error: 'Internal server error' });
-    });
+    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(jsonMock).toHaveBeenCalledWith({ error: 'Internal server error' });
+  });
 });
 
 import { me } from './authController';
 
 describe('AuthController - me', () => {
-    it('should return req.user', () => {
-        const mockReq = { user: { mxid: '@test:localhost' } } as Partial<Request> as Request;
-        const jsonMockMe = jest.fn();
-        const mockRes = { json: jsonMockMe } as Partial<Response> as Response;
+  it('should return req.user', () => {
+    const mockReq = { user: { mxid: '@test:localhost' } } as Partial<Request> as Request;
+    const jsonMockMe = jest.fn();
+    const mockRes = { json: jsonMockMe } as Partial<Response> as Response;
 
-        me(mockReq, mockRes);
+    me(mockReq, mockRes);
 
-        expect(jsonMockMe).toHaveBeenCalledWith({ user: { mxid: '@test:localhost' } });
-    });
+    expect(jsonMockMe).toHaveBeenCalledWith({ user: { mxid: '@test:localhost' } });
+  });
 });

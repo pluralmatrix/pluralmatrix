@@ -5,7 +5,7 @@ import * as path from 'path';
 export const test = base.extend({
   page: async ({ page }, use) => {
     await use(page);
-    
+
     if (process.env.VITE_COVERAGE === 'true') {
       const coverage: unknown = await page.evaluate(() => (window as unknown as Record<string, unknown>).__coverage__);
       if (coverage) {
@@ -14,7 +14,7 @@ export const test = base.extend({
         if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
         fs.writeFileSync(
           path.join(outputDir, `coverage-${Math.random().toString(36).substring(7)}.json`),
-          JSON.stringify(coverage)
+          JSON.stringify(coverage),
         );
       }
     }

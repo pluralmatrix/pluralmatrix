@@ -18,9 +18,9 @@ app.use(bodyParser.json({ limit: '10mb' }));
 
 // Request Logger
 app.use((req, res, next) => {
-    const url = req.url.split('?')[0];
-    console.log(`[API] ${req.method} ${url}`);
-    next();
+  const url = req.url.split('?')[0];
+  console.log(`[API] ${req.method} ${url}`);
+  next();
 });
 
 // Serve static files from the React app
@@ -32,59 +32,61 @@ app.use('/api', routes);
 
 // Healthcheck (Unauthenticated)
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK' });
+  res.status(200).json({ status: 'OK' });
 });
 
 // Check for mandatory environment variables
 if (process.env.NODE_ENV !== 'test') {
-    validateConfig();
+  validateConfig();
 }
 
 // All other requests will return the React app
 app.use((req, res) => {
-    res.sendFile(path.join(clientPath, 'index.html'));
+  res.sendFile(path.join(clientPath, 'index.html'));
 });
 
 const startWithRetries = async () => {
-    let attempts = 0;
-    while (attempts < 5) {
-        try {
-            await startMatrixBot();
-            console.log("Matrix Bot started successfully.");
-            return;
-        } catch (err: unknown) {
-            attempts++;
-            console.error(`Failed to start Matrix Bot (Attempt ${attempts}/5):`, err);
-            if (attempts >= 5) {
-                process.exit(1);
-            }
-            // Wait 2 seconds before retrying
-            await new Promise(r => setTimeout(r, 2000));
-        }
+  let attempts = 0;
+  while (attempts < 5) {
+    try {
+      await startMatrixBot();
+      console.log('Matrix Bot started successfully.');
+      return;
+    } catch (err: unknown) {
+      attempts++;
+      console.error(`Failed to start Matrix Bot (Attempt ${attempts}/5):`, err);
+      if (attempts >= 5) {
+        process.exit(1);
+      }
+      // Wait 2 seconds before retrying
+      await new Promise((r) => setTimeout(r, 2000));
     }
+  }
 };
 
 if (require.main === module) {
-    startWithRetries().then(() => {
-        app.listen(PORT, () => {
-            console.log(`App Service (Brain) listening on port ${PORT}`);
-        });
+  startWithRetries()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`App Service (Brain) listening on port ${PORT}`);
+      });
 
-        // --- INTERNAL GATEKEEPER PORT (Port 9001) ---
-        // This port is NOT exposed in docker-compose.yml and is only 
-        // accessible to Synapse within the Docker network.
-        const internalApp = express();
-        internalApp.use(bodyParser.json({ limit: '10mb' }));
-        
-        // Mount at root since gatekeeperRoutes already defines the '/check' path
-        internalApp.use('/', gatekeeperRoutes); 
-        
-        internalApp.listen(9001, '0.0.0.0', () => {
-            console.log(`Internal Gatekeeper listening on port 9001 (Docker-only)`);
-        });
-    }).catch(err => {
-        console.error("Critical failure during startup:", err);
-        process.exit(1);
+      // --- INTERNAL GATEKEEPER PORT (Port 9001) ---
+      // This port is NOT exposed in docker-compose.yml and is only
+      // accessible to Synapse within the Docker network.
+      const internalApp = express();
+      internalApp.use(bodyParser.json({ limit: '10mb' }));
+
+      // Mount at root since gatekeeperRoutes already defines the '/check' path
+      internalApp.use('/', gatekeeperRoutes);
+
+      internalApp.listen(9001, '0.0.0.0', () => {
+        console.log(`Internal Gatekeeper listening on port 9001 (Docker-only)`);
+      });
+    })
+    .catch((err) => {
+      console.error('Critical failure during startup:', err);
+      process.exit(1);
     });
 }
 

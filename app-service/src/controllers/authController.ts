@@ -9,43 +9,43 @@ import { config } from '../config';
 const DOMAIN = config.synapseDomain;
 
 export const login = async (req: Request, res: Response) => {
-    try {
-        const parsed = LoginSchema.parse(req.body);
-        let mxid = parsed.mxid;
-        const password = parsed.password;
+  try {
+    const parsed = LoginSchema.parse(req.body);
+    let mxid = parsed.mxid;
+    const password = parsed.password;
 
-        const success = await loginToMatrix(mxid, password);
+    const success = await loginToMatrix(mxid, password);
 
-        if (success) {
-            // Consistently lowercase and format the MXID
-            mxid = mxid.toLowerCase();
-            if (!mxid.startsWith('@')) mxid = `@${mxid}`;
-            if (!mxid.includes(':')) mxid = `${mxid}:${DOMAIN}`;
+    if (success) {
+      // Consistently lowercase and format the MXID
+      mxid = mxid.toLowerCase();
+      if (!mxid.startsWith('@')) mxid = `@${mxid}`;
+      if (!mxid.includes(':')) mxid = `${mxid}:${DOMAIN}`;
 
-            // Check if link exists
-            const link = await prisma.accountLink.findUnique({
-                where: { matrixId: mxid }
-            });
+      // Check if link exists
+      const link = await prisma.accountLink.findUnique({
+        where: { matrixId: mxid },
+      });
 
-            // We no longer auto-create systems here.
-            // If they don't have a system, they will hit a 404 on the frontend and be prompted to create one.
+      // We no longer auto-create systems here.
+      // If they don't have a system, they will hit a 404 on the frontend and be prompted to create one.
 
-            // Invalidate cache to ensure new system is picked up if needed
-            proxyCache.invalidate(mxid);
+      // Invalidate cache to ensure new system is picked up if needed
+      proxyCache.invalidate(mxid);
 
-            const token = generateToken(mxid);
-            return res.json({ token, mxid, hasSystem: !!link });
-        } else {
-            return res.status(401).json({ error: 'Invalid Matrix credentials' });
-        }
-    } catch (e) {
-        if (e instanceof z.ZodError) {
-            return res.status(400).json({ error: 'Invalid input format', details: e.issues });
-        }
-        return res.status(500).json({ error: 'Internal server error' });
+      const token = generateToken(mxid);
+      return res.json({ token, mxid, hasSystem: !!link });
+    } else {
+      return res.status(401).json({ error: 'Invalid Matrix credentials' });
     }
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input format', details: e.issues });
+    }
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 };
 
 export const me = (req: AuthRequest, res: Response) => {
-    res.json({ user: req.user });
+  res.json({ user: req.user });
 };

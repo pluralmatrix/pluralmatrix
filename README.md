@@ -3,6 +3,7 @@ layout: home
 title: Home
 permalink: /
 ---
+
 # <img src="assets/images/lily-header.png" width="32" height="32" align="center"> PluralMatrix
 
 PluralMatrix is a Matrix Application Service designed for plural systems using Matrix, the open-source alternative to Discord. As in PluralKit, message prefixes are used to speak as each system member. But in PluralMatrix, every system member is represented by a unique "ghost" user who automatically joins rooms and sends messages on that member's behalf, providing a more native Matrix experience.
@@ -22,25 +23,30 @@ PluralMatrix is a Matrix Application Service designed for plural systems using M
 ## Core Features <a name="core-features" href="#core-features">#</a>
 
 ### High-Fidelity Proxying ("Zero-Flash")
+
 - **Instant Cleanup:** A custom Synapse module intercepts and drops original proxy trigger messages before they are stored, ensuring a clean timeline without original messages ever appearing.
 - **Rich Presence:** Proxied messages use custom display names, avatars, and system tags.
 - **Relation Preservation:** Full support for replies and other Matrix event relations.
 
 ### Native E2EE Support
+
 - **Full Encryption:** The bot and all system ghosts natively send and receive encrypted messages via the Matrix Rust SDK, ensuring high-fidelity proxying in secure rooms.
 - **Secure by Design:** Automated registration and secure cryptographic state management for all system identities.
 
 ### Modern Dashboard
+
 - **Web-based Management:** A React-based UI for managing system members, settings, and avatars.
 - **Matrix Authentication:** Sign in directly using your Matrix credentials.
 - **Live Sync:** Real-time updates to ghost profiles and proxy rules.
 
 ### Data Portability (PluralKit Compatible)
+
 - **Easy Migration:** Import your system directly from a PluralKit JSON export.
 - **Full Exports:** Export your system data and avatar assets (ZIP) for backup or migration.
 - **Roundtrip Fidelity:** Maintains IDs and slugs for consistent cross-platform use.
 
 ### Advanced Bot Commands
+
 These commands are designed to work exactly like their PluralKit equivalents for familiarity and ease of use.
 
 - `pk;list`: View all system members.
@@ -51,6 +57,7 @@ These commands are designed to work exactly like their PluralKit equivalents for
 - **Emoji Reactions:** React with ❌ to any proxied message to delete it instantly.
 
 ### Smart System Management
+
 - **Automatic Slugs:** Generates clean, unique IDs for members from names or descriptions.
 - **Ghost Decommissioning:** Automatically cleans up ghost users and their room memberships when a member is deleted.
 - **Profile Syncing:** Ensures global Matrix profiles stay in sync with your system dashboard.
@@ -67,10 +74,12 @@ PluralMatrix requires access to message content to function. Users and server ad
 ## Installation & Setup <a name="installation-setup" href="#installation-setup">#</a>
 
 ### Prerequisites
+
 - Docker & Docker Compose
 - A Matrix Homeserver (Synapse required for Zero-Flash support)
 
 ### Quick Start
+
 1. Clone the repository from [GitHub](https://github.com/pluralmatrix/pluralmatrix):
    ```bash
    git clone https://github.com/pluralmatrix/pluralmatrix.git
@@ -96,6 +105,7 @@ For the best experience and a clean timeline, we recommend these client-specific
 **Note:** With the **Synapse Zero-Flash patch**, onlookers can use **any client** without seeing placeholders; only the sender needs these settings to hide their own redacted original messages.
 
 ### Mobile
+
 - ⚙️ **Element Classic:** Disable **Settings → Preferences → Show removed messages**.
 - ❌ **Element X:** Not recommended (no option to hide redacted messages).
 - ⚙️ **FluffyChat:** Enable **Settings → Chat → Hide redacted messages**.
@@ -103,6 +113,7 @@ For the best experience and a clean timeline, we recommend these client-specific
 - ❌ **SchildiChat Next:** Not recommended (no option to hide redacted messages).
 
 ### Desktop / Web
+
 - ✅ **Cinny:** Ensure **Settings → General → Show Hidden Events** is disabled (off by default).
 - ⚙️ **Element:** Disable **Settings → Preferences → Timeline → Show a placeholder for removed messages**.
 - ⚙️ **FluffyChat:** Enable **Settings → Chat → Hide redacted messages**.
@@ -113,26 +124,32 @@ For the best experience and a clean timeline, we recommend these client-specific
 - ✅ **SchildiChat Revenge:** Disable **Settings → Conversation screen → Show deleted messages** (off by default).
 
 ## Testing <a name="testing" href="#testing">#</a>
+
 PluralMatrix includes a comprehensive test suite covering the App Service (unit and E2E) and the Synapse module.
 
 ### App Service (Backend & E2E)
+
 Run the full suite of unit and end-to-end tests using the provided runner script:
+
 ```bash
 cd app-service
 ./test.sh
 ```
-*This script handles Matrix Rust SDK cleanup gracefully and ensures the process exits correctly.*
+
+_This script handles Matrix Rust SDK cleanup gracefully and ensures the process exits correctly._
 
 ### Synapse Module (Python)
+
 Run the unit tests for the custom Synapse gatekeeper module directly inside the container:
+
 ```bash
 ./synapse/modules/test.sh
 ```
 
 ## Support <a name="support" href="#support">#</a>
+
 Need help or want to provide feedback? You can reach out through the following channels:
 
 - **Matrix:** Join our support room at [#pluralmatrix-support:hypersystem.xyz](https://matrix.to/#/#pluralmatrix-support:hypersystem.xyz)
 - **Email:** Contact the developer at [chiara@pluralmatrix.org](mailto:chiara@pluralmatrix.org)
 - **GitHub:** File a bug report or feature request on our [Issues page](https://github.com/pluralmatrix/pluralmatrix/issues)
-

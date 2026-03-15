@@ -1,150 +1,157 @@
-import { TransactionRouter } from "./TransactionRouter";
+import { TransactionRouter } from './TransactionRouter';
 
 // Define mocks BEFORE the jest.mock call to avoid hoisting issues
 class MockDeviceLists {
-    constructor() {}
+  constructor() {}
 }
 
-jest.mock("@matrix-org/matrix-sdk-crypto-nodejs", () => {
-    return {
-        RoomId: jest.fn().mockImplementation((id: string) => ({ toString: () => id })),
-        UserId: jest.fn().mockImplementation((id: string) => ({ toString: () => id })),
-        DeviceLists: jest.fn().mockImplementation(() => new MockDeviceLists())
-    };
+jest.mock('@matrix-org/matrix-sdk-crypto-nodejs', () => {
+  return {
+    RoomId: jest.fn().mockImplementation((id: string) => ({ toString: () => id })),
+    UserId: jest.fn().mockImplementation((id: string) => ({ toString: () => id })),
+    DeviceLists: jest.fn().mockImplementation(() => new MockDeviceLists()),
+  };
 });
 
-describe("TransactionRouter", () => {
-    let router: TransactionRouter;
-    let mockManager: { getMachine: jest.Mock };
-    let mockMachine: {
-        receiveSyncChanges: jest.Mock;
-        decryptRoomEvent: jest.Mock;
-        updateTrackedUsers: jest.Mock;
+describe('TransactionRouter', () => {
+  let router: TransactionRouter;
+  let mockManager: { getMachine: jest.Mock };
+  let mockMachine: {
+    receiveSyncChanges: jest.Mock;
+    decryptRoomEvent: jest.Mock;
+    updateTrackedUsers: jest.Mock;
+  };
+  let onRequestCallback: jest.Mock;
+  let onDecryptedEvent: jest.Mock;
+
+  const botUserId = '@bot:localhost';
+
+  beforeEach(() => {
+    onRequestCallback = jest.fn().mockResolvedValue(undefined);
+    onDecryptedEvent = jest.fn().mockResolvedValue(undefined);
+
+    mockMachine = {
+      receiveSyncChanges: jest.fn().mockResolvedValue(undefined),
+      decryptRoomEvent: jest.fn(),
+      updateTrackedUsers: jest.fn().mockResolvedValue(undefined),
     };
-    let onRequestCallback: jest.Mock;
-    let onDecryptedEvent: jest.Mock;
 
-    const botUserId = "@bot:localhost";
+    mockManager = {
+      getMachine: jest.fn().mockResolvedValue(mockMachine),
+    };
 
-    beforeEach(() => {
-        onRequestCallback = jest.fn().mockResolvedValue(undefined);
-        onDecryptedEvent = jest.fn().mockResolvedValue(undefined);
+    router = new TransactionRouter(
+      mockManager as unknown as ConstructorParameters<typeof TransactionRouter>[0],
+      botUserId,
+      onRequestCallback,
+      onDecryptedEvent,
+    );
+  });
 
-        mockMachine = {
-            receiveSyncChanges: jest.fn().mockResolvedValue(undefined),
-            decryptRoomEvent: jest.fn(),
-            updateTrackedUsers: jest.fn().mockResolvedValue(undefined)
-        };
+  it('should route to-device events to the correct machine', async () => {
+    const transaction = {
+      events: [],
+      to_device: [
+        {
+          type: 'm.room_key',
+          sender: '@alice:localhost',
+          to_user_id: '@bot:localhost',
+          content: { session_id: '123' },
+        },
+      ],
+    };
 
-        mockManager = {
-            getMachine: jest.fn().mockResolvedValue(mockMachine)
-        };
+    await router.processTransaction(transaction as unknown as Parameters<TransactionRouter['processTransaction']>[0]);
 
-        router = new TransactionRouter(mockManager as unknown as ConstructorParameters<typeof TransactionRouter>[0], botUserId, onRequestCallback, onDecryptedEvent);
+    expect(mockManager.getMachine).toHaveBeenCalledWith('@bot:localhost');
+    expect(mockMachine.receiveSyncChanges).toHaveBeenCalled();
+    expect(onRequestCallback).toHaveBeenCalledWith('@bot:localhost');
+  });
+
+  it('should decrypt timeline events and call the callback', async () => {
+    const encryptedEvent = {
+      type: 'm.room.encrypted',
+      event_id: '$event1',
+      room_id: '!room1',
+      sender: '@alice:localhost',
+      content: { ciphertext: '...' },
+    };
+
+    const transaction = {
+      events: [encryptedEvent],
+    };
+
+    mockMachine.decryptRoomEvent.mockResolvedValue({
+      event: JSON.stringify({
+        type: 'm.room.message',
+        content: { body: 'hello' },
+      }),
     });
 
-    it("should route to-device events to the correct machine", async () => {
-        const transaction = {
-            events: [],
-            to_device: [
-                {
-                    type: "m.room_key",
-                    sender: "@alice:localhost",
-                    to_user_id: "@bot:localhost",
-                    content: { session_id: "123" }
-                }
-            ]
-        };
+    await router.processTransaction(transaction as unknown as Parameters<TransactionRouter['processTransaction']>[0]);
 
-        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
+    expect(mockMachine.decryptRoomEvent).toHaveBeenCalled();
+    expect(onDecryptedEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'm.room.message',
+        content: { body: 'hello' },
+        room_id: '!room1',
+      }),
+    );
+  });
 
-        expect(mockManager.getMachine).toHaveBeenCalledWith("@bot:localhost");
-        expect(mockMachine.receiveSyncChanges).toHaveBeenCalled();
-        expect(onRequestCallback).toHaveBeenCalledWith("@bot:localhost");
-    });
+  it('should trigger a tracking nudge if decryption fails', async () => {
+    const encryptedEvent = {
+      type: 'm.room.encrypted',
+      event_id: '$event1',
+      room_id: '!room1',
+      sender: '@alice:localhost',
+      content: { ciphertext: '...' },
+    };
 
-    it("should decrypt timeline events and call the callback", async () => {
-        const encryptedEvent = {
-            type: "m.room.encrypted",
-            event_id: "$event1",
-            room_id: "!room1",
-            sender: "@alice:localhost",
-            content: { ciphertext: "..." }
-        };
+    const transaction = {
+      events: [encryptedEvent],
+    };
 
-        const transaction = {
-            events: [encryptedEvent]
-        };
+    mockMachine.decryptRoomEvent.mockRejectedValue(new Error('Unknown session'));
 
-        mockMachine.decryptRoomEvent.mockResolvedValue({
-            event: JSON.stringify({
-                type: "m.room.message",
-                content: { body: "hello" }
-            })
-        });
+    await router.processTransaction(transaction as unknown as Parameters<TransactionRouter['processTransaction']>[0]);
 
-        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
+    expect(mockMachine.updateTrackedUsers).toHaveBeenCalled();
+    expect(onRequestCallback).toHaveBeenCalledWith(botUserId);
+  });
 
-        expect(mockMachine.decryptRoomEvent).toHaveBeenCalled();
-        expect(onDecryptedEvent).toHaveBeenCalledWith(expect.objectContaining({
-            type: "m.room.message",
-            content: { body: "hello" },
-            room_id: "!room1"
-        }));
-    });
+  it('should debounce decryption nudges for multiple failures from the same sender', async () => {
+    const encryptedEvent1 = {
+      type: 'm.room.encrypted',
+      event_id: '$event1',
+      room_id: '!room1',
+      sender: '@alice:localhost',
+      content: { ciphertext: '...' },
+    };
+    const encryptedEvent2 = {
+      type: 'm.room.encrypted',
+      event_id: '$event2',
+      room_id: '!room1',
+      sender: '@alice:localhost',
+      content: { ciphertext: '...' },
+    };
 
-    it("should trigger a tracking nudge if decryption fails", async () => {
-        const encryptedEvent = {
-            type: "m.room.encrypted",
-            event_id: "$event1",
-            room_id: "!room1",
-            sender: "@alice:localhost",
-            content: { ciphertext: "..." }
-        };
+    const transaction = {
+      events: [encryptedEvent1, encryptedEvent2],
+    };
 
-        const transaction = {
-            events: [encryptedEvent]
-        };
+    mockMachine.decryptRoomEvent.mockRejectedValue(new Error('Unknown session'));
 
-        mockMachine.decryptRoomEvent.mockRejectedValue(new Error("Unknown session"));
+    await router.processTransaction(transaction as unknown as Parameters<TransactionRouter['processTransaction']>[0]);
 
-        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
+    // Should only be called ONCE with Alice's ID
+    expect(mockMachine.updateTrackedUsers).toHaveBeenCalledTimes(1);
 
-        expect(mockMachine.updateTrackedUsers).toHaveBeenCalled();
-        expect(onRequestCallback).toHaveBeenCalledWith(botUserId);
-    });
+    expect(mockMachine.updateTrackedUsers).toHaveBeenCalledWith([expect.anything()]);
 
-    it("should debounce decryption nudges for multiple failures from the same sender", async () => {
-        const encryptedEvent1 = {
-            type: "m.room.encrypted",
-            event_id: "$event1",
-            room_id: "!room1",
-            sender: "@alice:localhost",
-            content: { ciphertext: "..." }
-        };
-        const encryptedEvent2 = {
-            type: "m.room.encrypted",
-            event_id: "$event2",
-            room_id: "!room1",
-            sender: "@alice:localhost",
-            content: { ciphertext: "..." }
-        };
-
-        const transaction = {
-            events: [encryptedEvent1, encryptedEvent2]
-        };
-
-        mockMachine.decryptRoomEvent.mockRejectedValue(new Error("Unknown session"));
-
-        await router.processTransaction(transaction as unknown as Parameters<TransactionRouter["processTransaction"]>[0]);
-
-        // Should only be called ONCE with Alice's ID
-        expect(mockMachine.updateTrackedUsers).toHaveBeenCalledTimes(1);
-         
-        expect(mockMachine.updateTrackedUsers).toHaveBeenCalledWith([expect.anything()]);
-        
-        // Bot sync should only be called ONCE at the end of timeline processing
-        expect(onRequestCallback).toHaveBeenCalledTimes(1);
-        expect(onRequestCallback).toHaveBeenCalledWith(botUserId);
-    });
+    // Bot sync should only be called ONCE at the end of timeline processing
+    expect(onRequestCallback).toHaveBeenCalledTimes(1);
+    expect(onRequestCallback).toHaveBeenCalledWith(botUserId);
+  });
 });

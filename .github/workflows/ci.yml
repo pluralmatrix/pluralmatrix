@@ -2,9 +2,9 @@ name: PluralMatrix CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ['main']
   pull_request:
-    branches: [ "main" ]
+    branches: ['main']
   workflow_dispatch:
 
 permissions:
@@ -96,7 +96,7 @@ jobs:
           ACTIONS_RESULTS_URL: ${{ env.ACTIONS_RESULTS_URL }}
           ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
           ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
-          SCCACHE_GHA_ENABLED: "on"
+          SCCACHE_GHA_ENABLED: 'on'
         run: |
           ./restart-stack.sh
           sudo chown -R 991:991 synapse/config 2>/dev/null || true
@@ -171,7 +171,7 @@ jobs:
           ACTIONS_RESULTS_URL: ${{ env.ACTIONS_RESULTS_URL }}
           ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
           ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
-          SCCACHE_GHA_ENABLED: "on"
+          SCCACHE_GHA_ENABLED: 'on'
         run: |
           ./restart-stack.sh
           sudo chown -R 991:991 synapse/config 2>/dev/null || true
@@ -193,7 +193,7 @@ jobs:
         run: |
           cd app-service
           sudo docker run --rm --network host --ipc=host -v "$(pwd)/..:/app" -w /app/app-service mcr.microsoft.com/playwright:v1.58.2-jammy npx playwright test
-        
+
       - name: Dump Docker Logs on Failure
         if: failure()
         run: |
@@ -213,7 +213,7 @@ jobs:
             app-service-logs.txt
             synapse-logs.txt
           retention-days: 7
-        
+
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         if: failure()
@@ -221,4 +221,3 @@ jobs:
           name: playwright-report
           path: app-service/playwright-report/
           retention-days: 7
-

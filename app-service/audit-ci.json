@@ -1,9 +1,5 @@
 {
   "high": true,
   "//": "These advisories are for nedb/underscore (abandoned transitive dependencies of matrix-appservice-bridge). They are low risk because the bridge only uses nedb for local internal state files (room/user stores), meaning the database isn't exposed to arbitrary untrusted external payloads that could trigger prototype pollution or code execution. We must wait for the bridge maintainers to migrate away.",
-  "allowlist": [
-    "GHSA-339j-hqgx-qrrx",
-    "GHSA-cf4h-3jhx-xvhq",
-    "GHSA-qpx9-hpmf-5gmw"
-  ]
+  "allowlist": ["GHSA-339j-hqgx-qrrx", "GHSA-cf4h-3jhx-xvhq", "GHSA-qpx9-hpmf-5gmw"]
 }

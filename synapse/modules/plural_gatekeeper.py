@@ -9,6 +9,7 @@ from synapse.module_api import ModuleApi
 
 logger = logging.getLogger(__name__)
 
+
 def to_mutable(obj):
     """Recursively convert immutable types to standard mutable ones."""
     if isinstance(obj, Mapping):
@@ -18,6 +19,7 @@ def to_mutable(obj):
     else:
         return obj
 
+
 class PluralGatekeeper:
     def __init__(self, config: Dict[str, Any], api: ModuleApi):
         self.api = api
@@ -25,7 +27,7 @@ class PluralGatekeeper:
         self.service_url = config.get("service_url", "http://pluralmatrix-app-service:9001/check")
         self.bot_id = config.get("bot_id", f"@plural_bot:{self.api.server_name}")
         self.gatekeeper_secret = config.get("gatekeeper_secret")
-        self._cache = {} # (room_id, event_id) -> is_proxy: bool
+        self._cache = {}  # (room_id, event_id) -> is_proxy: bool
 
         # Robust Feature Detection
         try:
@@ -35,11 +37,8 @@ class PluralGatekeeper:
             self.has_visibility_hook = False
 
         # Register callbacks
-        callbacks = {
-            "check_event_allowed": self.check_event_allowed,
-            "on_new_event": self.on_new_event
-        }
-        
+        callbacks = {"check_event_allowed": self.check_event_allowed, "on_new_event": self.on_new_event}
+
         if self.has_visibility_hook:
             callbacks["check_visibility_can_see_event"] = self.check_visibility_can_see_event
             logger.info("PluralGatekeeper: Visibility hook detected! Using high-performance Blackhole mode. 🌌")
@@ -52,9 +51,9 @@ class PluralGatekeeper:
         """Check with App Service Brain and cache results."""
         event_id = getattr(event, "event_id", None)
         room_id = getattr(event, "room_id", "")
-        
+
         cache_key = (room_id, event_id)
-        
+
         # If we have an event_id and it's in the cache, return it immediately
         if event_id and cache_key in self._cache:
             return self._cache[cache_key]
@@ -65,12 +64,12 @@ class PluralGatekeeper:
                 return False
 
             sender = getattr(event, "sender", "")
-            if sender.startswith("@_plural_") or sender == self.bot_id: 
+            if sender.startswith("@_plural_") or sender == self.bot_id:
                 return False
 
             raw_content = getattr(event, "content", {})
-            
-            # If this is an unencrypted message and the body is EMPTY, it means 
+
+            # If this is an unencrypted message and the body is EMPTY, it means
             # we already identified it as a proxy message and cleared it in check_event_allowed.
             if event_type == "m.room.message" and not raw_content.get("body"):
                 if event_id:
@@ -84,7 +83,7 @@ class PluralGatekeeper:
                 "room_id": room_id,
                 "type": event_type,
                 "origin_server_ts": getattr(event, "origin_server_ts", 0),
-                "bot_id": self.bot_id
+                "bot_id": self.bot_id,
             }
 
             if event_type == "m.room.encrypted":
@@ -95,32 +94,34 @@ class PluralGatekeeper:
                 payload_dict["content"] = to_mutable(raw_content)
 
             payload = json.dumps(payload_dict).encode("utf-8")
-            headers = {'Content-Type': 'application/json'}
+            headers = {"Content-Type": "application/json"}
             if self.gatekeeper_secret:
-                headers['Authorization'] = f"Bearer {self.gatekeeper_secret}"
-            
+                headers["Authorization"] = f"Bearer {self.gatekeeper_secret}"
+
             req = urllib.request.Request(self.service_url, data=payload, headers=headers)
-            
+
             with urllib.request.urlopen(req, timeout=1.5) as response:
                 result = json.load(response)
                 is_proxy = result.get("action") == "BLOCK"
-                
+
                 if event_id:
                     self._cache[cache_key] = is_proxy
                     if len(self._cache) > 1000:
                         self._cache.clear()
-                    
+
                 return is_proxy
 
         except Exception as e:
             logger.error(f"[Blackhole] AppService check failed for {event_id} at {self.service_url}: {e}")
             return False
 
-    async def check_event_allowed(self, event: Any, state_events: Mapping[Tuple[str, str], Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    async def check_event_allowed(
+        self, event: Any, state_events: Mapping[Tuple[str, str], Any]
+    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         # Only clear regular non-encrypted messages
         event_type = getattr(event, "type", "")
         if event_type != "m.room.message":
-            return (True, None)        
+            return (True, None)
         is_proxy = await self._is_proxy_message(event)
         event_dict = to_mutable(event.get_dict())
         if is_proxy:
@@ -129,7 +130,7 @@ class PluralGatekeeper:
                 # 1. Avoid double proxy since the /check call already proxied the message
                 # 2. Minimizes the flash in the case where the
                 #    check_visibility_can_see_event patch is unavailable
-                event_dict["content"]["body"] = "" 
+                event_dict["content"]["body"] = ""
                 if "formatted_body" in event_dict["content"]:
                     event_dict["content"]["formatted_body"] = ""
         return (True, event_dict)
@@ -150,7 +151,7 @@ class PluralGatekeeper:
         # RULE 3: For everyone else, if it's a proxy message, hide it (Blackhole).
         if await self._is_proxy_message(event):
             return False
-        
+
         return True
 
     async def on_new_event(self, event: Any, state_events: Mapping[Tuple[str, str], Any]) -> None:
@@ -161,30 +162,32 @@ class PluralGatekeeper:
         event_type = getattr(event, "type", "")
         if event_type != "m.room.message":
             return
-            
+
         if await self._is_proxy_message(event):
             event_id = getattr(event, "event_id", None)
             room_id = getattr(event, "room_id", None)
-            
+
             if event_id and room_id:
                 try:
                     # If this is an edit, we only need to redact the original root message.
-                    # The Matrix homeserver will automatically cascade the redaction to all 
+                    # The Matrix homeserver will automatically cascade the redaction to all
                     # related m.replace events (including this one).
                     content = getattr(event, "content", {})
                     relates_to = content.get("m.relates_to", {})
-                    
+
                     target_redaction_id = event_id
                     if relates_to.get("rel_type") == "m.replace" and relates_to.get("event_id"):
                         target_redaction_id = relates_to.get("event_id")
 
-                    await self.api.create_and_send_event_into_room({
-                        "type": "m.room.redaction",
-                        "room_id": room_id,
-                        "sender": self.bot_id,
-                        "content": { "reason": "PluralMatrix Proxying" },
-                        "redacts": target_redaction_id
-                    })
+                    await self.api.create_and_send_event_into_room(
+                        {
+                            "type": "m.room.redaction",
+                            "room_id": room_id,
+                            "sender": self.bot_id,
+                            "content": {"reason": "PluralMatrix Proxying"},
+                            "redacts": target_redaction_id,
+                        }
+                    )
                 except Exception:
                     pass
 

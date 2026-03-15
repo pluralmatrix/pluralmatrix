@@ -1,93 +1,91 @@
-import { OlmMachine, UserId, DeviceId } from "@matrix-org/matrix-sdk-crypto-nodejs";
-import * as fs from "fs";
-import * as path from "path";
-import { Mutex } from "async-mutex";
-import { config } from "../config";
-import { bootstrapCrossSigning } from "./CrossSigningBootstrapper";
+import { OlmMachine, UserId, DeviceId } from '@matrix-org/matrix-sdk-crypto-nodejs';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Mutex } from 'async-mutex';
+import { config } from '../config';
+import { bootstrapCrossSigning } from './CrossSigningBootstrapper';
 
 export class OlmMachineManager {
-    private machines: Map<string, OlmMachine> = new Map();
-    private locks: Map<string, Mutex> = new Map();
-    private storageRoot: string;
-    private bridge: { getIntent: (userId: string) => import("matrix-appservice-bridge").Intent } | undefined;
-    private asToken: string | undefined;
+  private machines: Map<string, OlmMachine> = new Map();
+  private locks: Map<string, Mutex> = new Map();
+  private storageRoot: string;
+  private bridge: { getIntent: (userId: string) => import('matrix-appservice-bridge').Intent } | undefined;
+  private asToken: string | undefined;
 
-    constructor(storageRoot: string = "./data/crypto") {
-        this.storageRoot = storageRoot;
-        if (!fs.existsSync(this.storageRoot)) {
-            fs.mkdirSync(this.storageRoot, { recursive: true });
-        }
+  constructor(storageRoot: string = './data/crypto') {
+    this.storageRoot = storageRoot;
+    if (!fs.existsSync(this.storageRoot)) {
+      fs.mkdirSync(this.storageRoot, { recursive: true });
+    }
+  }
+
+  setContext(bridge: { getIntent: (userId: string) => import('matrix-appservice-bridge').Intent }, asToken: string) {
+    this.bridge = bridge;
+    this.asToken = asToken;
+  }
+
+  async getMachine(userId: string): Promise<OlmMachine> {
+    // 1. Fast path: already initialized
+    if (this.machines.has(userId)) {
+      return this.machines.get(userId)!;
     }
 
-    setContext(bridge: { getIntent: (userId: string) => import("matrix-appservice-bridge").Intent }, asToken: string) {
-        this.bridge = bridge;
-        this.asToken = asToken;
+    // 2. Slow path: Acquire per-user lock to prevent race conditions during initialization
+    if (!this.locks.has(userId)) {
+      this.locks.set(userId, new Mutex());
     }
 
-    async getMachine(userId: string): Promise<OlmMachine> {
-        // 1. Fast path: already initialized
-        if (this.machines.has(userId)) {
-            return this.machines.get(userId)!;
+    const mutex = this.locks.get(userId)!;
+    return await mutex.runExclusive(async () => {
+      // Check again after acquiring lock
+      if (this.machines.has(userId)) {
+        return this.machines.get(userId)!;
+      }
+
+      const sanitizedId = userId.replace(/[^a-zA-Z0-9]/g, '_');
+      const storePath = path.join(this.storageRoot, sanitizedId);
+      const deviceId = config.cryptoDeviceId;
+      const deviceIdFile = path.join(storePath, '.device_id');
+
+      // Ensure store directory exists and check for device ID changes
+      if (!fs.existsSync(storePath)) {
+        fs.mkdirSync(storePath, { recursive: true });
+      } else {
+        let storedDeviceId = '';
+        if (fs.existsSync(deviceIdFile)) {
+          storedDeviceId = fs.readFileSync(deviceIdFile, 'utf-8').trim();
         }
 
-        // 2. Slow path: Acquire per-user lock to prevent race conditions during initialization
-        if (!this.locks.has(userId)) {
-            this.locks.set(userId, new Mutex());
+        // If we have a stored ID and it differs from the current one, wipe the state
+        if (storedDeviceId && storedDeviceId !== deviceId) {
+          console.log(
+            `[Crypto] Device ID changed from ${storedDeviceId} to ${deviceId}. Wiping crypto store for ${userId}...`,
+          );
+          fs.rmSync(storePath, { recursive: true, force: true });
+          fs.mkdirSync(storePath, { recursive: true });
         }
-        
-        const mutex = this.locks.get(userId)!;
-        return await mutex.runExclusive(async () => {
-            // Check again after acquiring lock
-            if (this.machines.has(userId)) {
-                return this.machines.get(userId)!;
-            }
+      }
 
-            const sanitizedId = userId.replace(/[^a-zA-Z0-9]/g, "_");
-            const storePath = path.join(this.storageRoot, sanitizedId);
-            const deviceId = config.cryptoDeviceId; 
-            const deviceIdFile = path.join(storePath, ".device_id");
+      // Record the active device ID
+      fs.writeFileSync(deviceIdFile, deviceId, 'utf-8');
 
-            // Ensure store directory exists and check for device ID changes
-            if (!fs.existsSync(storePath)) {
-                fs.mkdirSync(storePath, { recursive: true });
-            } else {
-                let storedDeviceId = "";
-                if (fs.existsSync(deviceIdFile)) {
-                    storedDeviceId = fs.readFileSync(deviceIdFile, "utf-8").trim();
-                }
-                
-                // If we have a stored ID and it differs from the current one, wipe the state
-                if (storedDeviceId && storedDeviceId !== deviceId) {
-                    console.log(`[Crypto] Device ID changed from ${storedDeviceId} to ${deviceId}. Wiping crypto store for ${userId}...`);
-                    fs.rmSync(storePath, { recursive: true, force: true });
-                    fs.mkdirSync(storePath, { recursive: true });
-                }
-            }
+      // Automated Cross-Signing Bootstrapping via Rust Sidecar
+      // Must happen BEFORE OlmMachine.initialize to avoid sqlite locks
+      if (this.bridge && this.asToken) {
+        await bootstrapCrossSigning(userId, deviceId, storePath, this.bridge.getIntent(userId), this.asToken);
+      }
 
-            // Record the active device ID
-            fs.writeFileSync(deviceIdFile, deviceId, "utf-8");
+      console.log(`[Crypto] Initializing OlmMachine for ${userId} (Device: ${deviceId}) at ${storePath}`);
+      const machine = await OlmMachine.initialize(new UserId(userId), new DeviceId(deviceId), storePath);
 
-            // Automated Cross-Signing Bootstrapping via Rust Sidecar
-            // Must happen BEFORE OlmMachine.initialize to avoid sqlite locks
-            if (this.bridge && this.asToken) {
-                await bootstrapCrossSigning(
-                    userId,
-                    deviceId,
-                    storePath,
-                    this.bridge.getIntent(userId),
-                    this.asToken
-                );
-            }
+      // Identity Keys are read-only properties
+      const keys = machine.identityKeys;
+      console.log(
+        `[Crypto] Machine initialized for ${userId}. Identity: curve25519=${keys.curve25519.toBase64().substring(0, 10)}...`,
+      );
 
-            console.log(`[Crypto] Initializing OlmMachine for ${userId} (Device: ${deviceId}) at ${storePath}`);
-            const machine = await OlmMachine.initialize(new UserId(userId), new DeviceId(deviceId), storePath);
-            
-            // Identity Keys are read-only properties
-            const keys = machine.identityKeys;
-            console.log(`[Crypto] Machine initialized for ${userId}. Identity: curve25519=${keys.curve25519.toBase64().substring(0,10)}...`);
-            
-            this.machines.set(userId, machine);
-            return machine;
-        });
-    }
+      this.machines.set(userId, machine);
+      return machine;
+    });
+  }
 }

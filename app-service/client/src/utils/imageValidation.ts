@@ -2,71 +2,71 @@
  * Validates an image file against avatar limits.
  */
 export interface ImageValidationResult {
-    valid: boolean;
-    error?: string;
+  valid: boolean;
+  error?: string;
 }
 
 export const validateAvatarImage = async (file: File): Promise<ImageValidationResult> => {
-    // 1. File Format Check
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-        return {
-            valid: false,
-            error: `The image must be in .jpg, .png, or .webp format. Your file type is ${file.type.split('/')[1] || 'unknown'}.`
-        };
-    }
+  // 1. File Format Check
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!validTypes.includes(file.type)) {
+    return {
+      valid: false,
+      error: `The image must be in .jpg, .png, or .webp format. Your file type is ${file.type.split('/')[1] || 'unknown'}.`,
+    };
+  }
 
-    // 2. File Size Check
-    const maxSizeInBytes = 8388608; // 8 MB
-    if (file.size > maxSizeInBytes) {
-        return {
-            valid: false,
-            error: `The image must be under 8 MB. Your image is ${Math.round(file.size / (1024 * 1024) * 100) / 100} MB.`
-        };
-    }
+  // 2. File Size Check
+  const maxSizeInBytes = 8388608; // 8 MB
+  if (file.size > maxSizeInBytes) {
+    return {
+      valid: false,
+      error: `The image must be under 8 MB. Your image is ${Math.round((file.size / (1024 * 1024)) * 100) / 100} MB.`,
+    };
+  }
 
-    // 3. Resolution and Animation Check
-    return new Promise((resolve) => {
-        const img = new Image();
-        const objectUrl = URL.createObjectURL(file);
+  // 3. Resolution and Animation Check
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
 
-        img.onload = () => {
-            URL.revokeObjectURL(objectUrl);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
 
-            // Resolution Check: max 4000 pixels along its largest axis
-            const largestAxis = Math.max(img.width, img.height);
-            if (largestAxis > 4000) {
-                resolve({
-                    valid: false,
-                    error: `The image must be 4000 pixels or fewer along its largest axis. Your image's largest axis is ${largestAxis} pixels (${img.width}x${img.height}).`
-                });
-                return;
-            }
+      // Resolution Check: max 4000 pixels along its largest axis
+      const largestAxis = Math.max(img.width, img.height);
+      if (largestAxis > 4000) {
+        resolve({
+          valid: false,
+          error: `The image must be 4000 pixels or fewer along its largest axis. Your image's largest axis is ${largestAxis} pixels (${img.width}x${img.height}).`,
+        });
+        return;
+      }
 
-            // Animation Check: (GIFs are already excluded by mime type check above)
-            // Note: Detecting animated WebP or APNG is more complex but mime check covers basic GIF restriction.
-            
-            resolve({ valid: true });
-        };
+      // Animation Check: (GIFs are already excluded by mime type check above)
+      // Note: Detecting animated WebP or APNG is more complex but mime check covers basic GIF restriction.
 
-        img.onerror = () => {
-            URL.revokeObjectURL(objectUrl);
-            resolve({
-                valid: false,
-                error: "Failed to load image for validation. It may be corrupted or an unsupported format."
-            });
-        };
+      resolve({ valid: true });
+    };
 
-        img.src = objectUrl;
-    });
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({
+        valid: false,
+        error: 'Failed to load image for validation. It may be corrupted or an unsupported format.',
+      });
+    };
+
+    img.src = objectUrl;
+  });
 };
 
 export const validateAvatarUrl = (url: string): ImageValidationResult => {
-    if (url.length > 256) {
-        return {
-            valid: false,
-            error: `The avatar URL must be 256 characters or fewer. Your URL is ${url.length} characters.`
-        };
-    }
-    return { valid: true };
+  if (url.length > 256) {
+    return {
+      valid: false,
+      error: `The avatar URL must be 256 characters or fewer. Your URL is ${url.length} characters.`,
+    };
+  }
+  return { valid: true };
 };

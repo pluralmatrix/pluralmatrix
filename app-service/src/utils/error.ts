@@ -1,8 +1,8 @@
 export interface MatrixHttpError extends Error {
-    status?: number;
-    httpStatus?: number;
-    errcode?: string;
-    body?: Record<string, unknown>;
+  status?: number;
+  httpStatus?: number;
+  errcode?: string;
+  body?: Record<string, unknown>;
 }
 
 /**
@@ -10,9 +10,7 @@ export interface MatrixHttpError extends Error {
  * containing status codes or specific matrix errcodes.
  */
 export function isMatrixHttpError(error: unknown): error is MatrixHttpError {
-    return (
-        typeof error === 'object' && 
-        error !== null && 
-        ('status' in error || 'httpStatus' in error || 'errcode' in error)
-    );
+  return (
+    typeof error === 'object' && error !== null && ('status' in error || 'httpStatus' in error || 'errcode' in error)
+  );
 }

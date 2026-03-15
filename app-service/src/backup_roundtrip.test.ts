@@ -7,136 +7,147 @@ import { Member } from '@prisma/client';
 import { SystemWithRelations } from './types';
 
 const mockBotClient = {
-    uploadContent: jest.fn().mockResolvedValue('mxc://new/avatar')
+  uploadContent: jest.fn().mockResolvedValue('mxc://new/avatar'),
 };
 
 jest.mock('./bot', () => ({
-    prisma: {
-        system: {
-            upsert: jest.fn(),
-            findUnique: jest.fn(),
-            update: jest.fn(),
-            create: jest.fn(),
-        },
-        member: {
-            upsert: jest.fn(),
-            findMany: jest.fn(),
-            update: jest.fn(),
-            create: jest.fn(),
-        },
-        accountLink: {
-            findUnique: jest.fn(),
-            upsert: jest.fn(),
-            create: jest.fn(),
-        }
+  prisma: {
+    system: {
+      upsert: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
     },
-    getBridge: jest.fn().mockReturnValue({
-        getBot: () => ({ getClient: () => mockBotClient }),
-        getIntent: jest.fn().mockReturnValue({
-            ensureRegistered: jest.fn().mockResolvedValue({}),
-            setDisplayName: jest.fn().mockResolvedValue({}),
-            setAvatarUrl: jest.fn().mockResolvedValue({}),
-            matrixClient: { getJoinedRooms: jest.fn().mockResolvedValue([]) }
-        })
-    })
+    member: {
+      upsert: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+    },
+    accountLink: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      create: jest.fn(),
+    },
+  },
+  getBridge: jest.fn().mockReturnValue({
+    getBot: () => ({ getClient: () => mockBotClient }),
+    getIntent: jest.fn().mockReturnValue({
+      ensureRegistered: jest.fn().mockResolvedValue({}),
+      setDisplayName: jest.fn().mockResolvedValue({}),
+      setAvatarUrl: jest.fn().mockResolvedValue({}),
+      matrixClient: { getJoinedRooms: jest.fn().mockResolvedValue([]) },
+    }),
+  }),
 }));
 
 describe('PluralMatrix Backup Roundtrip', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
+    global.fetch = jest.fn().mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        headers: { get: () => 'image/png' },
+        arrayBuffer: () => Promise.resolve(Buffer.from('fake-image-data')),
+      }),
+    );
+  });
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        jest.spyOn(importModule, 'validateImageBuffer').mockReturnValue({ valid: true });
-        global.fetch = jest.fn().mockImplementation(() => Promise.resolve({
-            ok: true,
-            headers: { get: () => 'image/png' },
-            arrayBuffer: () => Promise.resolve(Buffer.from('fake-image-data'))
-        }));
-    });
+  it('should perfectly roundtrip a full PluralMatrix backup ZIP', async () => {
+    const mxid = '@owner:localhost';
+    const mockSystem = {
+      id: 'sys-uuid',
+      slug: 'seraphim-main',
+      pkId: 'oryii',
+      name: 'Seraphim System',
+      description: 'Internal backup test',
+      systemTag: '⛩️',
+      createdAt: new Date(),
+      members: [
+        {
+          id: 'mem-1',
+          slug: 'riven-fox',
+          pkId: 'udhgx',
+          name: 'Riven',
+          displayName: 'Riven (Judge)',
+          avatarUrl: 'mxc://localhost/media123',
+          proxyTags: [{ prefix: 'Ri:', suffix: null }],
+        },
+      ],
+    };
 
-    it('should perfectly roundtrip a full PluralMatrix backup ZIP', async () => {
-        const mxid = '@owner:localhost';
-        const mockSystem = {
-            id: 'sys-uuid',
-            slug: 'seraphim-main',
-            pkId: 'oryii',
-            name: 'Seraphim System',
-            description: 'Internal backup test',
-            systemTag: '⛩️',
-            createdAt: new Date(),
-            members: [
-                {
-                    id: 'mem-1',
-                    slug: 'riven-fox',
-                    pkId: 'udhgx',
-                    name: 'Riven',
-                    displayName: 'Riven (Judge)',
-                    avatarUrl: 'mxc://localhost/media123',
-                    proxyTags: [{ prefix: 'Ri:', suffix: null }]
-                }
-            ]
-        };
+    (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
 
-        (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
+    // 1. Export to ZIP
+    const chunks: Buffer[] = [];
+    const zipStream = new PassThrough();
+    zipStream.on('data', (chunk: Buffer) => chunks.push(chunk));
 
-        // 1. Export to ZIP
-        const chunks: Buffer[] = [];
-        const zipStream = new PassThrough();
-        zipStream.on('data', (chunk: Buffer) => chunks.push(chunk));
-        
-        const [zipBuffer] = await Promise.all([
-            new Promise<Buffer>((resolve) => {
-                zipStream.on('end', () => resolve(Buffer.concat(chunks)));
-            }),
-            exportSystemZip(mxid, zipStream, 'backup')
-        ]);
+    const [zipBuffer] = await Promise.all([
+      new Promise<Buffer>((resolve) => {
+        zipStream.on('end', () => resolve(Buffer.concat(chunks)));
+      }),
+      exportSystemZip(mxid, zipStream, 'backup'),
+    ]);
 
-        // 2. Setup mocks for Import
-        // importFromPluralKit calls findUnique for accountLink once.
-        // importAvatarsZip calls findUnique for accountLink once.
-        (prisma.accountLink.findUnique as jest.Mock)
-            .mockResolvedValueOnce(null) // 1. importFromPluralKit check
-            .mockResolvedValue({
-                system: {
-                    ...mockSystem,
-                    id: 'new-sys-id',
-                    slug: 'seraphim-main',
-                    members: mockSystem.members.map(m => ({ ...m, id: 'new-mem-id' }))
-                }
-            }); // 2. importAvatarsZip call
+    // 2. Setup mocks for Import
+    // importFromPluralKit calls findUnique for accountLink once.
+    // importAvatarsZip calls findUnique for accountLink once.
+    (prisma.accountLink.findUnique as jest.Mock)
+      .mockResolvedValueOnce(null) // 1. importFromPluralKit check
+      .mockResolvedValue({
+        system: {
+          ...mockSystem,
+          id: 'new-sys-id',
+          slug: 'seraphim-main',
+          members: mockSystem.members.map((m) => ({ ...m, id: 'new-mem-id' })),
+        },
+      }); // 2. importAvatarsZip call
 
-        let savedSystem: SystemWithRelations;
-        let savedMember: Member;
+    let savedSystem: SystemWithRelations;
+    let savedMember: Member;
 
-        (prisma.system.create as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
-            savedSystem = createMockSystem({ ...args.data, id: 'new-sys-id' } as unknown as Partial<SystemWithRelations>);
-            return Promise.resolve(savedSystem);
-        });
+    (prisma.system.create as jest.Mock).mockImplementation(
+      (args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
+        savedSystem = createMockSystem({ ...args.data, id: 'new-sys-id' } as unknown as Partial<SystemWithRelations>);
+        return Promise.resolve(savedSystem);
+      },
+    );
 
-        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
-            savedMember = createMockMember({ ...args.create, id: 'new-mem-id' } as unknown as Partial<Member>);
-            return Promise.resolve(savedMember);
-        });
+    (prisma.member.upsert as jest.Mock).mockImplementation(
+      (args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
+        savedMember = createMockMember({ ...args.create, id: 'new-mem-id' } as unknown as Partial<Member>);
+        return Promise.resolve(savedMember);
+      },
+    );
 
-        (prisma.member.update as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.MemberUpdateInput }) => {
-            return Promise.resolve({ ...mockSystem.members[0], ...args.data, id: 'new-mem-id' });
-        });
+    (prisma.member.update as jest.Mock).mockImplementation(
+      (args: { data: import('@prisma/client').Prisma.MemberUpdateInput }) => {
+        return Promise.resolve({ ...mockSystem.members[0], ...args.data, id: 'new-mem-id' });
+      },
+    );
 
-        (prisma.accountLink.upsert as jest.Mock).mockResolvedValue({});
+    (prisma.accountLink.upsert as jest.Mock).mockResolvedValue({});
 
-        // 3. Run Import
-        const importResult = await importSystemZip(mxid, zipBuffer);
+    // 3. Run Import
+    const importResult = await importSystemZip(mxid, zipBuffer);
 
-        // 4. Verify Results
-        expect(importResult.count).toBe(1);
-        expect(importResult.failedAvatars).toHaveLength(0);
-        expect(importResult.systemSlug).toBe('seraphim-main');
+    // 4. Verify Results
+    expect(importResult.count).toBe(1);
+    expect(importResult.failedAvatars).toHaveLength(0);
+    expect(importResult.systemSlug).toBe('seraphim-main');
 
-        const createCall = ((prisma.system.create as jest.Mock).mock.calls as unknown[][])[0][0] as { data: { slug: string } };
-        expect(createCall.data.slug).toBe('seraphim-main');
+    const createCall = ((prisma.system.create as jest.Mock).mock.calls as unknown[][])[0][0] as {
+      data: { slug: string };
+    };
+    expect(createCall.data.slug).toBe('seraphim-main');
 
-        const upsertCall = ((prisma.member.upsert as jest.Mock).mock.calls as unknown[][])[0][0] as { create: { slug: string } };
-        expect(upsertCall.create.slug).toBe('riven-fox');
+    const upsertCall = ((prisma.member.upsert as jest.Mock).mock.calls as unknown[][])[0][0] as {
+      create: { slug: string };
+    };
+    expect(upsertCall.create.slug).toBe('riven-fox');
 
-        expect(jest.mocked(mockBotClient.uploadContent)).toHaveBeenCalled();
-    });
+    expect(jest.mocked(mockBotClient.uploadContent)).toHaveBeenCalled();
+  });
 });

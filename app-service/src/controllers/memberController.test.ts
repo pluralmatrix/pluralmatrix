@@ -5,37 +5,37 @@ import * as memberController from './memberController';
 
 // Mock dependencies
 jest.mock('../bot', () => ({
-    prisma: {
-        accountLink: {
-            findUnique: jest.fn()
-        },
-        member: {
-            findFirst: jest.fn(),
-            findMany: jest.fn(),
-            update: jest.fn(),
-            create: jest.fn(),
-            delete: jest.fn(),
-            deleteMany: jest.fn()
-        },
-        system: {
-            findUnique: jest.fn()
-        }
-    }
+  prisma: {
+    accountLink: {
+      findUnique: jest.fn(),
+    },
+    member: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    system: {
+      findUnique: jest.fn(),
+    },
+  },
 }));
 
 jest.mock('../services/cache', () => ({
-    proxyCache: {
-        invalidate: jest.fn()
-    }
+  proxyCache: {
+    invalidate: jest.fn(),
+  },
 }));
 
 jest.mock('../services/events', () => ({
-    emitSystemUpdate: jest.fn()
+  emitSystemUpdate: jest.fn(),
 }));
 
 jest.mock('../import', () => ({
-    syncGhostProfile: jest.fn().mockResolvedValue(null),
-    decommissionGhost: jest.fn().mockResolvedValue(null)
+  syncGhostProfile: jest.fn().mockResolvedValue(null),
+  decommissionGhost: jest.fn().mockResolvedValue(null),
 }));
 
 import { prisma } from '../bot';
@@ -46,8 +46,8 @@ app.use(bodyParser.json());
 
 // Mock auth middleware injecting the user
 const mockAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    req.user = { mxid: '@alice:localhost' };
-    next();
+  req.user = { mxid: '@alice:localhost' };
+  next();
 };
 
 app.get('/members', mockAuth, memberController.listMembers);
@@ -58,282 +58,286 @@ app.delete('/members/:id', mockAuth, memberController.deleteMember);
 app.delete('/members', mockAuth, memberController.deleteAllMembers);
 
 describe('Member Controller', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('GET /members', () => {
+    it('should list members for the user', async () => {
+      const mockMembers = [{ id: 'm1', name: 'Test' }];
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        system: { members: mockMembers },
+      });
+
+      const res = await request(app).get('/members');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockMembers);
     });
 
-    describe('GET /members', () => {
-        it('should list members for the user', async () => {
-            const mockMembers = [{ id: 'm1', name: 'Test' }];
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                system: { members: mockMembers }
-            });
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
 
-            const res = await request(app).get('/members');
+      const res = await request(app).get('/members');
 
-            expect(res.status).toBe(200);
-            expect(res.body).toEqual(mockMembers);
+      expect(res.status).toBe(500);
+      expect((res.body as { error: string }).error).toBe('Failed to fetch members');
+    });
+  });
+
+  describe('POST /members', () => {
+    it('should correctly process group arrays in the create payload', async () => {
+      const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
+      (prisma.member.create as jest.Mock).mockResolvedValue({ id: 'm1', system: mockSystem });
+
+      const res = await request(app)
+        .post('/members')
+        .send({
+          name: 'New Member',
+          slug: 'new-member',
+          proxyTags: [{ prefix: 'n:' }],
+          groups: ['g1', 'g2'],
         });
 
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-
-            const res = await request(app).get('/members');
-
-            expect(res.status).toBe(500);
-            expect((res.body as { error: string }).error).toBe('Failed to fetch members');
-        });
+      expect(res.status).toBe(201);
+      expect(jest.spyOn(prisma.member, 'create')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            groups: { connect: [{ id: 'g1' }, { id: 'g2' }] },
+          }) as unknown,
+        }),
+      );
     });
 
-    describe('POST /members', () => {
-        it('should correctly process group arrays in the create payload', async () => {
-            const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
-            (prisma.member.create as jest.Mock).mockResolvedValue({ id: 'm1', system: mockSystem });
+    it('should reject duplicate proxy tags', async () => {
+      const mockSystem = {
+        id: 'sys1',
+        slug: 'sys-slug',
+        members: [{ name: 'Existing', proxyTags: [{ prefix: 'n:', suffix: '' }] }],
+      };
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
 
-            const res = await request(app)
-                .post('/members')
-                .send({
-                    name: 'New Member',
-                    slug: 'new-member',
-                    proxyTags: [{ prefix: 'n:' }],
-                    groups: ['g1', 'g2']
-                });
-
-            expect(res.status).toBe(201);
-            expect(jest.spyOn(prisma.member, 'create')).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.objectContaining({
-                    groups: { connect: [{ id: 'g1' }, { id: 'g2' }] }
-                }) as unknown
-            }));
+      const res = await request(app)
+        .post('/members')
+        .send({
+          name: 'New Member',
+          slug: 'new-member',
+          proxyTags: [{ prefix: 'n:' }],
         });
 
-        it('should reject duplicate proxy tags', async () => {
-            const mockSystem = { 
-                id: 'sys1', 
-                slug: 'sys-slug', 
-                members: [{ name: 'Existing', proxyTags: [{ prefix: 'n:', suffix: '' }] }] 
-            };
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ system: mockSystem });
-
-            const res = await request(app)
-                .post('/members')
-                .send({
-                    name: 'New Member',
-                    slug: 'new-member',
-                    proxyTags: [{ prefix: 'n:' }]
-                });
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toContain('already in use');
-        });
-
-        it('should return 400 for Zod validation error', async () => {
-            const res = await request(app).post('/members').send({ name: '' });
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toBe('Invalid input format');
-        });
-
-        it('should handle unexpected errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).post('/members').send({
-                name: 'New', slug: 'new', proxyTags: [{ prefix: 'new:' }]
-            });
-            expect(res.status).toBe(500);
-        });
-
-        it('should return 404 if system not found', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-            const res = await request(app).post('/members').send({
-                name: 'New', slug: 'new', proxyTags: [{ prefix: 'new:' }]
-            });
-            expect(res.status).toBe(404);
-        });
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toContain('already in use');
     });
 
-    describe('PATCH /members/:id', () => {
-        it('should correctly process group arrays in the update payload', async () => {
-            const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
-            const oldMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1' };
-            const updatedMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1', system: mockSystem };
-
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
-            (prisma.member.findFirst as jest.Mock).mockResolvedValue(oldMember);
-            (prisma.member.update as jest.Mock).mockResolvedValue(updatedMember);
-
-            const res = await request(app)
-                .patch('/members/m1')
-                .send({
-                    groups: ['g3']
-                });
-
-            expect(res.status).toBe(200);
-            expect(jest.spyOn(prisma.member, 'update')).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.objectContaining({
-                    groups: { set: [{ id: 'g3' }] }
-                }) as unknown
-            }));
-        });
-        it('should decommission the old ghost when the member slug is changed', async () => {
-            const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
-            const oldMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1' };
-            const updatedMember = { id: 'm1', slug: 'new-slug', systemId: 'sys1', system: mockSystem };
-
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
-            (prisma.member.findFirst as jest.Mock).mockResolvedValue(oldMember);
-            (prisma.member.update as jest.Mock).mockResolvedValue(updatedMember);
-
-            const res = await request(app)
-                .patch('/members/m1')
-                .send({ slug: 'new-slug' });
-
-            expect(res.status).toBe(200);
-            
-            // Should decommission the OLD ghost
-            expect(decommissionGhost).toHaveBeenCalledWith(oldMember, mockSystem);
-            
-            // Should sync the NEW ghost
-            expect(syncGhostProfile).toHaveBeenCalledWith(updatedMember, mockSystem);
-        });
-
-        it('should NOT decommission the ghost if the slug is unchanged', async () => {
-            const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
-            const oldMember = { id: 'm1', slug: 'same-slug', systemId: 'sys1' };
-            const updatedMember = { id: 'm1', slug: 'same-slug', name: 'New Name', systemId: 'sys1', system: mockSystem };
-
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
-            (prisma.member.findFirst as jest.Mock).mockResolvedValue(oldMember);
-            (prisma.member.update as jest.Mock).mockResolvedValue(updatedMember);
-
-            const res = await request(app)
-                .patch('/members/m1')
-                .send({ name: 'New Name' });
-
-            expect(res.status).toBe(200);
-            
-            // Should NOT decommission
-            expect(decommissionGhost).not.toHaveBeenCalled();
-            
-            // Should just update the existing ghost
-            expect(syncGhostProfile).toHaveBeenCalledWith(updatedMember, mockSystem);
-        });
-
-        it('should return 400 Bad Request on Zod validation failure', async () => {
-            const res = await request(app)
-                .patch('/members/m1')
-                .send({ slug: 'INVALID SLUG WITH SPACES AND CAPS' });
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toBe('Invalid input format');
-            expect(jest.spyOn(prisma.member, 'update')).not.toHaveBeenCalled();
-        });
-
-        it('should reject duplicate proxy tags on update', async () => {
-            const mockSystem = { 
-                id: 'sys1', 
-                slug: 'sys-slug', 
-                members: [
-                    { id: 'm2', name: 'Existing', proxyTags: [{ prefix: 'existing:', suffix: '' }] }
-                ] 
-            };
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
-            (prisma.member.findFirst as jest.Mock).mockResolvedValue({ id: 'm1', slug: 'm1' });
-
-            const res = await request(app)
-                .patch('/members/m1')
-                .send({
-                    proxyTags: [{ prefix: 'existing:' }]
-                });
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toContain('already in use');
-        });
-
-        it('should return 404 if member not found', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            (prisma.member.findFirst as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app).patch('/members/m1').send({ name: 'New' });
-            expect(res.status).toBe(404);
-        });
-
-        it('should return 403 if user not linked to system', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app).patch('/members/m1').send({ name: 'New' });
-            expect(res.status).toBe(403);
-        });
-
-        it('should handle unexpected errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).patch('/members/m1').send({ name: 'New' });
-            expect(res.status).toBe(500);
-        });
+    it('should return 400 for Zod validation error', async () => {
+      const res = await request(app).post('/members').send({ name: '' });
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toBe('Invalid input format');
     });
 
-    describe('DELETE /members/:id', () => {
-        it('should decommission the ghost before deleting the member from DB', async () => {
-            const mockSystem = { id: 'sys1', slug: 'sys-slug' };
-            const mockMember = { id: 'm1', slug: 'lily', systemId: 'sys1', system: mockSystem };
-
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            (prisma.member.findFirst as jest.Mock).mockResolvedValue(mockMember);
-
-            const res = await request(app).delete('/members/m1');
-
-            expect(res.status).toBe(200);
-            expect(decommissionGhost).toHaveBeenCalledWith(mockMember, mockSystem);
-            expect(jest.spyOn(prisma.member, 'delete')).toHaveBeenCalledWith({ where: { id: 'm1' } });
+    it('should handle unexpected errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app)
+        .post('/members')
+        .send({
+          name: 'New',
+          slug: 'new',
+          proxyTags: [{ prefix: 'new:' }],
         });
-
-        it('should return 403 if user not linked to system', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-            const res = await request(app).delete('/members/m1');
-            expect(res.status).toBe(403);
-        });
-
-        it('should return 404 if member not found', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            (prisma.member.findFirst as jest.Mock).mockResolvedValue(null);
-            const res = await request(app).delete('/members/m1');
-            expect(res.status).toBe(404);
-        });
-
-        it('should handle unexpected errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).delete('/members/m1');
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(500);
     });
 
-    describe('DELETE /members', () => {
-        it('should decommission every member ghost before bulk deleting', async () => {
-            const mockSystem = { id: 'sys1', slug: 'sys-slug' };
-            const mockMembers = [
-                { id: 'm1', slug: 'alice', systemId: 'sys1', system: mockSystem },
-                { id: 'm2', slug: 'bob', systemId: 'sys1', system: mockSystem }
-            ];
-
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            (prisma.member.findMany as jest.Mock).mockResolvedValue(mockMembers);
-
-            const res = await request(app).delete('/members');
-
-            expect(res.status).toBe(200);
-            expect(decommissionGhost).toHaveBeenCalledTimes(2);
-            expect(jest.spyOn(prisma.member, 'deleteMany')).toHaveBeenCalledWith({ where: { systemId: 'sys1' } });
+    it('should return 404 if system not found', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+      const res = await request(app)
+        .post('/members')
+        .send({
+          name: 'New',
+          slug: 'new',
+          proxyTags: [{ prefix: 'new:' }],
         });
-
-        it('should return 403 if user not linked to system', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-            const res = await request(app).delete('/members');
-            expect(res.status).toBe(403);
-        });
-
-        it('should handle unexpected errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).delete('/members');
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(404);
     });
+  });
+
+  describe('PATCH /members/:id', () => {
+    it('should correctly process group arrays in the update payload', async () => {
+      const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
+      const oldMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1' };
+      const updatedMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1', system: mockSystem };
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
+      (prisma.member.findFirst as jest.Mock).mockResolvedValue(oldMember);
+      (prisma.member.update as jest.Mock).mockResolvedValue(updatedMember);
+
+      const res = await request(app)
+        .patch('/members/m1')
+        .send({
+          groups: ['g3'],
+        });
+
+      expect(res.status).toBe(200);
+      expect(jest.spyOn(prisma.member, 'update')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            groups: { set: [{ id: 'g3' }] },
+          }) as unknown,
+        }),
+      );
+    });
+    it('should decommission the old ghost when the member slug is changed', async () => {
+      const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
+      const oldMember = { id: 'm1', slug: 'old-slug', systemId: 'sys1' };
+      const updatedMember = { id: 'm1', slug: 'new-slug', systemId: 'sys1', system: mockSystem };
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
+      (prisma.member.findFirst as jest.Mock).mockResolvedValue(oldMember);
+      (prisma.member.update as jest.Mock).mockResolvedValue(updatedMember);
+
+      const res = await request(app).patch('/members/m1').send({ slug: 'new-slug' });
+
+      expect(res.status).toBe(200);
+
+      // Should decommission the OLD ghost
+      expect(decommissionGhost).toHaveBeenCalledWith(oldMember, mockSystem);
+
+      // Should sync the NEW ghost
+      expect(syncGhostProfile).toHaveBeenCalledWith(updatedMember, mockSystem);
+    });
+
+    it('should NOT decommission the ghost if the slug is unchanged', async () => {
+      const mockSystem = { id: 'sys1', slug: 'sys-slug', members: [] };
+      const oldMember = { id: 'm1', slug: 'same-slug', systemId: 'sys1' };
+      const updatedMember = { id: 'm1', slug: 'same-slug', name: 'New Name', systemId: 'sys1', system: mockSystem };
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
+      (prisma.member.findFirst as jest.Mock).mockResolvedValue(oldMember);
+      (prisma.member.update as jest.Mock).mockResolvedValue(updatedMember);
+
+      const res = await request(app).patch('/members/m1').send({ name: 'New Name' });
+
+      expect(res.status).toBe(200);
+
+      // Should NOT decommission
+      expect(decommissionGhost).not.toHaveBeenCalled();
+
+      // Should just update the existing ghost
+      expect(syncGhostProfile).toHaveBeenCalledWith(updatedMember, mockSystem);
+    });
+
+    it('should return 400 Bad Request on Zod validation failure', async () => {
+      const res = await request(app).patch('/members/m1').send({ slug: 'INVALID SLUG WITH SPACES AND CAPS' });
+
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toBe('Invalid input format');
+      expect(jest.spyOn(prisma.member, 'update')).not.toHaveBeenCalled();
+    });
+
+    it('should reject duplicate proxy tags on update', async () => {
+      const mockSystem = {
+        id: 'sys1',
+        slug: 'sys-slug',
+        members: [{ id: 'm2', name: 'Existing', proxyTags: [{ prefix: 'existing:', suffix: '' }] }],
+      };
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1', system: mockSystem });
+      (prisma.member.findFirst as jest.Mock).mockResolvedValue({ id: 'm1', slug: 'm1' });
+
+      const res = await request(app)
+        .patch('/members/m1')
+        .send({
+          proxyTags: [{ prefix: 'existing:' }],
+        });
+
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toContain('already in use');
+    });
+
+    it('should return 404 if member not found', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+      (prisma.member.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const res = await request(app).patch('/members/m1').send({ name: 'New' });
+      expect(res.status).toBe(404);
+    });
+
+    it('should return 403 if user not linked to system', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const res = await request(app).patch('/members/m1').send({ name: 'New' });
+      expect(res.status).toBe(403);
+    });
+
+    it('should handle unexpected errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).patch('/members/m1').send({ name: 'New' });
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('DELETE /members/:id', () => {
+    it('should decommission the ghost before deleting the member from DB', async () => {
+      const mockSystem = { id: 'sys1', slug: 'sys-slug' };
+      const mockMember = { id: 'm1', slug: 'lily', systemId: 'sys1', system: mockSystem };
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+      (prisma.member.findFirst as jest.Mock).mockResolvedValue(mockMember);
+
+      const res = await request(app).delete('/members/m1');
+
+      expect(res.status).toBe(200);
+      expect(decommissionGhost).toHaveBeenCalledWith(mockMember, mockSystem);
+      expect(jest.spyOn(prisma.member, 'delete')).toHaveBeenCalledWith({ where: { id: 'm1' } });
+    });
+
+    it('should return 403 if user not linked to system', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+      const res = await request(app).delete('/members/m1');
+      expect(res.status).toBe(403);
+    });
+
+    it('should return 404 if member not found', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+      (prisma.member.findFirst as jest.Mock).mockResolvedValue(null);
+      const res = await request(app).delete('/members/m1');
+      expect(res.status).toBe(404);
+    });
+
+    it('should handle unexpected errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).delete('/members/m1');
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('DELETE /members', () => {
+    it('should decommission every member ghost before bulk deleting', async () => {
+      const mockSystem = { id: 'sys1', slug: 'sys-slug' };
+      const mockMembers = [
+        { id: 'm1', slug: 'alice', systemId: 'sys1', system: mockSystem },
+        { id: 'm2', slug: 'bob', systemId: 'sys1', system: mockSystem },
+      ];
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+      (prisma.member.findMany as jest.Mock).mockResolvedValue(mockMembers);
+
+      const res = await request(app).delete('/members');
+
+      expect(res.status).toBe(200);
+      expect(decommissionGhost).toHaveBeenCalledTimes(2);
+      expect(jest.spyOn(prisma.member, 'deleteMany')).toHaveBeenCalledWith({ where: { systemId: 'sys1' } });
+    });
+
+    it('should return 403 if user not linked to system', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+      const res = await request(app).delete('/members');
+      expect(res.status).toBe(403);
+    });
+
+    it('should handle unexpected errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).delete('/members');
+      expect(res.status).toBe(500);
+    });
+  });
 });

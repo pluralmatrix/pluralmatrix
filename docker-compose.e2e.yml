@@ -2,7 +2,7 @@ services:
   synapse:
     volumes:
       - ./synapse/config/homeserver.test-overrides.yaml:/data/homeserver.test-overrides.yaml:ro
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: ['/bin/sh', '-c']
     command:
       - |
         echo "🛠️  Preparing combined configuration..."

@@ -3,9 +3,9 @@ import { proxyCache } from './cache';
 import { emitSystemUpdate } from './events';
 
 interface LatchableSystem {
-    id: string;
-    autoproxyId: string | null;
-    autoproxyMode: string;
+  id: string;
+  autoproxyId: string | null;
+  autoproxyMode: string;
 }
 
 /**
@@ -17,23 +17,23 @@ interface LatchableSystem {
  * gatekeeper (unencrypted path) and bot.ts (E2EE path).
  */
 export async function applyAutoproxyLatch(
-    system: LatchableSystem,
-    targetMemberId: string,
-    wasAutoproxied: boolean,
-    sender: string,
-    prismaClient: PrismaClient
+  system: LatchableSystem,
+  targetMemberId: string,
+  wasAutoproxied: boolean,
+  sender: string,
+  prismaClient: PrismaClient,
 ): Promise<void> {
-    if (system.autoproxyMode !== "latch" || wasAutoproxied) return;
-    if (system.autoproxyId === targetMemberId) return;
+  if (system.autoproxyMode !== 'latch' || wasAutoproxied) return;
+  if (system.autoproxyId === targetMemberId) return;
 
-    try {
-        await prismaClient.system.update({
-            where: { id: system.id },
-            data: { autoproxyId: targetMemberId }
-        });
-        proxyCache.invalidate(sender);
-        emitSystemUpdate(sender);
-    } catch (e) {
-        console.error("[AutoProxy] Failed to latch:", e);
-    }
+  try {
+    await prismaClient.system.update({
+      where: { id: system.id },
+      data: { autoproxyId: targetMemberId },
+    });
+    proxyCache.invalidate(sender);
+    emitSystemUpdate(sender);
+  } catch (e) {
+    console.error('[AutoProxy] Failed to latch:', e);
+  }
 }

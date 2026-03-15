@@ -1,7 +1,7 @@
 title: PluralMatrix
 description: PluralKit port for Matrix, using a ghost user for each system member
-url: "https://pluralmatrix.org"
-baseurl: ""
+url: 'https://pluralmatrix.org'
+baseurl: ''
 remote_theme: jekyll/minima
 
 markdown: kramdown
@@ -19,8 +19,6 @@ minima:
   skin: dark
   social_links:
     - { platform: github, user: chiaracoetzee }
-
-
 
 # Exclude directories that shouldn't be processed by Jekyll
 exclude:
@@ -41,4 +39,3 @@ exclude:
   - toggle-module.sh
   - docker-compose.yml
   - .env.example
-

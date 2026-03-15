@@ -9,15 +9,15 @@
 # For more information on how to configure Synapse, including a complete accounting of
 # each option, go to docs/usage/configuration/config_documentation.md or
 # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html
-server_name: "localhost"
+server_name: 'localhost'
 pid_file: /data/homeserver.pid
 listeners:
   - port: 8008
     resources:
-    - compress: false
-      names:
-      - client
-      - federation
+      - compress: false
+        names:
+          - client
+          - federation
     tls: false
     type: http
     x_forwarded: true
@@ -25,15 +25,15 @@ database:
   name: sqlite3
   args:
     database: /data/homeserver.db
-log_config: "/data/localhost.log.config"
+log_config: '/data/localhost.log.config'
 media_store_path: /data/media_store
-registration_shared_secret: "REPLACE_ME"
+registration_shared_secret: 'REPLACE_ME'
 report_stats: false
-macaroon_secret_key: "REPLACE_ME"
-form_secret: "REPLACE_ME"
-signing_key_path: "/data/localhost.signing.key"
+macaroon_secret_key: 'REPLACE_ME'
+form_secret: 'REPLACE_ME'
+signing_key_path: '/data/localhost.signing.key'
 trusted_key_servers:
-  - server_name: "matrix.org"
+  - server_name: 'matrix.org'
 
 enable_registration: true
 enable_registration_without_verification: true
@@ -50,9 +50,9 @@ app_service_config_files:
 modules:
   - module: plural_gatekeeper.PluralGatekeeper
     config:
-      service_url: "http://app-service:9001/check"
-      as_token: "secret_token"
-      gatekeeper_secret: "REPLACE_ME"
+      service_url: 'http://app-service:9001/check'
+      as_token: 'secret_token'
+      gatekeeper_secret: 'REPLACE_ME'
 
 experimental_features:
   # This unlocks the /keys/upload/{userId}/{deviceId} endpoint

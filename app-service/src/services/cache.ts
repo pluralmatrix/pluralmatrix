@@ -3,72 +3,72 @@ import { SystemWithRelations, PluralMatrixEventContent } from '../types';
 import { config } from '../config';
 
 interface CacheEntry {
-    data: SystemWithRelations | null; // null means "we checked DB and found nothing", so don't check again for a bit
-    expiresAt: number;
+  data: SystemWithRelations | null; // null means "we checked DB and found nothing", so don't check again for a bit
+  expiresAt: number;
 }
 
 export class ProxyCacheService {
-    private cache = new Map<string, CacheEntry>();
-    private readonly TTL_MS = config.cacheTtlSeconds * 1000;
+  private cache = new Map<string, CacheEntry>();
+  private readonly TTL_MS = config.cacheTtlSeconds * 1000;
 
-    /**
-     * Retrieves system rules from cache or fetches from DB if missing/expired.
-     */
-    async getSystemRules(mxid: string, prisma: PrismaClient): Promise<SystemWithRelations | null> {
-        const now = Date.now();
-        const entry = this.cache.get(mxid);
+  /**
+   * Retrieves system rules from cache or fetches from DB if missing/expired.
+   */
+  async getSystemRules(mxid: string, prisma: PrismaClient): Promise<SystemWithRelations | null> {
+    const now = Date.now();
+    const entry = this.cache.get(mxid);
 
-        if (entry && entry.expiresAt > now) {
-            return entry.data;
-        }
-
-        // Cache Miss or Expired
-        return this.fetchAndCache(mxid, prisma);
+    if (entry && entry.expiresAt > now) {
+      return entry.data;
     }
 
-    /**
-     * Forces a refresh of the cache for a specific user.
-     * Call this after any mutation (Create/Update/Delete member or system).
-     */
-    invalidate(mxid: string) {
-        this.cache.delete(mxid);
-    }
+    // Cache Miss or Expired
+    return this.fetchAndCache(mxid, prisma);
+  }
 
-    private async fetchAndCache(mxid: string, prisma: PrismaClient): Promise<SystemWithRelations | null> {
-        const link = await prisma.accountLink.findUnique({
-            where: { matrixId: mxid },
-            include: { 
-                system: {
-                    include: { 
-                        members: true,
-                        groups: { include: { members: true } }
-                    }
-                }
-            }
-        });
+  /**
+   * Forces a refresh of the cache for a specific user.
+   * Call this after any mutation (Create/Update/Delete member or system).
+   */
+  invalidate(mxid: string) {
+    this.cache.delete(mxid);
+  }
 
-        const system = link?.system || null;
+  private async fetchAndCache(mxid: string, prisma: PrismaClient): Promise<SystemWithRelations | null> {
+    const link = await prisma.accountLink.findUnique({
+      where: { matrixId: mxid },
+      include: {
+        system: {
+          include: {
+            members: true,
+            groups: { include: { members: true } },
+          },
+        },
+      },
+    });
 
-        // We store the result (even if null) to prevent hammering DB for non-existent users
-        this.cache.set(mxid, {
-            data: system,
-            expiresAt: Date.now() + this.TTL_MS
-        });
+    const system = link?.system || null;
 
-        return system;
-    }
-    
-    _clear() {
-        this.cache.clear();
-    }
+    // We store the result (even if null) to prevent hammering DB for non-existent users
+    this.cache.set(mxid, {
+      data: system,
+      expiresAt: Date.now() + this.TTL_MS,
+    });
+
+    return system;
+  }
+
+  _clear() {
+    this.cache.clear();
+  }
 }
 
 interface LastMessage {
-    rootEventId: string;
-    latestEventId: string;
-    latestContent: PluralMatrixEventContent;
-    rootContent: PluralMatrixEventContent;
-    sender: string;
+  rootEventId: string;
+  latestEventId: string;
+  latestContent: PluralMatrixEventContent;
+  rootContent: PluralMatrixEventContent;
+  sender: string;
 }
 
 /**
@@ -76,27 +76,27 @@ interface LastMessage {
  * This makes 'pk;e' and 'pk;rp' instant and reliable even in busy rooms.
  */
 export class LastMessageCacheService {
-    private cache = new Map<string, LastMessage>();
+  private cache = new Map<string, LastMessage>();
 
-    private makeKey(roomId: string, systemSlug: string): string {
-        return `${roomId}:${systemSlug}`;
-    }
+  private makeKey(roomId: string, systemSlug: string): string {
+    return `${roomId}:${systemSlug}`;
+  }
 
-    set(roomId: string, systemSlug: string, data: LastMessage) {
-        this.cache.set(this.makeKey(roomId, systemSlug), data);
-    }
+  set(roomId: string, systemSlug: string, data: LastMessage) {
+    this.cache.set(this.makeKey(roomId, systemSlug), data);
+  }
 
-    get(roomId: string, systemSlug: string): LastMessage | undefined {
-        return this.cache.get(this.makeKey(roomId, systemSlug));
-    }
+  get(roomId: string, systemSlug: string): LastMessage | undefined {
+    return this.cache.get(this.makeKey(roomId, systemSlug));
+  }
 
-    delete(roomId: string, systemSlug: string) {
-        this.cache.delete(this.makeKey(roomId, systemSlug));
-    }
+  delete(roomId: string, systemSlug: string) {
+    this.cache.delete(this.makeKey(roomId, systemSlug));
+  }
 
-    _clear() {
-        this.cache.clear();
-    }
+  _clear() {
+    this.cache.clear();
+  }
 }
 
 export const proxyCache = new ProxyCacheService();

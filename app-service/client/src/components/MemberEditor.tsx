@@ -7,447 +7,523 @@ import { useDirtyState } from '../hooks/useDirtyState';
 import PrivacyToggle from './PrivacyToggle';
 
 interface MemberData {
-    id?: string;
-    slug?: string;
-    name?: string;
-    displayName?: string;
-    pronouns?: string;
-    description?: string;
-    color?: string;
-    avatarUrl?: string;
-    proxyTags?: { prefix?: string; suffix?: string }[];
-    groups?: unknown[];
-    privacy?: Record<string, string>;
-    [key: string]: unknown;
+  id?: string;
+  slug?: string;
+  name?: string;
+  displayName?: string;
+  pronouns?: string;
+  description?: string;
+  color?: string;
+  avatarUrl?: string;
+  proxyTags?: { prefix?: string; suffix?: string }[];
+  groups?: unknown[];
+  privacy?: Record<string, string>;
+  [key: string]: unknown;
 }
 
 interface MemberEditorProps {
-    member?: MemberData;
-    systemGroups?: { id: string; name: string; [key: string]: unknown }[];
-    isReadOnly?: boolean;
-    onSave: () => void;
-    onCancel: () => void;
+  member?: MemberData;
+  systemGroups?: { id: string; name: string; [key: string]: unknown }[];
+  isReadOnly?: boolean;
+  onSave: () => void;
+  onCancel: () => void;
 }
 
 const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], isReadOnly, onSave, onCancel }) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const [activeTab, setActiveTab] = useState<'profile' | 'privacy'>('profile');
-    const [formData, setFormData, isDirty] = useDirtyState({
-        slug: member?.slug || '',
-        name: member?.name || '',
-        displayName: member?.displayName || '',
-        pronouns: member?.pronouns || '',
-        description: member?.description || '',
-        color: member?.color || '0dbd8b',
-        avatarUrl: member?.avatarUrl || '',
-        proxyTags: member?.proxyTags || [{ prefix: '', suffix: '' }],
-        groups: member?.groups?.map((g: unknown) => typeof g === 'object' && g !== null && 'id' in g ? (g as { id: string }).id : g) || [],
-        privacy: member?.privacy || {
-            visibility: 'public',
-            name_privacy: 'public',
-            description_privacy: 'public',
-            avatar_privacy: 'public',
-            birthday_privacy: 'public',
-            pronoun_privacy: 'public',
-            metadata_privacy: 'public',
-            proxy_privacy: 'public',
-            banner_privacy: 'public'
-        }
-    });
-    const [loading, setLoading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [activeTab, setActiveTab] = useState<'profile' | 'privacy'>('profile');
+  const [formData, setFormData, isDirty] = useDirtyState({
+    slug: member?.slug || '',
+    name: member?.name || '',
+    displayName: member?.displayName || '',
+    pronouns: member?.pronouns || '',
+    description: member?.description || '',
+    color: member?.color || '0dbd8b',
+    avatarUrl: member?.avatarUrl || '',
+    proxyTags: member?.proxyTags || [{ prefix: '', suffix: '' }],
+    groups:
+      member?.groups?.map((g: unknown) =>
+        typeof g === 'object' && g !== null && 'id' in g ? (g as { id: string }).id : g,
+      ) || [],
+    privacy: member?.privacy || {
+      visibility: 'public',
+      name_privacy: 'public',
+      description_privacy: 'public',
+      avatar_privacy: 'public',
+      birthday_privacy: 'public',
+      pronoun_privacy: 'public',
+      metadata_privacy: 'public',
+      proxy_privacy: 'public',
+      banner_privacy: 'public',
+    },
+  });
+  const [loading, setLoading] = useState(false);
 
-    const handleCancel = () => {
-        if (!isReadOnly && isDirty) {
-            if (window.confirm("You have unsaved changes. Are you sure you want to close without saving?")) {
-                onCancel();
-            }
-        } else {
-            onCancel();
-        }
-    };
+  const handleCancel = () => {
+    if (!isReadOnly && isDirty) {
+      if (window.confirm('You have unsaved changes. Are you sure you want to close without saving?')) {
+        onCancel();
+      }
+    } else {
+      onCancel();
+    }
+  };
 
-    const handleAddTag = () => {
-        setFormData({ ...formData, proxyTags: [...formData.proxyTags, { prefix: '', suffix: '' }] });
-    };
+  const handleAddTag = () => {
+    setFormData({ ...formData, proxyTags: [...formData.proxyTags, { prefix: '', suffix: '' }] });
+  };
 
-    const handleRemoveTag = (index: number) => {
-        const newTags = formData.proxyTags.filter((_: unknown, i: number) => i !== index);
-        setFormData({ ...formData, proxyTags: newTags });
-    };
+  const handleRemoveTag = (index: number) => {
+    const newTags = formData.proxyTags.filter((_: unknown, i: number) => i !== index);
+    setFormData({ ...formData, proxyTags: newTags });
+  };
 
-    const handleTagChange = (index: number, field: string, value: string) => {
-        const newTags = [...formData.proxyTags];
-        (newTags[index] as Record<string, string | undefined>)[field] = value;
-        setFormData({ ...formData, proxyTags: newTags });
-    };
+  const handleTagChange = (index: number, field: string, value: string) => {
+    const newTags = [...formData.proxyTags];
+    (newTags[index] as Record<string, string | undefined>)[field] = value;
+    setFormData({ ...formData, proxyTags: newTags });
+  };
 
-    // Auto-expand description textarea
-    useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-        }
-    }, [formData.description]);
+  // Auto-expand description textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [formData.description]);
 
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            
-            // 1. Client-side validation
-            setLoading(true);
-            const validation = await validateAvatarImage(file);
-            if (!validation.valid) {
-                alert(validation.error);
-                setLoading(false);
-                return;
-            }
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
 
-            try {
-                const res = await memberService.uploadMedia(file);
-                setFormData({ ...formData, avatarUrl: res.data.content_uri });
-            } catch {
-                alert('Avatar upload failed.');
-            } finally {
-                setLoading(false);
-            }
-        }
-    };
+      // 1. Client-side validation
+      setLoading(true);
+      const validation = await validateAvatarImage(file);
+      if (!validation.valid) {
+        alert(validation.error);
+        setLoading(false);
+        return;
+      }
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        // Basic validation for proxy tags
-        const validTags = formData.proxyTags.filter((t: { prefix?: string; suffix?: string }) => t.prefix && t.prefix.trim().length > 0);
-        if (validTags.length === 0) {
-            alert('At least one proxy tag with a prefix is required.');
-            return;
-        }
+      try {
+        const res = await memberService.uploadMedia(file);
+        setFormData({ ...formData, avatarUrl: res.data.content_uri });
+      } catch {
+        alert('Avatar upload failed.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
-        // Check for duplicates within the current member
-        const tagCombos = new Set();
-        for (const tag of validTags) {
-            const combo = `${tag.prefix}|${tag.suffix || ''}`;
-            if (tagCombos.has(combo)) {
-                alert(`Duplicate proxy tag found: "${tag.prefix}...${tag.suffix || ''}"`);
-                return;
-            }
-            tagCombos.add(combo);
-        }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-        setLoading(true);
-        try {
-            const dataToSave = {
-                ...formData,
-                proxyTags: validTags
-            };
-
-            if (member?.id) {
-                await memberService.update(member.id, dataToSave);
-            } else {
-                await memberService.create(dataToSave);
-            }
-            onSave();
-        } catch (err: unknown) {
-            alert((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to save member.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex sm:items-center sm:justify-center p-0 sm:p-4">
-            <div className="max-w-2xl w-full bg-matrix-light sm:border border-white/10 sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
-                <form className="flex flex-col h-full overflow-hidden" onSubmit={isReadOnly ? (e) => e.preventDefault() : handleSubmit}>
-                    <div className="p-6 border-b border-white/5 flex items-start sm:items-center justify-between shrink-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                            <h2 data-testid="member-editor-title" className="text-2xl font-bold">
-                                {isReadOnly ? 'System Member Profile' : (member ? 'Edit System Member' : 'New System Member')}
-                            </h2>
-                            {!isReadOnly && (
-                                <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5 w-max">
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('profile')}
-                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
-                                    >
-                                        Profile
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('privacy')}
-                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center ${activeTab === 'privacy' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
-                                    >
-                                        <Shield size={14} className="mr-1.5" /> Privacy
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                        <button type="button" onClick={handleCancel} className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors">
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="p-8 space-y-8 text-slate-200 overflow-y-auto flex-1 custom-scrollbar">
-                        {activeTab === 'profile' && (
-                            <>
-                                {/* Avatar & Basic Info */}
-                                <div className="flex flex-col md:flex-row gap-8 items-start">
-                                    <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
-                                        <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
-                                    {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
-                                        <img src={getAvatarUrl(formData.avatarUrl)!} className="w-full h-full object-cover" alt="Avatar" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-matrix-muted">
-                                            <Camera size={40} />
-                                        </div>
-                                    )}
-                                    {!isReadOnly && (
-                                        <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 transition-opacity cursor-pointer">
-                                            <Camera className="text-white" size={24} />
-                                            <input data-testid="avatar-upload-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleAvatarUpload} className="hidden" />
-                                        </label>
-                                    )}
-                                </div>
-                                {!isReadOnly && formData.avatarUrl && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, avatarUrl: '' })}
-                                        className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100"
-                                        title="Clear Avatar"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                )}
-
-                                {/* Theme Color */}
-                                <div className="space-y-1">
-                                    <label className="block text-[10px] font-bold text-matrix-muted uppercase tracking-widest">Theme Color</label>
-                                    <div className="flex items-center space-x-2">
-                                        {isReadOnly ? (
-                                            <div 
-                                                className="w-8 h-8 rounded-lg border border-white/10 shadow-inner"
-                                                style={{ backgroundColor: `#${formData.color.replace('#', '')}` }}
-                                            />
-                                        ) : (
-                                            <input 
-                                                type="color" 
-                                                value={`#${formData.color.replace('#', '')}`}
-                                                onChange={(e) => setFormData({ ...formData, color: e.target.value.replace('#', '') })}
-                                                className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border border-white/10 overflow-hidden shadow-inner p-0"
-                                            />
-                                        )}
-                                        <span className="text-xs font-mono text-slate-400">#{formData.color.toUpperCase()}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 space-y-4 w-full">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Name</label>
-                                        {isReadOnly ? (
-                                            <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.name}</div>
-                                        ) : (
-                                            <input 
-                                                name="name"
-                                                className="matrix-input text-sm" 
-                                                value={formData.name} 
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-                                                placeholder="e.g. Alice"
-                                                required 
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Display Name</label>
-                                        {isReadOnly ? (
-                                            <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.displayName || 'None'}</div>
-                                        ) : (
-                                            <input 
-                                                name="displayName"
-                                                className="matrix-input text-sm" 
-                                                value={formData.displayName} 
-                                                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })} 
-                                                placeholder=""
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Short ID (Slug)</label>
-                                        {isReadOnly ? (
-                                            <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm font-mono">{formData.slug}</div>
-                                        ) : (
-                                            <input 
-                                                name="slug"
-                                                className="matrix-input text-sm font-mono" 
-                                                value={formData.slug} 
-                                                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })} 
-                                                placeholder="e.g. alice"
-                                                required 
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Pronouns</label>
-                                        {isReadOnly ? (
-                                            <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">{formData.pronouns || 'None'}</div>
-                                        ) : (
-                                            <input 
-                                                name="pronouns"
-                                                className="matrix-input text-sm" 
-                                                value={formData.pronouns} 
-                                                onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })} 
-                                                placeholder="e.g. she/her"
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Description */}
-                        <div className="space-y-1">
-                            <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Description</label>
-                            {isReadOnly ? (
-                                <div className="p-4 bg-matrix-dark rounded-xl border border-white/5 text-sm whitespace-pre-wrap min-h-[150px] italic text-slate-300 font-sans">
-                                    {formData.description || 'No description provided.'}
-                                </div>
-                            ) : (
-                                <textarea 
-                                    ref={textareaRef}
-                                    className="matrix-input text-sm min-h-[150px] py-3 overflow-hidden resize-none" 
-                                    value={formData.description} 
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
-                                    placeholder="Tell us about this system member..."
-                                />
-                            )}
-                        </div>
-
-                        {/* Proxy Tags */}
-                        <div className="space-y-3 pt-4 border-t border-white/5">
-                            <div className="flex items-center justify-between">
-                                <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Proxy Tags</label>
-                                {!isReadOnly && (
-                                    <button type="button" onClick={handleAddTag} className="text-matrix-primary hover:text-matrix-primary/80 transition-colors flex items-center text-[10px] font-bold uppercase tracking-widest">
-                                        <Plus size={14} className="mr-1" /> Add Tag
-                                    </button>
-                                )}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {formData.proxyTags.map((tag: { prefix?: string; suffix?: string }, index: number) => (
-                                    <div key={index} className="flex items-center gap-2 bg-matrix-dark/50 p-2 rounded-xl border border-white/5 group">
-                                        <input 
-                                            name="prefix"
-                                            className="bg-matrix-dark border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono w-full focus:outline-none focus:border-matrix-primary transition-colors disabled:opacity-50" 
-                                            value={tag.prefix} 
-                                            disabled={isReadOnly}
-                                            onChange={(e) => handleTagChange(index, 'prefix', e.target.value)}
-                                            placeholder="prefix"
-                                        />
-                                        <span className="text-matrix-muted text-xs font-mono px-1 opacity-50">...</span>
-                                        <input 
-                                            name="suffix"
-                                            className="bg-matrix-dark border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono w-full focus:outline-none focus:border-matrix-primary transition-colors disabled:opacity-50" 
-                                            value={tag.suffix} 
-                                            disabled={isReadOnly}
-                                            onChange={(e) => handleTagChange(index, 'suffix', e.target.value)}
-                                            placeholder="suffix"
-                                        />
-                                        {!isReadOnly && formData.proxyTags.length > 1 && (
-                                            <button type="button" onClick={() => handleRemoveTag(index)} className="p-1.5 text-matrix-muted hover:text-red-400 transition-colors opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100">
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        {/* Groups */}
-                        {systemGroups.length > 0 && (
-                            <div className="space-y-3 pt-4 border-t border-white/5">
-                                <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Groups</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {systemGroups.map(group => {
-                                        const isSelected = formData.groups.includes(group.id);
-                                        const testId = group.name ? `toggle-group-${group.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : '';
-                                        return (
-                                            <button
-                                                key={group.id}
-                                                type="button"
-                                                data-testid={testId}
-                                                onClick={() => {
-                                                    if (isReadOnly) return;
-                                                    setFormData((prev) => ({
-                                                        ...prev,
-                                                        groups: isSelected 
-                                                            ? (prev.groups as string[]).filter((id: string) => id !== group.id)
-                                                            : [...(prev.groups as string[]), group.id]
-                                                    }));
-                                                }}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
-                                                    isSelected 
-                                                        ? 'bg-matrix-primary text-white border-matrix-primary shadow-md shadow-matrix-primary/20' 
-                                                        : 'bg-white/5 text-matrix-muted border-white/10 hover:bg-white/10 hover:text-white'
-                                                } ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
-                                            >
-                                                {group.name}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                        </>
-                        )}
-
-                        {activeTab === 'privacy' && (
-                            <div className="space-y-6">
-                                <div className="p-4 bg-matrix-dark/50 rounded-xl border border-white/5 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="font-bold text-sm">Member Visibility</h3>
-                                            <p className="text-xs text-matrix-muted">If private, this member will not appear in the system member list for others.</p>
-                                        </div>
-                                        <PrivacyToggle 
-                                            value={formData.privacy.visibility as "public" | "private" | undefined} 
-                                            onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, visibility: v } })} 
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {['name', 'description', 'avatar', 'pronouns', 'proxy'].map((field) => (
-                                        <div key={field} className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5">
-                                            <span className="text-sm font-medium capitalize">{field} Privacy</span>
-                                            <PrivacyToggle 
-                                                value={formData.privacy[`${field}_privacy`] as "public" | "private" | undefined} 
-                                                onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, [`${field}_privacy`]: v } })} 
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="p-6 border-t border-white/5 bg-matrix-dark/30 flex justify-end gap-3 sm:rounded-b-2xl shrink-0">
-                        <button type="button" data-testid="cancel-member-button" onClick={handleCancel} className="px-6 py-2 rounded-xl text-sm font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-all">
-                            {isReadOnly ? 'Close' : 'Cancel'}
-                        </button>
-                        {!isReadOnly && (
-                            <button type="submit" data-testid="save-member-button" disabled={loading} className="matrix-button flex items-center px-8">
-                                <Save size={18} className="mr-2" />
-                                {loading ? 'Saving...' : 'Save Member'}
-                            </button>
-                        )}
-                    </div>
-                </form>
-            </div>
-        </div>
+    // Basic validation for proxy tags
+    const validTags = formData.proxyTags.filter(
+      (t: { prefix?: string; suffix?: string }) => t.prefix && t.prefix.trim().length > 0,
     );
+    if (validTags.length === 0) {
+      alert('At least one proxy tag with a prefix is required.');
+      return;
+    }
+
+    // Check for duplicates within the current member
+    const tagCombos = new Set();
+    for (const tag of validTags) {
+      const combo = `${tag.prefix}|${tag.suffix || ''}`;
+      if (tagCombos.has(combo)) {
+        alert(`Duplicate proxy tag found: "${tag.prefix}...${tag.suffix || ''}"`);
+        return;
+      }
+      tagCombos.add(combo);
+    }
+
+    setLoading(true);
+    try {
+      const dataToSave = {
+        ...formData,
+        proxyTags: validTags,
+      };
+
+      if (member?.id) {
+        await memberService.update(member.id, dataToSave);
+      } else {
+        await memberService.create(dataToSave);
+      }
+      onSave();
+    } catch (err: unknown) {
+      alert((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to save member.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex sm:items-center sm:justify-center p-0 sm:p-4">
+      <div className="max-w-2xl w-full bg-matrix-light sm:border border-white/10 sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
+        <form
+          className="flex flex-col h-full overflow-hidden"
+          onSubmit={isReadOnly ? (e) => e.preventDefault() : handleSubmit}
+        >
+          <div className="p-6 border-b border-white/5 flex items-start sm:items-center justify-between shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+              <h2 data-testid="member-editor-title" className="text-2xl font-bold">
+                {isReadOnly ? 'System Member Profile' : member ? 'Edit System Member' : 'New System Member'}
+              </h2>
+              {!isReadOnly && (
+                <div className="flex bg-matrix-dark/50 rounded-lg p-1 border border-white/5 w-max">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('profile')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                  >
+                    Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('privacy')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center ${activeTab === 'privacy' ? 'bg-matrix-light text-white shadow-sm' : 'text-matrix-muted hover:text-white'}`}
+                  >
+                    <Shield size={14} className="mr-1.5" /> Privacy
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="p-2 hover:bg-white/5 rounded-full text-matrix-muted transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="p-8 space-y-8 text-slate-200 overflow-y-auto flex-1 custom-scrollbar">
+            {activeTab === 'profile' && (
+              <>
+                {/* Avatar & Basic Info */}
+                <div className="flex flex-col md:flex-row gap-8 items-start">
+                  <div className="space-y-4 flex-shrink-0 mx-auto md:mx-0 w-32 relative group">
+                    <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-matrix-dark border-2 border-white/5 shadow-inner">
+                      {formData.avatarUrl && getAvatarUrl(formData.avatarUrl) ? (
+                        <img
+                          src={getAvatarUrl(formData.avatarUrl)!}
+                          className="w-full h-full object-cover"
+                          alt="Avatar"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-matrix-muted">
+                          <Camera size={40} />
+                        </div>
+                      )}
+                      {!isReadOnly && (
+                        <label className="absolute -inset-1 flex items-center justify-center bg-black/60 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 transition-opacity cursor-pointer">
+                          <Camera className="text-white" size={24} />
+                          <input
+                            data-testid="avatar-upload-input"
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            onChange={handleAvatarUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
+                    {!isReadOnly && formData.avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, avatarUrl: '' })}
+                        className="absolute -top-2 -right-2 p-1.5 bg-matrix-dark/80 backdrop-blur-md border border-white/10 hover:bg-red-500/80 text-matrix-muted hover:text-white rounded-full shadow-lg transition-all z-10 opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100"
+                        title="Clear Avatar"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+
+                    {/* Theme Color */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-matrix-muted uppercase tracking-widest">
+                        Theme Color
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        {isReadOnly ? (
+                          <div
+                            className="w-8 h-8 rounded-lg border border-white/10 shadow-inner"
+                            style={{ backgroundColor: `#${formData.color.replace('#', '')}` }}
+                          />
+                        ) : (
+                          <input
+                            type="color"
+                            value={`#${formData.color.replace('#', '')}`}
+                            onChange={(e) => setFormData({ ...formData, color: e.target.value.replace('#', '') })}
+                            className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border border-white/10 overflow-hidden shadow-inner p-0"
+                          />
+                        )}
+                        <span className="text-xs font-mono text-slate-400">#{formData.color.toUpperCase()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-4 w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">
+                          Name
+                        </label>
+                        {isReadOnly ? (
+                          <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">
+                            {formData.name}
+                          </div>
+                        ) : (
+                          <input
+                            name="name"
+                            className="matrix-input text-sm"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="e.g. Alice"
+                            required
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">
+                          Display Name
+                        </label>
+                        {isReadOnly ? (
+                          <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">
+                            {formData.displayName || 'None'}
+                          </div>
+                        ) : (
+                          <input
+                            name="displayName"
+                            className="matrix-input text-sm"
+                            value={formData.displayName}
+                            onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                            placeholder=""
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">
+                          Short ID (Slug)
+                        </label>
+                        {isReadOnly ? (
+                          <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm font-mono">
+                            {formData.slug}
+                          </div>
+                        ) : (
+                          <input
+                            name="slug"
+                            className="matrix-input text-sm font-mono"
+                            value={formData.slug}
+                            onChange={(e) =>
+                              setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })
+                            }
+                            placeholder="e.g. alice"
+                            required
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">
+                          Pronouns
+                        </label>
+                        {isReadOnly ? (
+                          <div className="p-3 bg-matrix-dark rounded-xl border border-white/5 text-sm">
+                            {formData.pronouns || 'None'}
+                          </div>
+                        ) : (
+                          <input
+                            name="pronouns"
+                            className="matrix-input text-sm"
+                            value={formData.pronouns}
+                            onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })}
+                            placeholder="e.g. she/her"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">
+                    Description
+                  </label>
+                  {isReadOnly ? (
+                    <div className="p-4 bg-matrix-dark rounded-xl border border-white/5 text-sm whitespace-pre-wrap min-h-[150px] italic text-slate-300 font-sans">
+                      {formData.description || 'No description provided.'}
+                    </div>
+                  ) : (
+                    <textarea
+                      ref={textareaRef}
+                      className="matrix-input text-sm min-h-[150px] py-3 overflow-hidden resize-none"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Tell us about this system member..."
+                    />
+                  )}
+                </div>
+
+                {/* Proxy Tags */}
+                <div className="space-y-3 pt-4 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">
+                      Proxy Tags
+                    </label>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={handleAddTag}
+                        className="text-matrix-primary hover:text-matrix-primary/80 transition-colors flex items-center text-[10px] font-bold uppercase tracking-widest"
+                      >
+                        <Plus size={14} className="mr-1" /> Add Tag
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {formData.proxyTags.map((tag: { prefix?: string; suffix?: string }, index: number) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 bg-matrix-dark/50 p-2 rounded-xl border border-white/5 group"
+                      >
+                        <input
+                          name="prefix"
+                          className="bg-matrix-dark border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono w-full focus:outline-none focus:border-matrix-primary transition-colors disabled:opacity-50"
+                          value={tag.prefix}
+                          disabled={isReadOnly}
+                          onChange={(e) => handleTagChange(index, 'prefix', e.target.value)}
+                          placeholder="prefix"
+                        />
+                        <span className="text-matrix-muted text-xs font-mono px-1 opacity-50">...</span>
+                        <input
+                          name="suffix"
+                          className="bg-matrix-dark border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono w-full focus:outline-none focus:border-matrix-primary transition-colors disabled:opacity-50"
+                          value={tag.suffix}
+                          disabled={isReadOnly}
+                          onChange={(e) => handleTagChange(index, 'suffix', e.target.value)}
+                          placeholder="suffix"
+                        />
+                        {!isReadOnly && formData.proxyTags.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(index)}
+                            className="p-1.5 text-matrix-muted hover:text-red-400 transition-colors opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Groups */}
+                {systemGroups.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-white/5">
+                    <label className="block text-xs font-bold text-matrix-muted uppercase tracking-wider">Groups</label>
+                    <div className="flex flex-wrap gap-2">
+                      {systemGroups.map((group) => {
+                        const isSelected = formData.groups.includes(group.id);
+                        const testId = group.name
+                          ? `toggle-group-${group.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+                          : '';
+                        return (
+                          <button
+                            key={group.id}
+                            type="button"
+                            data-testid={testId}
+                            onClick={() => {
+                              if (isReadOnly) return;
+                              setFormData((prev) => ({
+                                ...prev,
+                                groups: isSelected
+                                  ? (prev.groups as string[]).filter((id: string) => id !== group.id)
+                                  : [...(prev.groups as string[]), group.id],
+                              }));
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                              isSelected
+                                ? 'bg-matrix-primary text-white border-matrix-primary shadow-md shadow-matrix-primary/20'
+                                : 'bg-white/5 text-matrix-muted border-white/10 hover:bg-white/10 hover:text-white'
+                            } ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
+                          >
+                            {group.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'privacy' && (
+              <div className="space-y-6">
+                <div className="p-4 bg-matrix-dark/50 rounded-xl border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm">Member Visibility</h3>
+                      <p className="text-xs text-matrix-muted">
+                        If private, this member will not appear in the system member list for others.
+                      </p>
+                    </div>
+                    <PrivacyToggle
+                      value={formData.privacy.visibility as 'public' | 'private' | undefined}
+                      onChange={(v) => setFormData({ ...formData, privacy: { ...formData.privacy, visibility: v } })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {['name', 'description', 'avatar', 'pronouns', 'proxy'].map((field) => (
+                    <div
+                      key={field}
+                      className="flex items-center justify-between p-3 bg-matrix-dark/30 rounded-xl border border-white/5"
+                    >
+                      <span className="text-sm font-medium capitalize">{field} Privacy</span>
+                      <PrivacyToggle
+                        value={formData.privacy[`${field}_privacy`] as 'public' | 'private' | undefined}
+                        onChange={(v) =>
+                          setFormData({ ...formData, privacy: { ...formData.privacy, [`${field}_privacy`]: v } })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="p-6 border-t border-white/5 bg-matrix-dark/30 flex justify-end gap-3 sm:rounded-b-2xl shrink-0">
+            <button
+              type="button"
+              data-testid="cancel-member-button"
+              onClick={handleCancel}
+              className="px-6 py-2 rounded-xl text-sm font-bold text-matrix-muted hover:text-white hover:bg-white/5 transition-all"
+            >
+              {isReadOnly ? 'Close' : 'Cancel'}
+            </button>
+            {!isReadOnly && (
+              <button
+                type="submit"
+                data-testid="save-member-button"
+                disabled={loading}
+                className="matrix-button flex items-center px-8"
+              >
+                <Save size={18} className="mr-2" />
+                {loading ? 'Saving...' : 'Save Member'}
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 };
 
 export default MemberEditor;

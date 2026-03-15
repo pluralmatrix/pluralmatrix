@@ -5,45 +5,45 @@ import * as systemController from './systemController';
 
 // Mock dependencies
 jest.mock('../bot', () => ({
-    prisma: {
-        accountLink: {
-            findUnique: jest.fn(),
-            findMany: jest.fn(),
-            findFirst: jest.fn(),
-            create: jest.fn(),
-            delete: jest.fn(),
-            update: jest.fn(),
-            updateMany: jest.fn()
-        },
-        system: {
-            findUnique: jest.fn(),
-            delete: jest.fn(),
-            create: jest.fn(),
-            update: jest.fn()
-        },
-        $transaction: jest.fn().mockImplementation((promises) => Promise.all(promises))
-    }
+  prisma: {
+    accountLink: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    system: {
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn().mockImplementation((promises) => Promise.all(promises)),
+  },
 }));
 
 jest.mock('../services/cache', () => ({
-    proxyCache: {
-        invalidate: jest.fn()
-    }
+  proxyCache: {
+    invalidate: jest.fn(),
+  },
 }));
 
 jest.mock('../services/events', () => ({
-    emitSystemUpdate: jest.fn(),
-    systemEvents: {
-        on: jest.fn(),
-        off: jest.fn()
-    }
+  emitSystemUpdate: jest.fn(),
+  systemEvents: {
+    on: jest.fn(),
+    off: jest.fn(),
+  },
 }));
 
 jest.mock('../services/queue/MessageQueue', () => ({
-    messageQueue: {
-        getDeadLetters: jest.fn(),
-        deleteDeadLetter: jest.fn()
-    }
+  messageQueue: {
+    getDeadLetters: jest.fn(),
+    deleteDeadLetter: jest.fn(),
+  },
 }));
 
 import { prisma } from '../bot';
@@ -56,8 +56,8 @@ app.use(bodyParser.json());
 
 // Mock auth middleware injecting the user
 const mockAuth = (mxid: string) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    req.user = { mxid };
-    next();
+  req.user = { mxid };
+  next();
 };
 
 // Route setup
@@ -77,460 +77,465 @@ import { decommissionGhost, syncGhostProfile } from '../import';
 import { ensureUniqueSlug } from '../utils/slug';
 
 jest.mock('../utils/slug', () => ({
-    ensureUniqueSlug: jest.fn()
+  ensureUniqueSlug: jest.fn(),
 }));
 
 jest.mock('../import', () => ({
-    syncGhostProfile: jest.fn().mockResolvedValue(null),
-    decommissionGhost: jest.fn().mockResolvedValue(null)
+  syncGhostProfile: jest.fn().mockResolvedValue(null),
+  decommissionGhost: jest.fn().mockResolvedValue(null),
 }));
 
 describe('System Controller', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('GET /links', () => {
+    it('should return linked accounts', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+      (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([
+        { matrixId: '@alice:localhost', isPrimary: true },
+        { matrixId: '@bob:localhost', isPrimary: false },
+      ]);
+
+      const res = await request(app).get('/links');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveLength(2);
     });
 
-    describe('GET /links', () => {
-        it('should return linked accounts', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([
-                { matrixId: '@alice:localhost', isPrimary: true },
-                { matrixId: '@bob:localhost', isPrimary: false }
-            ]);
-
-            const res = await request(app).get('/links');
-            expect(res.status).toBe(200);
-            expect(res.body).toHaveLength(2);
-        });
-
-        it('should return 404 if system not found', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-            const res = await request(app).get('/links');
-            expect(res.status).toBe(404);
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).get('/links');
-            expect(res.status).toBe(500);
-        });
+    it('should return 404 if system not found', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+      const res = await request(app).get('/links');
+      expect(res.status).toBe(404);
     });
 
-    describe('GET /system', () => {
-        it('should return existing system if it exists', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ 
-                system: { id: 'sys1', slug: 'alice' } 
-            });
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).get('/links');
+      expect(res.status).toBe(500);
+    });
+  });
 
-            const res = await request(app).get('/system');
-            expect(res.status).toBe(200);
-            expect((res.body as { slug: string }).slug).toBe('alice');
-        });
+  describe('GET /system', () => {
+    it('should return existing system if it exists', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        system: { id: 'sys1', slug: 'alice' },
+      });
 
-        it('should return 404 if system does not exist', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app).get('/system');
-
-            expect(res.status).toBe(404);
-            expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).get('/system');
-            expect(res.status).toBe(500);
-        });
+      const res = await request(app).get('/system');
+      expect(res.status).toBe(200);
+      expect((res.body as { slug: string }).slug).toBe('alice');
     });
 
-    describe('POST /system', () => {
-        it('should auto-create system with slug retry if it does not exist', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-            (ensureUniqueSlug as jest.Mock).mockResolvedValue('alice');
+    it('should return 404 if system does not exist', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
 
-            (prisma.system.create as jest.Mock)
-                .mockRejectedValueOnce({ code: 'P2002', meta: { target: ['slug'] } })
-                .mockResolvedValueOnce({ id: 'sys1', slug: 'alice-2' });
+      const res = await request(app).get('/system');
 
-            const res = await request(app).post('/system');
-
-            expect(res.status).toBe(201);
-            expect(jest.spyOn(prisma.system, 'create')).toHaveBeenCalledTimes(2);
-            expect((res.body as { id: string }).id).toBe('sys1');
-        });
-        
-        it('should return 400 if system already exists', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: "link1" });
-
-            const res = await request(app).post('/system');
-
-            expect(res.status).toBe(400);
-            expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).post('/system');
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(404);
+      expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
     });
 
-    describe('DELETE /system', () => {
-        it('should delete entire system if called by a linked account', async () => {
-            const mockSystem = {
-                id: 'sys1',
-                members: [{ id: 'm1' }]
-            };
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).get('/system');
+      expect(res.status).toBe(500);
+    });
+  });
 
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ 
-                isPrimary: false, // Testing that non-primary can also delete
-                systemId: 'sys1',
-                system: mockSystem 
-            });
+  describe('POST /system', () => {
+    it('should auto-create system with slug retry if it does not exist', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+      (ensureUniqueSlug as jest.Mock).mockResolvedValue('alice');
 
-            const res = await request(app).delete('/system');
+      (prisma.system.create as jest.Mock)
+        .mockRejectedValueOnce({ code: 'P2002', meta: { target: ['slug'] } })
+        .mockResolvedValueOnce({ id: 'sys1', slug: 'alice-2' });
 
-            expect(res.status).toBe(200);
-            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(mockSystem.members[0], mockSystem);
-            expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys1' } });
-            expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@alice:localhost');
-        });
+      const res = await request(app).post('/system');
 
-        it('should return 403 if user is not linked to any system', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app).delete('/system');
-
-            expect(res.status).toBe(403);
-            expect(jest.spyOn(prisma.system, 'delete')).not.toHaveBeenCalled();
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).delete('/system');
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(201);
+      expect(jest.spyOn(prisma.system, 'create')).toHaveBeenCalledTimes(2);
+      expect((res.body as { id: string }).id).toBe('sys1');
     });
 
-    describe('POST /links', () => {
-        it('should create a new link', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
-                .mockResolvedValueOnce(null); // Target
+    it('should return 400 if system already exists', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: 'link1' });
 
-            (prisma.accountLink.findFirst as jest.Mock).mockResolvedValue({ isPrimary: true });
-            (prisma.accountLink.create as jest.Mock).mockResolvedValue({ matrixId: '@bob:localhost', isPrimary: false });
+      const res = await request(app).post('/system');
 
-            const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
-
-            expect(res.status).toBe(201);
-            expect(jest.spyOn(prisma.accountLink, 'create')).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.objectContaining({ matrixId: '@bob:localhost', systemId: 'sys1', isPrimary: false }) as unknown
-            }) as unknown);
-            expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@bob:localhost');
-            expect(emitSystemUpdate).toHaveBeenCalledTimes(2);
-        });
-
-        it('should fail if target already has members', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
-                .mockResolvedValueOnce({ systemId: 'sys2', system: { members: [{ id: 'm1' }] } }); // Target
-
-            const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toContain('already has members');
-        });
-
-        it('should fail if already linked to same system', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
-                .mockResolvedValueOnce({ systemId: 'sys1', system: { members: [] } }); // Target
-
-            const res = await request(app).post('/links').send({ targetMxid: '@alice_alt:localhost' });
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toContain('already linked');
-        });
-
-        it('should delete empty target system if it was the only link', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
-                .mockResolvedValueOnce({ 
-                    systemId: 'sys2', 
-                    system: { members: [], accountLinks: [{}] } // 1 link
-                }); 
-
-            await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
-
-            expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys2' } });
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(400);
+      expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
     });
 
-    describe('DELETE /links/:mxid', () => {
-        it('should delete a link', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
-                .mockResolvedValueOnce({ systemId: 'sys1', isPrimary: false }); // Target
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).post('/system');
+      expect(res.status).toBe(500);
+    });
+  });
 
-            (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([
-                { matrixId: '@alice:localhost', isPrimary: true }
-            ]);
+  describe('DELETE /system', () => {
+    it('should delete entire system if called by a linked account', async () => {
+      const mockSystem = {
+        id: 'sys1',
+        members: [{ id: 'm1' }],
+      };
 
-            const res = await request(app).delete('/links/@bob:localhost');
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        isPrimary: false, // Testing that non-primary can also delete
+        systemId: 'sys1',
+        system: mockSystem,
+      });
 
-            expect(res.status).toBe(200);
-            expect(jest.spyOn(prisma.accountLink, 'delete')).toHaveBeenCalledWith({ where: { matrixId: '@bob:localhost' } });
-        });
+      const res = await request(app).delete('/system');
 
-        it('should prevent deleting own account', async () => {
-            const res = await request(app).delete('/links/@alice:localhost');
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toContain('cannot unlink your own account');
-        });
-
-        it('should assign a new primary if primary is deleted', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
-                .mockResolvedValueOnce({ systemId: 'sys1', isPrimary: true }); // Target
-
-            (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([
-                { matrixId: '@alice:localhost', isPrimary: false } // Remaining
-            ]);
-
-            await request(app).delete('/links/@bob:localhost');
-
-            expect(jest.spyOn(prisma.accountLink, 'update')).toHaveBeenCalledWith(expect.objectContaining({
-                where: { matrixId: '@alice:localhost' },
-                data: { isPrimary: true }
-            }));
-        });
-
-        it('should delete system if no links remain', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender (bypassed own check in mock for simplicity, though real logic blocks it)
-                .mockResolvedValueOnce({ systemId: 'sys1', isPrimary: true }); // Target
-
-            (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([]); // No remaining
-
-            (prisma.system.findUnique as jest.Mock).mockResolvedValue({
-                id: 'sys1',
-                members: [{ id: 'm1', slug: 'm1' }]
-            });
-
-            // Overriding the auth middleware for this specific test to simulate deleting the last OTHER account?
-            // Actually, if the user deletes the *only other* account, and 0 remain? Wait, the user themselves must remain.
-            // But if we mock findMany to return [], it will trigger system deletion.
-            
-            // To pass the "own account" check, we use a different target
-            await request(app).delete('/links/@bob:localhost');
-            expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys1' } });
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).delete('/links/@bob:localhost');
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(200);
+      expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(mockSystem.members[0], mockSystem);
+      expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys1' } });
+      expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@alice:localhost');
     });
 
-    describe('POST /links/primary', () => {
-        it('should update primary status via transaction', async () => {
-            (prisma.accountLink.findUnique as jest.Mock)
-                .mockResolvedValueOnce({ systemId: 'sys1' })
-                .mockResolvedValueOnce({ systemId: 'sys1' });
+    it('should return 403 if user is not linked to any system', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
 
-            const res = await request(app).post('/links/primary').send({ targetMxid: '@bob:localhost' });
+      const res = await request(app).delete('/system');
 
-            expect(res.status).toBe(200);
-            expect(jest.spyOn(prisma, '$transaction')).toHaveBeenCalled();
-            expect(jest.spyOn(prisma.accountLink, 'updateMany')).toHaveBeenCalledWith({
-                where: { systemId: 'sys1' },
-                data: { isPrimary: false }
-            });
-            expect(jest.spyOn(prisma.accountLink, 'update')).toHaveBeenCalledWith({
-                where: { matrixId: '@bob:localhost' },
-                data: { isPrimary: true }
-            });
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).post('/links/primary').send({ targetMxid: '@bob:localhost' });
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(403);
+      expect(jest.spyOn(prisma.system, 'delete')).not.toHaveBeenCalled();
     });
 
-    describe('Dead Letter Queue', () => {
-        it('should return dead letters matching the system slug', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ 
-                system: { slug: 'sys1' } 
-            });
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).delete('/system');
+      expect(res.status).toBe(500);
+    });
+  });
 
-            (messageQueue.getDeadLetters as jest.Mock).mockReturnValue([
-                { ghostUserId: '@_plural_sys1_ghost:localhost', eventId: '$1' },
-                { ghostUserId: '@_plural_other_ghost:localhost', eventId: '$2' }
-            ]);
+  describe('POST /links', () => {
+    it('should create a new link', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
+        .mockResolvedValueOnce(null); // Target
 
-            const res = await request(app).get('/dlq');
+      (prisma.accountLink.findFirst as jest.Mock).mockResolvedValue({ isPrimary: true });
+      (prisma.accountLink.create as jest.Mock).mockResolvedValue({ matrixId: '@bob:localhost', isPrimary: false });
 
-            expect(res.status).toBe(200);
-            expect(res.body).toHaveLength(1);
-            expect((res.body as { eventId: string }[])[0].eventId).toBe('$1');
-        });
+      const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
 
-        it('should delete a dead letter', async () => {
-            const res = await request(app).delete('/dlq/dl123');
-            expect(res.status).toBe(200);
-            expect(jest.spyOn(messageQueue, 'deleteDeadLetter')).toHaveBeenCalledWith('dl123');
-        });
-
-        it('should handle get errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).get('/dlq');
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(201);
+      expect(jest.spyOn(prisma.accountLink, 'create')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ matrixId: '@bob:localhost', systemId: 'sys1', isPrimary: false }) as unknown,
+        }) as unknown,
+      );
+      expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@bob:localhost');
+      expect(emitSystemUpdate).toHaveBeenCalledTimes(2);
     });
 
-    describe('PATCH /system', () => {
-        it('should decommission all ghosts and resync them if the system slug changes', async () => {
-            const mockSystemWithMembers = {
-                id: 'sys1',
-                slug: 'old-sys-slug',
-                members: [
-                    { id: 'm1', slug: 'alice' },
-                    { id: 'm2', slug: 'bob' }
-                ]
-            };
+    it('should fail if target already has members', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
+        .mockResolvedValueOnce({ systemId: 'sys2', system: { members: [{ id: 'm1' }] } }); // Target
 
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            
-            // First call checks if the new slug is taken (returns null meaning it's free)
-            // Second call gets the current system to check if it changed
-            // Third call gets the system with members to decommission
-            (prisma.system.findUnique as jest.Mock)
-                .mockResolvedValueOnce(null)
-                .mockResolvedValueOnce({ id: 'sys1', slug: 'old-sys-slug' })
-                .mockResolvedValueOnce(mockSystemWithMembers);
+      const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
 
-            const updatedSystem = { id: 'sys1', slug: 'new-sys-slug' };
-            (prisma.system.update as jest.Mock).mockResolvedValue(updatedSystem);
-
-            const res = await request(app)
-                .patch('/system')
-                .send({ slug: 'new-sys-slug' });
-
-            expect(res.status).toBe(200);
-            
-            // Should decommission the old ghosts
-            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledTimes(2);
-            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(mockSystemWithMembers.members[0], mockSystemWithMembers);
-            expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(mockSystemWithMembers.members[1], mockSystemWithMembers);
-            
-            // Should sync the new ghosts under the updated system
-            expect(syncGhostProfile).toHaveBeenCalledTimes(2);
-            expect(syncGhostProfile).toHaveBeenCalledWith(mockSystemWithMembers.members[0], updatedSystem);
-            expect(syncGhostProfile).toHaveBeenCalledWith(mockSystemWithMembers.members[1], updatedSystem);
-        });
-
-        it('should NOT decommission ghosts if the system slug is unchanged', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            
-            (prisma.system.findUnique as jest.Mock)
-                .mockResolvedValueOnce(null)
-                .mockResolvedValueOnce({ id: 'sys1', slug: 'same-slug' });
-
-            (prisma.system.update as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug', name: 'New Name' });
-
-            const res = await request(app)
-                .patch('/system')
-                .send({ slug: 'same-slug', name: 'New Name' });
-
-            expect(res.status).toBe(200);
-            
-            // Should NOT decommission or resync
-            expect(jest.mocked(decommissionGhost)).not.toHaveBeenCalled();
-            expect(syncGhostProfile).not.toHaveBeenCalled();
-        });
-
-        it('should update description and avatarUrl without side effects', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            (prisma.system.findUnique as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug' });
-            (prisma.system.update as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug', description: 'Test', avatarUrl: 'mxc://example.com/123' });
-
-            const res = await request(app)
-                .patch('/system')
-                .send({ description: 'Test', avatarUrl: 'mxc://example.com/123' });
-
-            expect(res.status).toBe(200);
-            expect(jest.spyOn(prisma.system, 'update')).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.objectContaining({
-                    description: 'Test',
-                    avatarUrl: 'mxc://example.com/123'
-                }) as unknown
-            }) as unknown);
-            expect(jest.mocked(decommissionGhost)).not.toHaveBeenCalled();
-            expect(syncGhostProfile).not.toHaveBeenCalled();
-        });
-
-        it('should return 400 Bad Request on Zod validation failure', async () => {
-            const res = await request(app)
-                .patch('/system')
-                .send({ slug: 'INVALID SLUG WITH SPACES' });
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toBe('Invalid input format');
-            expect(jest.spyOn(prisma.system, 'update')).not.toHaveBeenCalled();
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).patch('/system').send({});
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toContain('already has members');
     });
 
-    describe('GET /public/:slug', () => {
-        it('should return only safe fields for unauthenticated users', async () => {
-            const mockPublicData = {
-                slug: 'sys1',
-                name: 'Public System',
-                systemTag: '🚀',
-                members: [
-                    { id: 'm1', slug: 'alice', name: 'Alice' }
-                ]
-            };
+    it('should fail if already linked to same system', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
+        .mockResolvedValueOnce({ systemId: 'sys1', system: { members: [] } }); // Target
 
-            (prisma.system.findUnique as jest.Mock).mockResolvedValue(mockPublicData);
+      const res = await request(app).post('/links').send({ targetMxid: '@alice_alt:localhost' });
 
-            const res = await request(app).get('/public/sys1');
-
-            expect(res.status).toBe(200);
-            const body = res.body as Partial<import('@prisma/client').System>;
-            expect(body.slug).toBe('sys1');
-            expect(body.name).toBe('Public System');
-            // Ensure internal fields are missing
-            expect(body.id).toBeUndefined();
-            expect(body.autoproxyId).toBeUndefined();
-            expect(body.pkId).toBeUndefined();
-        });
-
-        it('should return 404 if system not found', async () => {
-            (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
-            const res = await request(app).get('/public/missing');
-            expect(res.status).toBe(404);
-        });
-
-        it('should handle errors gracefully', async () => {
-            (prisma.system.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-            const res = await request(app).get('/public/sys1');
-            expect(res.status).toBe(500);
-        });
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toContain('already linked');
     });
+
+    it('should delete empty target system if it was the only link', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
+        .mockResolvedValueOnce({
+          systemId: 'sys2',
+          system: { members: [], accountLinks: [{}] }, // 1 link
+        });
+
+      await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
+
+      expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys2' } });
+    });
+
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).post('/links').send({ targetMxid: '@bob:localhost' });
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('DELETE /links/:mxid', () => {
+    it('should delete a link', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
+        .mockResolvedValueOnce({ systemId: 'sys1', isPrimary: false }); // Target
+
+      (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([{ matrixId: '@alice:localhost', isPrimary: true }]);
+
+      const res = await request(app).delete('/links/@bob:localhost');
+
+      expect(res.status).toBe(200);
+      expect(jest.spyOn(prisma.accountLink, 'delete')).toHaveBeenCalledWith({ where: { matrixId: '@bob:localhost' } });
+    });
+
+    it('should prevent deleting own account', async () => {
+      const res = await request(app).delete('/links/@alice:localhost');
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toContain('cannot unlink your own account');
+    });
+
+    it('should assign a new primary if primary is deleted', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender
+        .mockResolvedValueOnce({ systemId: 'sys1', isPrimary: true }); // Target
+
+      (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([
+        { matrixId: '@alice:localhost', isPrimary: false }, // Remaining
+      ]);
+
+      await request(app).delete('/links/@bob:localhost');
+
+      expect(jest.spyOn(prisma.accountLink, 'update')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { matrixId: '@alice:localhost' },
+          data: { isPrimary: true },
+        }),
+      );
+    });
+
+    it('should delete system if no links remain', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' }) // Sender (bypassed own check in mock for simplicity, though real logic blocks it)
+        .mockResolvedValueOnce({ systemId: 'sys1', isPrimary: true }); // Target
+
+      (prisma.accountLink.findMany as jest.Mock).mockResolvedValue([]); // No remaining
+
+      (prisma.system.findUnique as jest.Mock).mockResolvedValue({
+        id: 'sys1',
+        members: [{ id: 'm1', slug: 'm1' }],
+      });
+
+      // Overriding the auth middleware for this specific test to simulate deleting the last OTHER account?
+      // Actually, if the user deletes the *only other* account, and 0 remain? Wait, the user themselves must remain.
+      // But if we mock findMany to return [], it will trigger system deletion.
+
+      // To pass the "own account" check, we use a different target
+      await request(app).delete('/links/@bob:localhost');
+      expect(jest.spyOn(prisma.system, 'delete')).toHaveBeenCalledWith({ where: { id: 'sys1' } });
+    });
+
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).delete('/links/@bob:localhost');
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('POST /links/primary', () => {
+    it('should update primary status via transaction', async () => {
+      (prisma.accountLink.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ systemId: 'sys1' })
+        .mockResolvedValueOnce({ systemId: 'sys1' });
+
+      const res = await request(app).post('/links/primary').send({ targetMxid: '@bob:localhost' });
+
+      expect(res.status).toBe(200);
+      expect(jest.spyOn(prisma, '$transaction')).toHaveBeenCalled();
+      expect(jest.spyOn(prisma.accountLink, 'updateMany')).toHaveBeenCalledWith({
+        where: { systemId: 'sys1' },
+        data: { isPrimary: false },
+      });
+      expect(jest.spyOn(prisma.accountLink, 'update')).toHaveBeenCalledWith({
+        where: { matrixId: '@bob:localhost' },
+        data: { isPrimary: true },
+      });
+    });
+
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).post('/links/primary').send({ targetMxid: '@bob:localhost' });
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('Dead Letter Queue', () => {
+    it('should return dead letters matching the system slug', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        system: { slug: 'sys1' },
+      });
+
+      (messageQueue.getDeadLetters as jest.Mock).mockReturnValue([
+        { ghostUserId: '@_plural_sys1_ghost:localhost', eventId: '$1' },
+        { ghostUserId: '@_plural_other_ghost:localhost', eventId: '$2' },
+      ]);
+
+      const res = await request(app).get('/dlq');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveLength(1);
+      expect((res.body as { eventId: string }[])[0].eventId).toBe('$1');
+    });
+
+    it('should delete a dead letter', async () => {
+      const res = await request(app).delete('/dlq/dl123');
+      expect(res.status).toBe(200);
+      expect(jest.spyOn(messageQueue, 'deleteDeadLetter')).toHaveBeenCalledWith('dl123');
+    });
+
+    it('should handle get errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).get('/dlq');
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('PATCH /system', () => {
+    it('should decommission all ghosts and resync them if the system slug changes', async () => {
+      const mockSystemWithMembers = {
+        id: 'sys1',
+        slug: 'old-sys-slug',
+        members: [
+          { id: 'm1', slug: 'alice' },
+          { id: 'm2', slug: 'bob' },
+        ],
+      };
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+
+      // First call checks if the new slug is taken (returns null meaning it's free)
+      // Second call gets the current system to check if it changed
+      // Third call gets the system with members to decommission
+      (prisma.system.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'sys1', slug: 'old-sys-slug' })
+        .mockResolvedValueOnce(mockSystemWithMembers);
+
+      const updatedSystem = { id: 'sys1', slug: 'new-sys-slug' };
+      (prisma.system.update as jest.Mock).mockResolvedValue(updatedSystem);
+
+      const res = await request(app).patch('/system').send({ slug: 'new-sys-slug' });
+
+      expect(res.status).toBe(200);
+
+      // Should decommission the old ghosts
+      expect(jest.mocked(decommissionGhost)).toHaveBeenCalledTimes(2);
+      expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(
+        mockSystemWithMembers.members[0],
+        mockSystemWithMembers,
+      );
+      expect(jest.mocked(decommissionGhost)).toHaveBeenCalledWith(
+        mockSystemWithMembers.members[1],
+        mockSystemWithMembers,
+      );
+
+      // Should sync the new ghosts under the updated system
+      expect(syncGhostProfile).toHaveBeenCalledTimes(2);
+      expect(syncGhostProfile).toHaveBeenCalledWith(mockSystemWithMembers.members[0], updatedSystem);
+      expect(syncGhostProfile).toHaveBeenCalledWith(mockSystemWithMembers.members[1], updatedSystem);
+    });
+
+    it('should NOT decommission ghosts if the system slug is unchanged', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+
+      (prisma.system.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'sys1', slug: 'same-slug' });
+
+      (prisma.system.update as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug', name: 'New Name' });
+
+      const res = await request(app).patch('/system').send({ slug: 'same-slug', name: 'New Name' });
+
+      expect(res.status).toBe(200);
+
+      // Should NOT decommission or resync
+      expect(jest.mocked(decommissionGhost)).not.toHaveBeenCalled();
+      expect(syncGhostProfile).not.toHaveBeenCalled();
+    });
+
+    it('should update description and avatarUrl without side effects', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+      (prisma.system.findUnique as jest.Mock).mockResolvedValue({ id: 'sys1', slug: 'same-slug' });
+      (prisma.system.update as jest.Mock).mockResolvedValue({
+        id: 'sys1',
+        slug: 'same-slug',
+        description: 'Test',
+        avatarUrl: 'mxc://example.com/123',
+      });
+
+      const res = await request(app).patch('/system').send({ description: 'Test', avatarUrl: 'mxc://example.com/123' });
+
+      expect(res.status).toBe(200);
+      expect(jest.spyOn(prisma.system, 'update')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            description: 'Test',
+            avatarUrl: 'mxc://example.com/123',
+          }) as unknown,
+        }) as unknown,
+      );
+      expect(jest.mocked(decommissionGhost)).not.toHaveBeenCalled();
+      expect(syncGhostProfile).not.toHaveBeenCalled();
+    });
+
+    it('should return 400 Bad Request on Zod validation failure', async () => {
+      const res = await request(app).patch('/system').send({ slug: 'INVALID SLUG WITH SPACES' });
+
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toBe('Invalid input format');
+      expect(jest.spyOn(prisma.system, 'update')).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).patch('/system').send({});
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('GET /public/:slug', () => {
+    it('should return only safe fields for unauthenticated users', async () => {
+      const mockPublicData = {
+        slug: 'sys1',
+        name: 'Public System',
+        systemTag: '🚀',
+        members: [{ id: 'm1', slug: 'alice', name: 'Alice' }],
+      };
+
+      (prisma.system.findUnique as jest.Mock).mockResolvedValue(mockPublicData);
+
+      const res = await request(app).get('/public/sys1');
+
+      expect(res.status).toBe(200);
+      const body = res.body as Partial<import('@prisma/client').System>;
+      expect(body.slug).toBe('sys1');
+      expect(body.name).toBe('Public System');
+      // Ensure internal fields are missing
+      expect(body.id).toBeUndefined();
+      expect(body.autoproxyId).toBeUndefined();
+      expect(body.pkId).toBeUndefined();
+    });
+
+    it('should return 404 if system not found', async () => {
+      (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
+      const res = await request(app).get('/public/missing');
+      expect(res.status).toBe(404);
+    });
+
+    it('should handle errors gracefully', async () => {
+      (prisma.system.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+      const res = await request(app).get('/public/sys1');
+      expect(res.status).toBe(500);
+    });
+  });
 });

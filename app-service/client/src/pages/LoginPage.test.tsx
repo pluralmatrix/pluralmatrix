@@ -11,9 +11,9 @@ describe('LoginPage', () => {
         <BrowserRouter>
           <LoginPage />
         </BrowserRouter>
-      </AuthProvider>
+      </AuthProvider>,
     );
-    
+
     expect(screen.getByText(/PluralMatrix/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/@user:server.com/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sign In/i })).toBeInTheDocument();

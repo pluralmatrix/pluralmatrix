@@ -3,76 +3,75 @@ import axios from 'axios';
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
-    baseURL: API_BASE,
+  baseURL: API_BASE,
 });
 
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const authService = {
-    login: (mxid: string, password: string) => 
-        api.post('/auth/login', { mxid, password }),
-    me: () => api.get('/auth/me'),
+  login: (mxid: string, password: string) => api.post('/auth/login', { mxid, password }),
+  me: () => api.get('/auth/me'),
 };
 
 export const memberService = {
-    list: () => api.get('/members'),
-    create: (data: Record<string, unknown>) => api.post('/members', data),
-    update: (id: string, data: Record<string, unknown>) => api.patch(`/members/${id}`, data),
-    delete: (id: string) => api.delete(`/members/${id}`),
-    deleteAll: () => api.delete('/members'),
-    
-    // PluralKit Imports
-    importPkJson: (data: Record<string, unknown>) => api.post('/import/pk/json', data),
+  list: () => api.get('/members'),
+  create: (data: Record<string, unknown>) => api.post('/members', data),
+  update: (id: string, data: Record<string, unknown>) => api.patch(`/members/${id}`, data),
+  delete: (id: string) => api.delete(`/members/${id}`),
+  deleteAll: () => api.delete('/members'),
 
-    // Unified Backup Imports
-    importBackupZip: (file: File) => {
-        return api.post('/import/backup/zip', file, {
-            headers: { 'Content-Type': 'application/zip' }
-        });
-    },
+  // PluralKit Imports
+  importPkJson: (data: Record<string, unknown>) => api.post('/import/pk/json', data),
 
-    // Exports
-    exportPkZip: () => {
-        const token = localStorage.getItem('token');
-        window.open(`${API_BASE}/import/pk/zip?token=${token}`, '_blank');
-    },
-    exportBackupZip: () => {
-        const token = localStorage.getItem('token');
-        window.open(`${API_BASE}/import/backup/zip?token=${token}`, '_blank');
-    },
-    
-    uploadMedia: (file: File) => {
-        return api.post(`/media/upload?filename=${encodeURIComponent(file.name)}`, file, {
-            headers: { 'Content-Type': file.type }
-        });
-    }
+  // Unified Backup Imports
+  importBackupZip: (file: File) => {
+    return api.post('/import/backup/zip', file, {
+      headers: { 'Content-Type': 'application/zip' },
+    });
+  },
+
+  // Exports
+  exportPkZip: () => {
+    const token = localStorage.getItem('token');
+    window.open(`${API_BASE}/import/pk/zip?token=${token}`, '_blank');
+  },
+  exportBackupZip: () => {
+    const token = localStorage.getItem('token');
+    window.open(`${API_BASE}/import/backup/zip?token=${token}`, '_blank');
+  },
+
+  uploadMedia: (file: File) => {
+    return api.post(`/media/upload?filename=${encodeURIComponent(file.name)}`, file, {
+      headers: { 'Content-Type': file.type },
+    });
+  },
 };
 
 export const systemService = {
-    get: () => api.get('/system'),
-    create: () => api.post('/system'),
-    delete: () => api.delete('/system'),
-    update: (data: Record<string, unknown>) => api.patch('/system', data),
-    getLinks: () => api.get('/system/links'),
-    createLink: (targetMxid: string) => api.post('/system/links', { targetMxid }),
-    setPrimaryLink: (targetMxid: string) => api.post('/system/links/primary', { targetMxid }),
-    deleteLink: (mxid: string) => api.delete(`/system/links/${encodeURIComponent(mxid)}`),
-    getDeadLetters: () => api.get('/system/dead_letters'),
-    deleteDeadLetter: (id: string) => api.delete(`/system/dead_letters/${encodeURIComponent(id)}`),
-    getPublic: (slug: string) => api.get(`/system/public/${slug}`)
+  get: () => api.get('/system'),
+  create: () => api.post('/system'),
+  delete: () => api.delete('/system'),
+  update: (data: Record<string, unknown>) => api.patch('/system', data),
+  getLinks: () => api.get('/system/links'),
+  createLink: (targetMxid: string) => api.post('/system/links', { targetMxid }),
+  setPrimaryLink: (targetMxid: string) => api.post('/system/links/primary', { targetMxid }),
+  deleteLink: (mxid: string) => api.delete(`/system/links/${encodeURIComponent(mxid)}`),
+  getDeadLetters: () => api.get('/system/dead_letters'),
+  deleteDeadLetter: (id: string) => api.delete(`/system/dead_letters/${encodeURIComponent(id)}`),
+  getPublic: (slug: string) => api.get(`/system/public/${slug}`),
 };
 
 export const groupService = {
-    list: () => api.get('/groups'),
-    create: (data: Record<string, unknown>) => api.post('/groups', data),
-    update: (id: string, data: Record<string, unknown>) => api.put(`/groups/${id}`, data),
-    delete: (id: string) => api.delete(`/groups/${id}`)
+  list: () => api.get('/groups'),
+  create: (data: Record<string, unknown>) => api.post('/groups', data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/groups/${id}`, data),
+  delete: (id: string) => api.delete(`/groups/${id}`),
 };
 
 export default api;

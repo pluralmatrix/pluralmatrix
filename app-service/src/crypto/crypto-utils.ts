@@ -1,41 +1,41 @@
-import { OlmMachine, RequestType, RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
-import { Intent } from "matrix-appservice-bridge";
-import { PrismaClient } from "@prisma/client";
-import { sleep } from "../utils/timer";
-import { IntentWithClient, PluralMatrixEvent, PluralMatrixEventContent } from "../types";
-import { OlmMachineManager } from "./OlmMachineManager";
+import { OlmMachine, RequestType, RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
+import { Intent } from 'matrix-appservice-bridge';
+import { PrismaClient } from '@prisma/client';
+import { sleep } from '../utils/timer';
+import { IntentWithClient, PluralMatrixEvent, PluralMatrixEventContent } from '../types';
+import { OlmMachineManager } from './OlmMachineManager';
 
 /**
  * Ensures an event object has the necessary fields and attempts to decrypt it.
  * Mutates the passed event object if decryption is successful.
  */
 export async function decryptHistoricalEvent(
-    event: PluralMatrixEvent,
-    roomId: string,
-    cryptoManager: OlmMachineManager,
-    decryptingUserId: string
+  event: PluralMatrixEvent,
+  roomId: string,
+  cryptoManager: OlmMachineManager,
+  decryptingUserId: string,
 ): Promise<PluralMatrixEvent> {
-    if (!event.room_id) event.room_id = roomId;
-    if (!event.event_id && event.id) event.event_id = event.id;
-    if (!event.sender) event.sender = decryptingUserId; // Fallback to avoid Rust panic
+  if (!event.room_id) event.room_id = roomId;
+  if (!event.event_id && event.id) event.event_id = event.id;
+  if (!event.sender) event.sender = decryptingUserId; // Fallback to avoid Rust panic
 
-    if (event.type === "m.room.encrypted") {
-        try {
-            const rustRoomId = new RoomId(roomId);
-            const machine = await cryptoManager.getMachine(decryptingUserId);
-            const decrypted = await machine.decryptRoomEvent(JSON.stringify(event), rustRoomId);
-            if (decrypted.event) {
-                const parsed = JSON.parse(decrypted.event) as { content: PluralMatrixEventContent };
-                if (parsed.content) {
-                    event.content = parsed.content;
-                }
-            }
-        } catch (e: unknown) {
-            console.warn(`[Crypto] Could not decrypt historical event ${event.event_id}:`, (e as Error).message);
+  if (event.type === 'm.room.encrypted') {
+    try {
+      const rustRoomId = new RoomId(roomId);
+      const machine = await cryptoManager.getMachine(decryptingUserId);
+      const decrypted = await machine.decryptRoomEvent(JSON.stringify(event), rustRoomId);
+      if (decrypted.event) {
+        const parsed = JSON.parse(decrypted.event) as { content: PluralMatrixEventContent };
+        if (parsed.content) {
+          event.content = parsed.content;
         }
+      }
+    } catch (e: unknown) {
+      console.warn(`[Crypto] Could not decrypt historical event ${event.event_id}:`, (e as Error).message);
     }
-    
-    return event;
+  }
+
+  return event;
 }
 
 /**
@@ -43,27 +43,28 @@ export async function decryptHistoricalEvent(
  * Handles read-only object cloning automatically.
  */
 export async function fetchAndDecryptHistoricalEvent(
-    botClient: IntentWithClient["matrixClient"],
-    roomId: string,
-    eventId: string,
-    cryptoManager: OlmMachineManager,
-    decryptingUserId: string
+  botClient: IntentWithClient['matrixClient'],
+  roomId: string,
+  eventId: string,
+  cryptoManager: OlmMachineManager,
+  decryptingUserId: string,
 ): Promise<PluralMatrixEvent | null> {
-    try {
-        const rawEvent = await botClient.getEvent(roomId, eventId);
-        if (!rawEvent) return null;
-        
-        // MatrixClient returns instances of RoomEvent which encapsulate the real JSON in .raw
-        // Clone to bypass read-only restrictions from the matrix-bot-sdk
-        const rawJson = typeof (rawEvent as { raw?: unknown }).raw === 'object' ? (rawEvent as { raw: unknown }).raw : rawEvent;
-        const event = JSON.parse(JSON.stringify(rawJson)) as PluralMatrixEvent;
-        event.event_id = eventId;
-        
-        return await decryptHistoricalEvent(event, roomId, cryptoManager, decryptingUserId);
-    } catch {
-        // Network or 404 error
-        return null;
-    }
+  try {
+    const rawEvent = await botClient.getEvent(roomId, eventId);
+    if (!rawEvent) return null;
+
+    // MatrixClient returns instances of RoomEvent which encapsulate the real JSON in .raw
+    // Clone to bypass read-only restrictions from the matrix-bot-sdk
+    const rawJson =
+      typeof (rawEvent as { raw?: unknown }).raw === 'object' ? (rawEvent as { raw: unknown }).raw : rawEvent;
+    const event = JSON.parse(JSON.stringify(rawJson)) as PluralMatrixEvent;
+    event.event_id = eventId;
+
+    return await decryptHistoricalEvent(event, roomId, cryptoManager, decryptingUserId);
+  } catch {
+    // Network or 404 error
+    return null;
+  }
 }
 
 // In-memory cache to prevent redundant registrations/logins within a single session
@@ -73,83 +74,87 @@ let registeredDevices = new Set<string>();
  * Clears the in-memory registered devices cache. (Mainly for tests)
  */
 export const clearRegisteredDevicesCache = () => {
-    registeredDevices = new Set<string>();
+  registeredDevices = new Set<string>();
 };
 
 interface MatrixKeysQueryResponse {
-    device_keys?: Record<string, Record<string, unknown>>;
-    master_keys?: Record<string, unknown>;
-    [key: string]: unknown;
+  device_keys?: Record<string, Record<string, unknown>>;
+  master_keys?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 interface MatrixKeysClaimResponse {
-    one_time_keys?: Record<string, Record<string, unknown>>;
-    [key: string]: unknown;
+  one_time_keys?: Record<string, Record<string, unknown>>;
+  [key: string]: unknown;
 }
 
 // Helper to perform raw fetch using AS Token (MSC3202 style)
 export async function doAsRequest<T = Record<string, unknown>>(
-    hsUrl: string, 
-    asToken: string, 
-    targetUserId: string,
-    method: string,
-    path: string,
-    body?: Record<string, unknown> | null,
-    msc3202DeviceId?: string
-): Promise<T> {    const url = new URL(`${hsUrl}${path}`);
-    url.searchParams.set("user_id", targetUserId);
-    if (msc3202DeviceId) {
-        url.searchParams.set("org.matrix.msc3202.device_id", msc3202DeviceId);
-    }
+  hsUrl: string,
+  asToken: string,
+  targetUserId: string,
+  method: string,
+  path: string,
+  body?: Record<string, unknown> | null,
+  msc3202DeviceId?: string,
+): Promise<T> {
+  const url = new URL(`${hsUrl}${path}`);
+  url.searchParams.set('user_id', targetUserId);
+  if (msc3202DeviceId) {
+    url.searchParams.set('org.matrix.msc3202.device_id', msc3202DeviceId);
+  }
 
-    const headers = {
-        'Authorization': `Bearer ${asToken}`,
-        'Content-Type': 'application/json'
-    };
+  const headers = {
+    Authorization: `Bearer ${asToken}`,
+    'Content-Type': 'application/json',
+  };
 
-    let attempts = 0;
-    const maxAttempts = 5;
+  let attempts = 0;
+  const maxAttempts = 5;
 
-    while (attempts < maxAttempts) {
-        try {
-            const res = await fetch(url.toString(), {
-                method: method,
-                headers: headers,
-                body: body ? JSON.stringify(body) : undefined
-            });
+  while (attempts < maxAttempts) {
+    try {
+      const res = await fetch(url.toString(), {
+        method: method,
+        headers: headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
 
-            if (!res.ok) {
-                const text = await res.text();
-                
-                // Handle Rate Limiting
-                if (res.status === 429 || text.includes("M_LIMIT_EXCEEDED")) {
-                    attempts++;
-                    const waitTime = Math.pow(2, attempts) * 1000 + (Math.random() * 1000);
-                    console.warn(`[Crypto] Rate limited during ${method} ${path} for ${targetUserId}. Waiting ${Math.round(waitTime)}ms...`);
-                    await sleep(waitTime);
-                    continue;
-                }
+      if (!res.ok) {
+        const text = await res.text();
 
-                console.error(`[Crypto] Matrix API Error ${res.status}: ${text} (${method} ${url.toString()})`);
-
-                const error = new Error(`Matrix API Error ${res.status}`) as Error & { status?: number; body?: string };
-                error.status = res.status;
-                error.body = text;
-                throw error;            }
-            return (await res.json()) as T;
-        } catch (e: unknown) {
-            if ((e as { status?: number }).status === 429 || (e as Error).message?.includes("M_LIMIT_EXCEEDED")) {
-                // Already handled above if possible, but catch network-level or other errors here
-                attempts++;
-                const waitTime = Math.pow(2, attempts) * 1000 + (Math.random() * 1000);
-                await sleep(waitTime);
-                continue;
-            }
-            throw e;
+        // Handle Rate Limiting
+        if (res.status === 429 || text.includes('M_LIMIT_EXCEEDED')) {
+          attempts++;
+          const waitTime = Math.pow(2, attempts) * 1000 + Math.random() * 1000;
+          console.warn(
+            `[Crypto] Rate limited during ${method} ${path} for ${targetUserId}. Waiting ${Math.round(waitTime)}ms...`,
+          );
+          await sleep(waitTime);
+          continue;
         }
-    }
 
-    throw new Error(`Max attempts reached for ${method} ${path}`);
+        console.error(`[Crypto] Matrix API Error ${res.status}: ${text} (${method} ${url.toString()})`);
+
+        const error = new Error(`Matrix API Error ${res.status}`) as Error & { status?: number; body?: string };
+        error.status = res.status;
+        error.body = text;
+        throw error;
+      }
+      return (await res.json()) as T;
+    } catch (e: unknown) {
+      if ((e as { status?: number }).status === 429 || (e as Error).message?.includes('M_LIMIT_EXCEEDED')) {
+        // Already handled above if possible, but catch network-level or other errors here
+        attempts++;
+        const waitTime = Math.pow(2, attempts) * 1000 + Math.random() * 1000;
+        await sleep(waitTime);
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  throw new Error(`Max attempts reached for ${method} ${path}`);
 }
 
 // Semaphore to limit concurrent registrations (Synapse gets cranky if too many happen at once)
@@ -160,129 +165,145 @@ const MAX_CONCURRENT_REGISTRATIONS = 1;
  * Ensures a device is registered on the homeserver.
  * Returns true if the device was newly registered in this session.
  */
-export async function registerDevice(intent: Intent, deviceId: string, prisma?: PrismaClient, memberId?: string, systemId?: string): Promise<boolean> {
-    const userId = intent.userId;
-    const cacheKey = `${userId}|${deviceId}`;
-    
-    // 1. Check in-memory cache (fastest)
-    if (registeredDevices.has(cacheKey)) return false;
+export async function registerDevice(
+  intent: Intent,
+  deviceId: string,
+  prisma?: PrismaClient,
+  memberId?: string,
+  systemId?: string,
+): Promise<boolean> {
+  const userId = intent.userId;
+  const cacheKey = `${userId}|${deviceId}`;
 
-    // 2. Check DB if memberId provided
-    if (prisma && memberId) {
-        const member = await prisma.member.findUnique({
+  // 1. Check in-memory cache (fastest)
+  if (registeredDevices.has(cacheKey)) return false;
+
+  // 2. Check DB if memberId provided
+  if (prisma && memberId) {
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { deviceRegistered: true },
+    });
+    if (member?.deviceRegistered) {
+      registeredDevices.add(cacheKey);
+      return false;
+    }
+  }
+
+  // 3. Check DB if systemId provided (for Bot)
+  if (prisma && systemId) {
+    const system = await prisma.system.findUnique({
+      where: { id: systemId },
+      select: { deviceRegistered: true },
+    });
+    if (system?.deviceRegistered) {
+      registeredDevices.add(cacheKey);
+      return false;
+    }
+  }
+
+  // Wait for slot in semaphore
+  while (activeRegistrations >= MAX_CONCURRENT_REGISTRATIONS) {
+    await sleep(500 + Math.random() * 500);
+  }
+
+  activeRegistrations++;
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      try {
+        if (attempts > 0) {
+          console.log(`[Crypto] Retrying registration for ${userId} (Attempt ${attempts + 1}/${maxAttempts})...`);
+        } else {
+          console.log(`[Crypto] Registering/Verifying device ${deviceId} for ${userId}...`);
+        }
+
+        await intent.matrixClient.doRequest('POST', '/_matrix/client/v3/login', null, {
+          type: 'm.login.application_service',
+          identifier: {
+            type: 'm.id.user',
+            user: userId,
+          },
+          device_id: deviceId,
+          initial_device_display_name: 'PluralMatrix (Native E2EE)',
+        });
+
+        console.log(`[Crypto] Device ${deviceId} registration verified.`);
+
+        // Persist to DB
+        if (prisma && memberId) {
+          await prisma.member.update({
             where: { id: memberId },
-            select: { deviceRegistered: true }
-        });
-        if (member?.deviceRegistered) {
-            registeredDevices.add(cacheKey);
-            return false;
+            data: { deviceRegistered: true },
+          });
         }
-    }
-
-    // 3. Check DB if systemId provided (for Bot)
-    if (prisma && systemId) {
-        const system = await prisma.system.findUnique({
+        if (prisma && systemId) {
+          await prisma.system.update({
             where: { id: systemId },
-            select: { deviceRegistered: true }
-        });
-        if (system?.deviceRegistered) {
-            registeredDevices.add(cacheKey);
-            return false;
-        }
-    }
-
-    // Wait for slot in semaphore
-    while (activeRegistrations >= MAX_CONCURRENT_REGISTRATIONS) {
-        await sleep(500 + Math.random() * 500);
-    }
-
-    activeRegistrations++;
-    try {
-        let attempts = 0;
-        const maxAttempts = 5;
-
-        while (attempts < maxAttempts) {
-            try {
-                if (attempts > 0) {
-                    console.log(`[Crypto] Retrying registration for ${userId} (Attempt ${attempts + 1}/${maxAttempts})...`);
-                } else {
-                    console.log(`[Crypto] Registering/Verifying device ${deviceId} for ${userId}...`);
-                }
-
-                await intent.matrixClient.doRequest("POST", "/_matrix/client/v3/login", null, {
-                    type: "m.login.application_service",
-                    identifier: {
-                        type: "m.id.user",
-                        user: userId 
-                    },
-                    device_id: deviceId,
-                    initial_device_display_name: "PluralMatrix (Native E2EE)"
-                });
-                
-                console.log(`[Crypto] Device ${deviceId} registration verified.`);
-                
-                // Persist to DB
-                if (prisma && memberId) {
-                    await prisma.member.update({
-                        where: { id: memberId },
-                        data: { deviceRegistered: true }
-                    });
-                }
-                if (prisma && systemId) {
-                    await prisma.system.update({
-                        where: { id: systemId },
-                        data: { deviceRegistered: true }
-                    });
-                }
-
-                registeredDevices.add(cacheKey);
-                return true;
-            } catch (e: unknown) {
-                const err = e as Record<string, unknown>;
-                let isRateLimit = (e as Error).message?.includes("M_LIMIT_EXCEEDED");
-                if (!isRateLimit && err.body) {
-                    try {
-                        const parsedBody = typeof err.body === 'string' ? JSON.parse(err.body) as Record<string, unknown> : err.body;
-                        isRateLimit = (parsedBody as { errcode?: string }).errcode === "M_LIMIT_EXCEEDED";
-                    } catch { /* Ignore */ }
-                }
-                
-                if (isRateLimit) {
-                    attempts++;
-                    const waitTime = Math.pow(2, attempts) * 1000 + (Math.random() * 1000);
-                    console.warn(`[Crypto] Rate limited while registering device ${deviceId} for ${userId}. Waiting ${Math.round(waitTime)}ms...`);
-                    await sleep(waitTime);
-                    continue;
-                }
-                
-                console.error(`[Crypto] Device registration call failed for ${userId}:`, (e as Error).message);
-                
-                // If it's a 400 "already registered" error, we consider it a success
-                const bodyStr = typeof err.body === 'string' ? err.body : (err.body ? JSON.stringify(err.body) : "");
-                const errorStr = ((e as Error).message + bodyStr).toLowerCase();
-                
-                if (err.errcode === "M_USER_IN_USE" || errorStr.includes("already exists") || errorStr.includes("already taken") || errorStr.includes("in use")) {
-                    console.log(`[Crypto] Device ${deviceId} was already registered for ${userId}.`);
-                    if (prisma && memberId) {
-                        await prisma.member.update({ where: { id: memberId }, data: { deviceRegistered: true } });
-                    }
-                    if (prisma && systemId) {
-                        await prisma.system.update({ where: { id: systemId }, data: { deviceRegistered: true } });
-                    }
-                    registeredDevices.add(cacheKey);
-                    return true;
-                }
-
-                registeredDevices.add(cacheKey);
-                return false;
-            }
+            data: { deviceRegistered: true },
+          });
         }
 
-        console.error(`[Crypto] Max registration attempts reached for ${userId}`);
+        registeredDevices.add(cacheKey);
+        return true;
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        let isRateLimit = (e as Error).message?.includes('M_LIMIT_EXCEEDED');
+        if (!isRateLimit && err.body) {
+          try {
+            const parsedBody =
+              typeof err.body === 'string' ? (JSON.parse(err.body) as Record<string, unknown>) : err.body;
+            isRateLimit = (parsedBody as { errcode?: string }).errcode === 'M_LIMIT_EXCEEDED';
+          } catch {
+            /* Ignore */
+          }
+        }
+
+        if (isRateLimit) {
+          attempts++;
+          const waitTime = Math.pow(2, attempts) * 1000 + Math.random() * 1000;
+          console.warn(
+            `[Crypto] Rate limited while registering device ${deviceId} for ${userId}. Waiting ${Math.round(waitTime)}ms...`,
+          );
+          await sleep(waitTime);
+          continue;
+        }
+
+        console.error(`[Crypto] Device registration call failed for ${userId}:`, (e as Error).message);
+
+        // If it's a 400 "already registered" error, we consider it a success
+        const bodyStr = typeof err.body === 'string' ? err.body : err.body ? JSON.stringify(err.body) : '';
+        const errorStr = ((e as Error).message + bodyStr).toLowerCase();
+
+        if (
+          err.errcode === 'M_USER_IN_USE' ||
+          errorStr.includes('already exists') ||
+          errorStr.includes('already taken') ||
+          errorStr.includes('in use')
+        ) {
+          console.log(`[Crypto] Device ${deviceId} was already registered for ${userId}.`);
+          if (prisma && memberId) {
+            await prisma.member.update({ where: { id: memberId }, data: { deviceRegistered: true } });
+          }
+          if (prisma && systemId) {
+            await prisma.system.update({ where: { id: systemId }, data: { deviceRegistered: true } });
+          }
+          registeredDevices.add(cacheKey);
+          return true;
+        }
+
+        registeredDevices.add(cacheKey);
         return false;
-    } finally {
-        activeRegistrations--;
+      }
     }
+
+    console.error(`[Crypto] Max registration attempts reached for ${userId}`);
+    return false;
+  } finally {
+    activeRegistrations--;
+  }
 }
 
 /**
@@ -290,137 +311,185 @@ export async function registerDevice(intent: Intent, deviceId: string, prisma?: 
  * This is useful after registering a new device to ensure propagation.
  */
 export async function waitForDeviceVisibility(
-    machine: OlmMachine, 
-    intent: Intent, 
-    asToken: string, 
-    targetUserId: string, 
-    targetDeviceId: string,
-    maxAttempts = 5
+  machine: OlmMachine,
+  intent: Intent,
+  asToken: string,
+  targetUserId: string,
+  targetDeviceId: string,
+  maxAttempts = 5,
 ): Promise<boolean> {
-    const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
-    
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-            const response = await doAsRequest<MatrixKeysQueryResponse>(
-                hsUrl, 
-                asToken, 
-                intent.userId, 
-                "POST", 
-                "/_matrix/client/v3/keys/query", 
-                { device_keys: { [targetUserId]: [] } }
-            );
+  const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, '');
 
-            const devices = response.device_keys?.[targetUserId] || {};
-            if (devices[targetDeviceId]) {
-                return true;
-            }
-        } catch {
-            // Ignore query errors during polling
-        }
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await doAsRequest<MatrixKeysQueryResponse>(
+        hsUrl,
+        asToken,
+        intent.userId,
+        'POST',
+        '/_matrix/client/v3/keys/query',
+        { device_keys: { [targetUserId]: [] } },
+      );
 
-        if (attempt < maxAttempts) {
-            const waitTime = Math.min(200 * Math.pow(2, attempt), 2000);
-            await sleep(waitTime);
-        }
+      const devices = response.device_keys?.[targetUserId] || {};
+      if (devices[targetDeviceId]) {
+        return true;
+      }
+    } catch {
+      // Ignore query errors during polling
     }
 
-    return false;
+    if (attempt < maxAttempts) {
+      const waitTime = Math.min(200 * Math.pow(2, attempt), 2000);
+      await sleep(waitTime);
+    }
+  }
+
+  return false;
 }
 
 interface CryptoRequest {
-    id: string;
-    type: number;
-    body?: string;
-    eventType?: string;
-    txnId?: string;
-    [key: string]: unknown;
+  id: string;
+  type: number;
+  body?: string;
+  eventType?: string;
+  txnId?: string;
+  [key: string]: unknown;
 }
 
 /**
  * Dispatches a single cryptographic request to Synapse.
  */
 export async function dispatchRequest(machine: OlmMachine, intent: Intent, asToken: string, req: unknown) {
-    const userId = intent.userId;
-    const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
-    const deviceId = machine.deviceId.toString();
-    const typedReq = req as CryptoRequest;
+  const userId = intent.userId;
+  const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, '');
+  const deviceId = machine.deviceId.toString();
+  const typedReq = req as CryptoRequest;
 
-    try {
-        let response: Record<string, unknown> | undefined;
+  try {
+    let response: Record<string, unknown> | undefined;
 
-        switch (typedReq.type as unknown as RequestType) {
-            case RequestType.KeysUpload:
-                try {
-                    response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}") as Record<string, unknown>, deviceId);
-                } catch (err: unknown) {
-                    const errBody = (err as { body?: string }).body;
-                    if (errBody && errBody.includes("already exists")) {
-                        response = { "one_time_key_counts": { "signed_curve25519": 50 } };
-                    } else if (errBody && errBody.includes("M_UNKNOWN_DEVICE")) {
-                        console.warn(`[Crypto] Synapse lost device ${deviceId} for ${userId}. Forcing re-registration...`);
-                        
-                        // Clear from cache to allow re-registration
-                        registeredDevices.delete(`${userId}|${deviceId}`);
-                        
-                        // Wait a moment for synapse state
-                        await sleep(500);
-                        
-                        // Attempt re-registration
-                        await registerDevice(intent, deviceId);
-                        
-                        // Retry the upload
-                        response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}") as Record<string, unknown>, deviceId);
-                    } else {
-                        throw err;
-                    }
-                }                break;
+    switch (typedReq.type as unknown as RequestType) {
+      case RequestType.KeysUpload:
+        try {
+          response = await doAsRequest(
+            hsUrl,
+            asToken,
+            userId,
+            'POST',
+            '/_matrix/client/v3/keys/upload',
+            JSON.parse(typedReq.body || '{}') as Record<string, unknown>,
+            deviceId,
+          );
+        } catch (err: unknown) {
+          const errBody = (err as { body?: string }).body;
+          if (errBody && errBody.includes('already exists')) {
+            response = { one_time_key_counts: { signed_curve25519: 50 } };
+          } else if (errBody && errBody.includes('M_UNKNOWN_DEVICE')) {
+            console.warn(`[Crypto] Synapse lost device ${deviceId} for ${userId}. Forcing re-registration...`);
 
-            case RequestType.KeysQuery: {
-                const queryBody = JSON.parse(typedReq.body || "{}") as Record<string, unknown>;
-                const queryResponse = await doAsRequest<MatrixKeysQueryResponse>(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/query", queryBody);
-                response = queryResponse;
-                const devCount = Object.keys(queryResponse.device_keys || {}).length;
-                console.log(`[KEY_EXCHANGE] KeysQuery success for ${userId}. Found ${devCount} users.`);
-                break;
-            }
+            // Clear from cache to allow re-registration
+            registeredDevices.delete(`${userId}|${deviceId}`);
 
-            case RequestType.KeysClaim: {
-                const claimBody = JSON.parse(typedReq.body || "{}") as Record<string, unknown>;
-                const claimResponse = await doAsRequest<MatrixKeysClaimResponse>(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/claim", claimBody);
-                response = claimResponse;
-                const OTKCount = claimResponse.one_time_keys ? Object.keys(claimResponse.one_time_keys).length : 0;
-                console.log(`[KEY_EXCHANGE] KeysClaim success for ${userId}. Obtained OTKs for ${OTKCount} users.`);
-                break;
-            }
-            
-            case RequestType.SignatureUpload:
-                response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/signatures/upload", JSON.parse(typedReq.body || "{}") as Record<string, unknown>);
-                break;
+            // Wait a moment for synapse state
+            await sleep(500);
 
-            case RequestType.ToDevice:
-                console.log(`[KEY_EXCHANGE] Sending ToDevice ${typedReq.eventType} from ${userId}`);
-                response = await doAsRequest(hsUrl, asToken, userId, "PUT", `/_matrix/client/v3/sendToDevice/${encodeURIComponent(typedReq.eventType || "")}/${encodeURIComponent(typedReq.txnId || "")}`, JSON.parse(typedReq.body || "{}") as Record<string, unknown>);
-                break;
+            // Attempt re-registration
+            await registerDevice(intent, deviceId);
 
-            default:
-                console.warn(`[Crypto] Unknown request type: ${typedReq.type}`);
-                return;
+            // Retry the upload
+            response = await doAsRequest(
+              hsUrl,
+              asToken,
+              userId,
+              'POST',
+              '/_matrix/client/v3/keys/upload',
+              JSON.parse(typedReq.body || '{}') as Record<string, unknown>,
+              deviceId,
+            );
+          } else {
+            throw err;
+          }
         }
-        
-        await machine.markRequestAsSent(typedReq.id, typedReq.type, JSON.stringify(response));
-    } catch (e: unknown) {
-        console.error(`[KEY_EXCHANGE] ❌ FAILED request ${typedReq.id} (Type ${typedReq.type}) for ${userId}:`, (e as Error).message);
+        break;
+
+      case RequestType.KeysQuery: {
+        const queryBody = JSON.parse(typedReq.body || '{}') as Record<string, unknown>;
+        const queryResponse = await doAsRequest<MatrixKeysQueryResponse>(
+          hsUrl,
+          asToken,
+          userId,
+          'POST',
+          '/_matrix/client/v3/keys/query',
+          queryBody,
+        );
+        response = queryResponse;
+        const devCount = Object.keys(queryResponse.device_keys || {}).length;
+        console.log(`[KEY_EXCHANGE] KeysQuery success for ${userId}. Found ${devCount} users.`);
+        break;
+      }
+
+      case RequestType.KeysClaim: {
+        const claimBody = JSON.parse(typedReq.body || '{}') as Record<string, unknown>;
+        const claimResponse = await doAsRequest<MatrixKeysClaimResponse>(
+          hsUrl,
+          asToken,
+          userId,
+          'POST',
+          '/_matrix/client/v3/keys/claim',
+          claimBody,
+        );
+        response = claimResponse;
+        const OTKCount = claimResponse.one_time_keys ? Object.keys(claimResponse.one_time_keys).length : 0;
+        console.log(`[KEY_EXCHANGE] KeysClaim success for ${userId}. Obtained OTKs for ${OTKCount} users.`);
+        break;
+      }
+
+      case RequestType.SignatureUpload:
+        response = await doAsRequest(
+          hsUrl,
+          asToken,
+          userId,
+          'POST',
+          '/_matrix/client/v3/keys/signatures/upload',
+          JSON.parse(typedReq.body || '{}') as Record<string, unknown>,
+        );
+        break;
+
+      case RequestType.ToDevice:
+        console.log(`[KEY_EXCHANGE] Sending ToDevice ${typedReq.eventType} from ${userId}`);
+        response = await doAsRequest(
+          hsUrl,
+          asToken,
+          userId,
+          'PUT',
+          `/_matrix/client/v3/sendToDevice/${encodeURIComponent(typedReq.eventType || '')}/${encodeURIComponent(typedReq.txnId || '')}`,
+          JSON.parse(typedReq.body || '{}') as Record<string, unknown>,
+        );
+        break;
+
+      default:
+        console.warn(`[Crypto] Unknown request type: ${typedReq.type}`);
+        return;
     }
+
+    await machine.markRequestAsSent(typedReq.id, typedReq.type, JSON.stringify(response));
+  } catch (e: unknown) {
+    console.error(
+      `[KEY_EXCHANGE] ❌ FAILED request ${typedReq.id} (Type ${typedReq.type}) for ${userId}:`,
+      (e as Error).message,
+    );
+  }
 }
 
 export async function processCryptoRequests(machine: OlmMachine, intent: Intent, asToken: string) {
-    let loopCount = 0;
-    while (loopCount < 10) {
-        const requests = await machine.outgoingRequests();
-        if (requests.length === 0) break;
-        for (const req of requests) {
-            await dispatchRequest(machine, intent, asToken, req);
-        }
-        loopCount++;
+  let loopCount = 0;
+  while (loopCount < 10) {
+    const requests = await machine.outgoingRequests();
+    if (requests.length === 0) break;
+    for (const req of requests) {
+      await dispatchRequest(machine, intent, asToken, req);
     }
+    loopCount++;
+  }
 }

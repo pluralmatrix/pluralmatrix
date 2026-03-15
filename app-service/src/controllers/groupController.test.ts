@@ -5,21 +5,21 @@ import * as groupController from './groupController';
 
 // Mock dependencies
 jest.mock('../bot', () => ({
-    prisma: {
-        accountLink: {
-            findUnique: jest.fn()
-        },
-        group: {
-            create: jest.fn(),
-            findFirst: jest.fn(),
-            update: jest.fn(),
-            delete: jest.fn()
-        }
-    }
+  prisma: {
+    accountLink: {
+      findUnique: jest.fn(),
+    },
+    group: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  },
 }));
 
 jest.mock('../services/events', () => ({
-    emitSystemUpdate: jest.fn()
+  emitSystemUpdate: jest.fn(),
 }));
 
 import { prisma } from '../bot';
@@ -30,8 +30,8 @@ app.use(bodyParser.json());
 
 // Mock auth middleware injecting the user
 const mockAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    req.user = { mxid: '@alice:localhost' };
-    next();
+  req.user = { mxid: '@alice:localhost' };
+  next();
 };
 
 app.get('/groups', mockAuth, groupController.listGroups);
@@ -40,256 +40,246 @@ app.put('/groups/:id', mockAuth, groupController.updateGroup);
 app.delete('/groups/:id', mockAuth, groupController.deleteGroup);
 
 describe('Group Controller', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('GET /groups', () => {
+    it('should list groups for the user', async () => {
+      const mockGroups = [{ id: 'g1', name: 'Test Group', members: [] }];
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        system: { groups: mockGroups },
+      });
+
+      const res = await request(app).get('/groups');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockGroups);
     });
 
-    describe('GET /groups', () => {
-        it('should list groups for the user', async () => {
-            const mockGroups = [{ id: 'g1', name: 'Test Group', members: [] }];
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                system: { groups: mockGroups }
-            });
+    it('should return empty array if no system', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
 
-            const res = await request(app).get('/groups');
+      const res = await request(app).get('/groups');
 
-            expect(res.status).toBe(200);
-            expect(res.body).toEqual(mockGroups);
-        });
-
-        it('should return empty array if no system', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app).get('/groups');
-
-            expect(res.status).toBe(200);
-            expect(res.body).toEqual([]);
-        });
-
-        it('should handle errors', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('DB Error'));
-
-            const res = await request(app).get('/groups');
-
-            expect(res.status).toBe(500);
-            expect((res.body as { error: string }).error).toBe('Failed to fetch groups');
-        });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([]);
     });
 
-    describe('POST /groups', () => {
-        it('should create a new group', async () => {
-            const mockSystem = { id: 'sys1' };
-            const newGroup = { id: 'g1', name: 'New Group', slug: 'new-group' };
+    it('should handle errors', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('DB Error'));
 
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                system: mockSystem
-            });
-            (prisma.group.create as jest.Mock).mockResolvedValue(newGroup);
+      const res = await request(app).get('/groups');
 
-            const res = await request(app)
-                .post('/groups')
-                .send({ name: 'New Group', slug: 'new-group', members: ['mem1'] });
+      expect(res.status).toBe(500);
+      expect((res.body as { error: string }).error).toBe('Failed to fetch groups');
+    });
+  });
 
-            expect(res.status).toBe(201);
-            expect(jest.spyOn(prisma.group, 'create')).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.objectContaining({ 
-                    name: 'New Group',
-                    members: { connect: [{ id: 'mem1' }] }
-                }) as unknown
-            }));
-            expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
-        });
+  describe('POST /groups', () => {
+    it('should create a new group', async () => {
+      const mockSystem = { id: 'sys1' };
+      const newGroup = { id: 'g1', name: 'New Group', slug: 'new-group' };
 
-        it('should create a new group without members', async () => {
-            const mockSystem = { id: 'sys1' };
-            const newGroup = { id: 'g1', name: 'New Group', slug: 'new-group' };
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        system: mockSystem,
+      });
+      (prisma.group.create as jest.Mock).mockResolvedValue(newGroup);
 
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                system: mockSystem
-            });
-            (prisma.group.create as jest.Mock).mockResolvedValue(newGroup);
+      const res = await request(app)
+        .post('/groups')
+        .send({ name: 'New Group', slug: 'new-group', members: ['mem1'] });
 
-            const res = await request(app)
-                .post('/groups')
-                .send({ name: 'New Group', slug: 'new-group' });
-
-            expect(res.status).toBe(201);
-            expect(jest.spyOn(prisma.group, 'create')).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.objectContaining({ 
-                    name: 'New Group',
-                    members: undefined
-                }) as unknown
-            }));
-        });
-
-        it('should return 404 if system not found', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app)
-                .post('/groups')
-                .send({ name: 'New Group', slug: 'new-group' });
-
-            expect(res.status).toBe(404);
-            expect((res.body as { error: string }).error).toBe('System not found');
-        });
-
-        it('should handle unexpected errors', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-
-            const res = await request(app)
-                .post('/groups')
-                .send({ name: 'New Group', slug: 'new-group' });
-
-            expect(res.status).toBe(500);
-            expect((res.body as { error: string }).error).toBe('Failed to create group');
-        });
-
-        it('should validate inputs', async () => {
-            const res = await request(app)
-                .post('/groups')
-                .send({ name: '' }); // Invalid name
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toBe('Invalid input format');
-        });
+      expect(res.status).toBe(201);
+      expect(jest.spyOn(prisma.group, 'create')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: 'New Group',
+            members: { connect: [{ id: 'mem1' }] },
+          }) as unknown,
+        }),
+      );
+      expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
     });
 
-    describe('PUT /groups/:id', () => {
-        it('should update an existing group', async () => {
-            const mockGroup = { id: 'g1', name: 'Old Name' };
-            const updatedGroup = { id: 'g1', name: 'Updated Name' };
+    it('should create a new group without members', async () => {
+      const mockSystem = { id: 'sys1' };
+      const newGroup = { id: 'g1', name: 'New Group', slug: 'new-group' };
 
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                systemId: 'sys1'
-            });
-            (prisma.group.findFirst as jest.Mock).mockResolvedValue(mockGroup);
-            (prisma.group.update as jest.Mock).mockResolvedValue(updatedGroup);
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        system: mockSystem,
+      });
+      (prisma.group.create as jest.Mock).mockResolvedValue(newGroup);
 
-            const res = await request(app)
-                .put('/groups/g1')
-                .send({ name: 'Updated Name', slug: 'updated-name', members: ['mem2'] });
+      const res = await request(app).post('/groups').send({ name: 'New Group', slug: 'new-group' });
 
-            expect(res.status).toBe(200);
-            expect(jest.spyOn(prisma.group, 'update')).toHaveBeenCalledWith(expect.objectContaining({
-                where: { id: 'g1' },
-                data: expect.objectContaining({ 
-                    name: 'Updated Name',
-                    members: { set: [{ id: 'mem2' }] }
-                }) as unknown
-            }));
-            expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
-        });
-
-        it('should update an existing group without members', async () => {
-            const mockGroup = { id: 'g1', name: 'Old Name' };
-            const updatedGroup = { id: 'g1', name: 'Updated Name' };
-
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                systemId: 'sys1'
-            });
-            (prisma.group.findFirst as jest.Mock).mockResolvedValue(mockGroup);
-            (prisma.group.update as jest.Mock).mockResolvedValue(updatedGroup);
-
-            const res = await request(app)
-                .put('/groups/g1')
-                .send({ name: 'Updated Name', slug: 'updated-name' });
-
-            expect(res.status).toBe(200);
-            expect(jest.spyOn(prisma.group, 'update')).toHaveBeenCalledWith(expect.objectContaining({
-                where: { id: 'g1' },
-                data: expect.objectContaining({ 
-                    name: 'Updated Name',
-                    members: undefined
-                }) as unknown
-            }));
-        });
-
-        it('should return 403 if user forbidden', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app)
-                .put('/groups/g1')
-                .send({ name: 'Updated Name', slug: 'updated-name' });
-
-            expect(res.status).toBe(403);
-            expect((res.body as { error: string }).error).toBe('Forbidden');
-        });
-
-        it('should return 404 if group not found', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
-            (prisma.group.findFirst as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app)
-                .put('/groups/g1')
-                .send({ name: 'Updated Name', slug: 'updated-name' });
-
-            expect(res.status).toBe(404);
-            expect((res.body as { error: string }).error).toBe('Group not found');
-        });
-
-        it('should handle validation errors', async () => {
-            const res = await request(app)
-                .put('/groups/g1')
-                .send({ name: '' });
-
-            expect(res.status).toBe(400);
-            expect((res.body as { error: string }).error).toBe('Invalid input format');
-        });
-
-        it('should handle unexpected errors', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-
-            const res = await request(app)
-                .put('/groups/g1')
-                .send({ name: 'Updated Name', slug: 'updated-name' });
-
-            expect(res.status).toBe(500);
-            expect((res.body as { error: string }).error).toBe('Failed to update group');
-        });
+      expect(res.status).toBe(201);
+      expect(jest.spyOn(prisma.group, 'create')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: 'New Group',
+            members: undefined,
+          }) as unknown,
+        }),
+      );
     });
 
-    describe('DELETE /groups/:id', () => {
-        it('should delete a group', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                systemId: 'sys1'
-            });
-            (prisma.group.findFirst as jest.Mock).mockResolvedValue({ id: 'g1' });
+    it('should return 404 if system not found', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
 
-            const res = await request(app).delete('/groups/g1');
+      const res = await request(app).post('/groups').send({ name: 'New Group', slug: 'new-group' });
 
-            expect(res.status).toBe(204);
-            expect(jest.spyOn(prisma.group, 'delete')).toHaveBeenCalledWith({ where: { id: 'g1' } });
-            expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
-        });
-
-        it('should return 403 if user forbidden', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app).delete('/groups/g1');
-
-            expect(res.status).toBe(403);
-            expect((res.body as { error: string }).error).toBe('Forbidden');
-        });
-
-        it('should return 404 if group not found', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
-                systemId: 'sys1'
-            });
-            (prisma.group.findFirst as jest.Mock).mockResolvedValue(null);
-
-            const res = await request(app).delete('/groups/g1');
-
-            expect(res.status).toBe(404);
-            expect(jest.spyOn(prisma.group, 'delete')).not.toHaveBeenCalled();
-        });
-
-        it('should handle unexpected errors', async () => {
-            (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
-
-            const res = await request(app).delete('/groups/g1');
-
-            expect(res.status).toBe(500);
-            expect((res.body as { error: string }).error).toBe('Failed to delete group');
-        });
+      expect(res.status).toBe(404);
+      expect((res.body as { error: string }).error).toBe('System not found');
     });
+
+    it('should handle unexpected errors', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+
+      const res = await request(app).post('/groups').send({ name: 'New Group', slug: 'new-group' });
+
+      expect(res.status).toBe(500);
+      expect((res.body as { error: string }).error).toBe('Failed to create group');
+    });
+
+    it('should validate inputs', async () => {
+      const res = await request(app).post('/groups').send({ name: '' }); // Invalid name
+
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toBe('Invalid input format');
+    });
+  });
+
+  describe('PUT /groups/:id', () => {
+    it('should update an existing group', async () => {
+      const mockGroup = { id: 'g1', name: 'Old Name' };
+      const updatedGroup = { id: 'g1', name: 'Updated Name' };
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        systemId: 'sys1',
+      });
+      (prisma.group.findFirst as jest.Mock).mockResolvedValue(mockGroup);
+      (prisma.group.update as jest.Mock).mockResolvedValue(updatedGroup);
+
+      const res = await request(app)
+        .put('/groups/g1')
+        .send({ name: 'Updated Name', slug: 'updated-name', members: ['mem2'] });
+
+      expect(res.status).toBe(200);
+      expect(jest.spyOn(prisma.group, 'update')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'g1' },
+          data: expect.objectContaining({
+            name: 'Updated Name',
+            members: { set: [{ id: 'mem2' }] },
+          }) as unknown,
+        }),
+      );
+      expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
+    });
+
+    it('should update an existing group without members', async () => {
+      const mockGroup = { id: 'g1', name: 'Old Name' };
+      const updatedGroup = { id: 'g1', name: 'Updated Name' };
+
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        systemId: 'sys1',
+      });
+      (prisma.group.findFirst as jest.Mock).mockResolvedValue(mockGroup);
+      (prisma.group.update as jest.Mock).mockResolvedValue(updatedGroup);
+
+      const res = await request(app).put('/groups/g1').send({ name: 'Updated Name', slug: 'updated-name' });
+
+      expect(res.status).toBe(200);
+      expect(jest.spyOn(prisma.group, 'update')).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'g1' },
+          data: expect.objectContaining({
+            name: 'Updated Name',
+            members: undefined,
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('should return 403 if user forbidden', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const res = await request(app).put('/groups/g1').send({ name: 'Updated Name', slug: 'updated-name' });
+
+      expect(res.status).toBe(403);
+      expect((res.body as { error: string }).error).toBe('Forbidden');
+    });
+
+    it('should return 404 if group not found', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ systemId: 'sys1' });
+      (prisma.group.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const res = await request(app).put('/groups/g1').send({ name: 'Updated Name', slug: 'updated-name' });
+
+      expect(res.status).toBe(404);
+      expect((res.body as { error: string }).error).toBe('Group not found');
+    });
+
+    it('should handle validation errors', async () => {
+      const res = await request(app).put('/groups/g1').send({ name: '' });
+
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toBe('Invalid input format');
+    });
+
+    it('should handle unexpected errors', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+
+      const res = await request(app).put('/groups/g1').send({ name: 'Updated Name', slug: 'updated-name' });
+
+      expect(res.status).toBe(500);
+      expect((res.body as { error: string }).error).toBe('Failed to update group');
+    });
+  });
+
+  describe('DELETE /groups/:id', () => {
+    it('should delete a group', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        systemId: 'sys1',
+      });
+      (prisma.group.findFirst as jest.Mock).mockResolvedValue({ id: 'g1' });
+
+      const res = await request(app).delete('/groups/g1');
+
+      expect(res.status).toBe(204);
+      expect(jest.spyOn(prisma.group, 'delete')).toHaveBeenCalledWith({ where: { id: 'g1' } });
+      expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
+    });
+
+    it('should return 403 if user forbidden', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const res = await request(app).delete('/groups/g1');
+
+      expect(res.status).toBe(403);
+      expect((res.body as { error: string }).error).toBe('Forbidden');
+    });
+
+    it('should return 404 if group not found', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({
+        systemId: 'sys1',
+      });
+      (prisma.group.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const res = await request(app).delete('/groups/g1');
+
+      expect(res.status).toBe(404);
+      expect(jest.spyOn(prisma.group, 'delete')).not.toHaveBeenCalled();
+    });
+
+    it('should handle unexpected errors', async () => {
+      (prisma.accountLink.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
+
+      const res = await request(app).delete('/groups/g1');
+
+      expect(res.status).toBe(500);
+      expect((res.body as { error: string }).error).toBe('Failed to delete group');
+    });
+  });
 });

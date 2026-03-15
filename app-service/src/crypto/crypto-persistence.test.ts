@@ -3,90 +3,116 @@ import { Intent } from 'matrix-appservice-bridge';
 import { PrismaClient } from '@prisma/client';
 
 describe('Crypto Device Registration Persistence', () => {
-    let mockIntent: { userId: string, matrixClient: { doRequest: jest.Mock } };
-    let mockPrisma: Record<string, Record<string, jest.Mock>>;
+  let mockIntent: { userId: string; matrixClient: { doRequest: jest.Mock } };
+  let mockPrisma: Record<string, Record<string, jest.Mock>>;
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        clearRegisteredDevicesCache();
-        
-        mockIntent = {
-            userId: '@alice:localhost',
-            matrixClient: {
-                doRequest: jest.fn().mockResolvedValue({})
-            }
-        };
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearRegisteredDevicesCache();
 
-        mockPrisma = {
-            member: {
-                findUnique: jest.fn(),
-                update: jest.fn()
-            }
-        };
+    mockIntent = {
+      userId: '@alice:localhost',
+      matrixClient: {
+        doRequest: jest.fn().mockResolvedValue({}),
+      },
+    };
+
+    mockPrisma = {
+      member: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+  });
+
+  it('should call Matrix API and update DB if not registered', async () => {
+    // Mock DB: Not registered
+    mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: false });
+    mockPrisma.member.update.mockResolvedValue({});
+
+    const newlyRegistered = await registerDevice(
+      mockIntent as unknown as Intent,
+      'DEV1',
+      mockPrisma as unknown as PrismaClient,
+      'm1',
+    );
+
+    expect(newlyRegistered).toBe(true);
+    expect(mockIntent.matrixClient.doRequest).toHaveBeenCalledWith(
+      'POST',
+      expect.any(String),
+      null,
+      expect.objectContaining({
+        device_id: 'DEV1',
+      }),
+    );
+    expect(mockPrisma.member.update).toHaveBeenCalledWith({
+      where: { id: 'm1' },
+      data: { deviceRegistered: true },
     });
+  });
 
-    it('should call Matrix API and update DB if not registered', async () => {
-        // Mock DB: Not registered
-        mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: false });
-        mockPrisma.member.update.mockResolvedValue({});
+  it('should skip Matrix API if already registered in DB', async () => {
+    // Mock DB: ALREADY registered
+    mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: true });
 
-        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'DEV1', mockPrisma as unknown as PrismaClient, 'm1');
+    const newlyRegistered = await registerDevice(
+      mockIntent as unknown as Intent,
+      'DEV1',
+      mockPrisma as unknown as PrismaClient,
+      'm1',
+    );
 
-        expect(newlyRegistered).toBe(true);
-        expect(mockIntent.matrixClient.doRequest).toHaveBeenCalledWith('POST', expect.any(String), null, expect.objectContaining({
-            device_id: 'DEV1'
-        }));
-        expect(mockPrisma.member.update).toHaveBeenCalledWith({
-            where: { id: 'm1' },
-            data: { deviceRegistered: true }
-        });
+    expect(newlyRegistered).toBe(false);
+    expect(mockIntent.matrixClient.doRequest).not.toHaveBeenCalled();
+    expect(mockPrisma.member.update).not.toHaveBeenCalled();
+  });
+
+  it('should consider user registered if Matrix returns "already exists"', async () => {
+    mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: false });
+
+    // Mock Matrix returning error object
+    const error = new Error('Request failed') as Error & { errcode?: string; body?: string };
+    error.errcode = 'M_USER_IN_USE';
+    error.body = 'User ID already taken';
+    mockIntent.matrixClient.doRequest.mockRejectedValue(error);
+
+    const newlyRegistered = await registerDevice(
+      mockIntent as unknown as Intent,
+      'DEV1',
+      mockPrisma as unknown as PrismaClient,
+      'm1',
+    );
+
+    expect(newlyRegistered).toBe(true);
+    expect(mockPrisma.member.update).toHaveBeenCalledWith({
+      where: { id: 'm1' },
+      data: { deviceRegistered: true },
     });
+  });
 
-    it('should skip Matrix API if already registered in DB', async () => {
-        // Mock DB: ALREADY registered
-        mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: true });
+  it('should handle System (Bot) registration persistence', async () => {
+    mockPrisma.system = {
+      findUnique: jest.fn().mockResolvedValue({ deviceRegistered: false }),
+      update: jest.fn().mockResolvedValue({}),
+    };
 
-        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'DEV1', mockPrisma as unknown as PrismaClient, 'm1');
+    const newlyRegistered = await registerDevice(
+      mockIntent as unknown as Intent,
+      'BOT_DEV',
+      mockPrisma as unknown as PrismaClient,
+      undefined,
+      'sys1',
+    );
 
-        expect(newlyRegistered).toBe(false);
-        expect(mockIntent.matrixClient.doRequest).not.toHaveBeenCalled();
-        expect(mockPrisma.member.update).not.toHaveBeenCalled();
+    expect(newlyRegistered).toBe(true);
+    expect(mockPrisma.system.findUnique).toHaveBeenCalledWith({
+      where: { id: 'sys1' },
+      select: { deviceRegistered: true },
     });
-
-    it('should consider user registered if Matrix returns "already exists"', async () => {
-        mockPrisma.member.findUnique.mockResolvedValue({ deviceRegistered: false });
-        
-        // Mock Matrix returning error object
-        const error = new Error('Request failed') as Error & { errcode?: string; body?: string };
-        error.errcode = 'M_USER_IN_USE';
-        error.body = 'User ID already taken';
-        mockIntent.matrixClient.doRequest.mockRejectedValue(error);
-
-        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'DEV1', mockPrisma as unknown as PrismaClient, 'm1');
-
-        expect(newlyRegistered).toBe(true);
-        expect(mockPrisma.member.update).toHaveBeenCalledWith({
-            where: { id: 'm1' },
-            data: { deviceRegistered: true }
-        });
+    expect(mockPrisma.system.update).toHaveBeenCalledWith({
+      where: { id: 'sys1' },
+      data: { deviceRegistered: true },
     });
-
-    it('should handle System (Bot) registration persistence', async () => {
-        mockPrisma.system = {
-            findUnique: jest.fn().mockResolvedValue({ deviceRegistered: false }),
-            update: jest.fn().mockResolvedValue({})
-        };
-
-        const newlyRegistered = await registerDevice(mockIntent as unknown as Intent, 'BOT_DEV', mockPrisma as unknown as PrismaClient, undefined, 'sys1');
-
-        expect(newlyRegistered).toBe(true);
-        expect(mockPrisma.system.findUnique).toHaveBeenCalledWith({
-            where: { id: 'sys1' },
-            select: { deviceRegistered: true }
-        });
-        expect(mockPrisma.system.update).toHaveBeenCalledWith({
-            where: { id: 'sys1' },
-            data: { deviceRegistered: true }
-        });
-    });
+  });
 });

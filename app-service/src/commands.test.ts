@@ -4,1080 +4,1189 @@ import { createMockSystem, createMockMember, createMockGroup } from './test/fact
 import { SystemWithRelations } from './types';
 
 jest.mock('./services/cache', () => ({
-    proxyCache: { invalidate: jest.fn(), getSystemRules: jest.fn() },
-    lastMessageCache: {
-        get: jest.fn(),
-        set: jest.fn(),
-        delete: jest.fn()
-    }
+  proxyCache: { invalidate: jest.fn(), getSystemRules: jest.fn() },
+  lastMessageCache: {
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+  },
 }));
 
 describe('CommandHandler Tests', () => {
-    let commandHandler: CommandHandler;
-    let mockBridge: { getBot: jest.Mock; getIntent: jest.Mock };
-    let mockPrisma: {
-        system: Record<string, jest.Mock>;
-        member: Record<string, jest.Mock>;
-        group: Record<string, jest.Mock>;
-        accountLink: Record<string, jest.Mock>;
-        $transaction: jest.Mock;
+  let commandHandler: CommandHandler;
+  let mockBridge: { getBot: jest.Mock; getIntent: jest.Mock };
+  let mockPrisma: {
+    system: Record<string, jest.Mock>;
+    member: Record<string, jest.Mock>;
+    group: Record<string, jest.Mock>;
+    accountLink: Record<string, jest.Mock>;
+    $transaction: jest.Mock;
+  };
+  let mockCryptoManager: { getMachine: jest.Mock };
+  let mockBotClient: {
+    getUserId: jest.Mock;
+    uploadContent: jest.Mock;
+    redactEvent: jest.Mock;
+    getEvent: jest.Mock;
+    getUserProfile: jest.Mock;
+    getRoomStateEvent: jest.Mock;
+    getJoinedRoomMembers: jest.Mock;
+    homeserverUrl: string;
+    doRequest: jest.Mock;
+    sendStateEvent?: jest.Mock;
+  };
+  const asToken = 'mock_token';
+  const domain = 'localhost';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockBotClient = {
+      getUserId: jest.fn().mockReturnValue('@plural_bot:localhost'),
+      uploadContent: jest.fn().mockResolvedValue('mxc://mock/avatar'),
+      redactEvent: jest.fn().mockResolvedValue({}),
+      getEvent: jest.fn(),
+      getUserProfile: jest.fn(),
+      getRoomStateEvent: jest.fn().mockResolvedValue({ algorithm: 'm.megolm.v1.aes-sha2' }),
+      getJoinedRoomMembers: jest.fn().mockResolvedValue(['@alice:localhost', '@_plural_seraphim_lily:localhost']),
+      homeserverUrl: 'http://localhost:8008',
+      doRequest: jest.fn(),
     };
-    let mockCryptoManager: { getMachine: jest.Mock };
-    let mockBotClient: {
-        getUserId: jest.Mock;
-        uploadContent: jest.Mock;
-        redactEvent: jest.Mock;
-        getEvent: jest.Mock;
-        getUserProfile: jest.Mock;
-        getRoomStateEvent: jest.Mock;
-        getJoinedRoomMembers: jest.Mock;
-        homeserverUrl: string;
-        doRequest: jest.Mock;
-        sendStateEvent?: jest.Mock;
+
+    const createMockIntent = (userId: string) => ({
+      userId: userId,
+      sendEvent: jest.fn().mockResolvedValue({ event_id: '$new_event' }),
+      sendText: jest.fn(),
+      join: jest.fn(),
+      ensureRegistered: jest.fn(),
+      setDisplayName: jest.fn(),
+      setAvatarUrl: jest.fn(),
+      matrixClient: mockBotClient,
+    });
+
+    mockBridge = {
+      getBot: jest.fn().mockReturnValue({
+        getUserId: () => '@plural_bot:localhost',
+        getClient: () => mockBotClient,
+        getIntent: () => createMockIntent('@plural_bot:localhost'),
+      }),
+      getIntent: jest.fn().mockImplementation((userId?: string) => createMockIntent(userId || '@plural_bot:localhost')),
     };
-    const asToken = "mock_token";
-    const domain = "localhost";
+
+    mockPrisma = {
+      system: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        create: jest.fn(),
+      },
+      member: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
+      group: {
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+      },
+      accountLink: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        delete: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        count: jest.fn(),
+      },
+      $transaction: jest.fn((p) => Promise.all(p)),
+    };
+
+    mockCryptoManager = {
+      getMachine: jest.fn().mockResolvedValue({
+        deviceId: { toString: () => 'MOCK_DEVICE' },
+        decryptRoomEvent: jest.fn().mockResolvedValue({
+          event: JSON.stringify({ type: 'm.room.message', content: { body: 'Decrypted Text' } }),
+        }),
+        receiveSyncChanges: jest.fn().mockResolvedValue({ event_id: '$event' }),
+        updateTrackedUsers: jest.fn().mockResolvedValue({ event_id: '$event' }),
+        getMissingSessions: jest.fn().mockResolvedValue({ event_id: '$event' }),
+        shareRoomKey: jest.fn().mockResolvedValue([]),
+        encryptRoomEvent: jest.fn().mockResolvedValue(JSON.stringify({ content: { body: 'Encrypted' } })),
+        outgoingRequests: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
+    commandHandler = new CommandHandler(
+      mockBridge as unknown as ConstructorParameters<typeof CommandHandler>[0],
+      mockPrisma as unknown as ConstructorParameters<typeof CommandHandler>[1],
+      mockCryptoManager as unknown as ConstructorParameters<typeof CommandHandler>[2],
+      asToken,
+      domain,
+    );
+  });
+
+  const mockSystem = createMockSystem({
+    id: 'sys123',
+    slug: 'seraphim',
+    members: [
+      createMockMember({
+        id: 'mem1',
+        slug: 'lily',
+        name: 'Lily',
+        matrixId: '@_plural_seraphim_lily:localhost',
+        proxyTags: [{ prefix: 'lily:', suffix: '' }] as unknown as import('@prisma/client').Prisma.JsonValue,
+      }),
+    ],
+  }) as SystemWithRelations & { accountLinks: { matrixId: string; isPrimary: boolean }[] };
+  mockSystem.accountLinks = [{ matrixId: '@alice:localhost', isPrimary: true }];
+
+  describe('executeTargetingCommand', () => {
+    it('should find the ROOT ID even if the latest event is an edit', async () => {
+      const rootId = '$root_event';
+      const editId = '$edit_event';
+      const roomId = '!room:localhost';
+
+      // Mock scrollback: root followed by edit
+      mockBotClient.doRequest.mockResolvedValue({
+        chunk: [
+          {
+            event_id: editId,
+            sender: '@_plural_seraphim_lily:localhost',
+            type: 'm.room.message',
+            content: {
+              'm.new_content': { body: 'new text' },
+              'm.relates_to': { rel_type: 'm.replace', event_id: rootId },
+            },
+          },
+          {
+            event_id: rootId,
+            sender: '@_plural_seraphim_lily:localhost',
+            type: 'm.room.message',
+            content: { body: 'original text' },
+          },
+        ],
+      });
+
+      const event = { room_id: roomId, sender: '@alice:localhost', event_id: '$cmd_event' };
+      await commandHandler.executeTargetingCommand(event, 'pk;message -delete', mockSystem);
+
+      // Should redact the ROOT event
+      expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
+    });
+
+    it('should correctly resolve chained edits from history', async () => {
+      const rootId = '$root';
+      const edit2Id = '$edit2';
+      const roomId = '!room:localhost';
+
+      mockBotClient.doRequest.mockResolvedValue({
+        chunk: [
+          {
+            event_id: edit2Id,
+            sender: '@_plural_seraphim_lily:localhost',
+            type: 'm.room.message',
+            content: {
+              'm.new_content': { body: 'final text' },
+              'm.relates_to': { rel_type: 'm.replace', event_id: rootId },
+            },
+          },
+          {
+            event_id: rootId,
+            sender: '@_plural_seraphim_lily:localhost',
+            type: 'm.room.message',
+            content: { body: 'start text' },
+          },
+        ],
+      });
+
+      const event = { room_id: roomId, sender: '@alice:localhost', event_id: '$cmd_event' };
+      await commandHandler.executeTargetingCommand(event, 'pk;edit newer text', mockSystem);
+
+      // Verify crypto getMachine was called for the ghost to send the edit
+      expect(mockCryptoManager.getMachine).toHaveBeenCalledWith('@_plural_seraphim_lily:localhost');
+    });
+
+    it("should not allow editing another system's message", async () => {
+      const roomId = '!room:localhost';
+      const eventId = '$target_event';
+      const foreignGhostId = '@_plural_othersys_member:localhost';
+
+      mockBotClient.getEvent.mockResolvedValue({
+        event_id: eventId,
+        sender: foreignGhostId,
+        type: 'm.room.message',
+        content: { body: 'hello from other sys' },
+      });
+
+      const event = {
+        room_id: roomId,
+        sender: '@alice:localhost',
+        content: { 'm.relates_to': { 'm.in_reply_to': { event_id: eventId } } },
+      };
+
+      const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: '$event' });
+
+      await commandHandler.executeTargetingCommand(event, 'pk;edit hack', mockSystem);
+
+      expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        roomId,
+        expect.stringContaining('Could not find a proxied message to modify'),
+      );
+
+      sendSpy.mockRestore();
+    });
+
+    it("should not allow reproxying another system's message", async () => {
+      const roomId = '!room:localhost';
+      const eventId = '$target_event';
+      const foreignGhostId = '@_plural_othersys_member:localhost';
+
+      mockBotClient.getEvent.mockResolvedValue({
+        event_id: eventId,
+        sender: foreignGhostId,
+        type: 'm.room.message',
+        content: { body: 'hello from other sys' },
+      });
+
+      const event = {
+        room_id: roomId,
+        sender: '@alice:localhost',
+        content: { 'm.relates_to': { 'm.in_reply_to': { event_id: eventId } } },
+      };
+
+      const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: '$event' });
+
+      await commandHandler.executeTargetingCommand(event, 'pk;rp lily', mockSystem);
+
+      expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        roomId,
+        expect.stringContaining('Could not find a proxied message to modify'),
+      );
+
+      sendSpy.mockRestore();
+    });
+
+    it("should not allow deleting another system's message", async () => {
+      const roomId = '!room:localhost';
+      const eventId = '$target_event';
+      const foreignGhostId = '@_plural_othersys_member:localhost';
+
+      mockBotClient.getEvent.mockResolvedValue({
+        event_id: eventId,
+        sender: foreignGhostId,
+        type: 'm.room.message',
+        content: { body: 'hello from other sys' },
+      });
+
+      const event = {
+        room_id: roomId,
+        sender: '@alice:localhost',
+        content: { 'm.relates_to': { 'm.in_reply_to': { event_id: eventId } } },
+      };
+
+      const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: '$event' });
+
+      await commandHandler.executeTargetingCommand(event, 'pk;message -delete', mockSystem);
+
+      expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
+      // Since resolution is strictly scoped to the user's system for -delete, it fails to find it entirely
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        roomId,
+        expect.stringContaining('Could not find that proxied message'),
+      );
+
+      sendSpy.mockRestore();
+    });
+  });
+
+  describe('handleCommand', () => {
+    it('pk;list should show member list', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;list'];
+
+      await commandHandler.handleCommand(event, 'list', parts, mockSystem);
+
+      // Should call resolveIdentity for the bot (to send encrypted response)
+      expect(mockPrisma.system.findFirst).toHaveBeenCalled();
+    });
+
+    it('pk;link should create a new link', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;link', '@bob:localhost'];
+
+      mockPrisma.accountLink.findUnique.mockResolvedValue(null);
+      mockBotClient.getUserProfile.mockResolvedValue({ displayname: 'Bob' });
+
+      await commandHandler.handleCommand(event, 'link', parts, mockSystem);
+
+      expect(mockPrisma.accountLink.create).toHaveBeenCalledWith({
+        data: { matrixId: '@bob:localhost', systemId: 'sys123' },
+      });
+    });
+
+    it('pk;link should fail if profile does not exist', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;link', '@nonexistent:localhost'];
+
+      mockBotClient.getUserProfile.mockRejectedValue({ errcode: 'M_NOT_FOUND' });
+
+      await commandHandler.handleCommand(event, 'link', parts, mockSystem);
+
+      expect(mockPrisma.accountLink.create).not.toHaveBeenCalled();
+      // Should send an error message
+      expect(mockCryptoManager.getMachine).toHaveBeenCalledWith('@plural_bot:localhost');
+    });
+
+    it('pk;unlink should remove a link', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;unlink', '@bob:localhost'];
+
+      mockPrisma.accountLink.findUnique.mockResolvedValue({ matrixId: '@bob:localhost', systemId: 'sys123' });
+      mockPrisma.accountLink.count.mockResolvedValue(2); // Must be > 1 to allow unlinking
+
+      await commandHandler.handleCommand(event, 'unlink', parts, mockSystem);
+
+      expect(mockPrisma.accountLink.delete).toHaveBeenCalledWith({
+        where: { matrixId: '@bob:localhost' },
+      });
+    });
+
+    it('pk;message -delete should invalidate cache if target is current last message', async () => {
+      const roomId = '!room:localhost';
+      const rootId = '$root';
+      const ghostUserId = '@_plural_seraphim_lily:localhost';
+      const event = { room_id: roomId, sender: '@alice:localhost' };
+
+      // Mock identity resolution
+      mockPrisma.member.findFirst.mockResolvedValue({ id: 'mem1', systemId: 'sys123' });
+
+      // Mock cache hit for this exact message
+      (lastMessageCache.get as jest.Mock).mockReturnValue({
+        rootEventId: rootId,
+        latestEventId: rootId,
+        sender: ghostUserId,
+        latestContent: { body: 'del me' },
+        rootContent: { body: 'del me' },
+      });
+
+      jest.spyOn(commandHandler, 'getRoomMessages').mockResolvedValue({
+        chunk: [
+          {
+            event_id: rootId,
+            room_id: roomId,
+            sender: ghostUserId,
+            type: 'm.room.message',
+            content: { body: 'del me' },
+          },
+        ],
+      });
+
+      await commandHandler.executeTargetingCommand(event, 'pk;message -delete', mockSystem);
+
+      expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
+      // Should invalidate cache
+      expect(jest.spyOn(lastMessageCache, 'delete')).toHaveBeenCalledWith(roomId, 'seraphim');
+    });
+
+    it('pk;reproxy should invalidate cache', async () => {
+      const roomId = '!room:localhost';
+      const rootId = '$root';
+      const ghostUserId = '@_plural_seraphim_lily:localhost';
+      const event = { room_id: roomId, sender: '@alice:localhost' };
+
+      mockPrisma.member.findFirst.mockResolvedValue({ id: 'mem1', systemId: 'sys123' });
+
+      // Mock cache hit
+      (lastMessageCache.get as jest.Mock).mockReturnValue({
+        rootEventId: rootId,
+        latestEventId: rootId,
+        sender: ghostUserId,
+        latestContent: { body: 'reproxy me' },
+      });
+
+      // Reproxy to a hypothetical member 'bob'
+      const systemWithBob = createMockSystem({
+        ...mockSystem,
+        members: [
+          ...mockSystem.members,
+          createMockMember({ id: 'mem2', slug: 'bob', name: 'Bob', matrixId: '@_plural_seraphim_bob:localhost' }),
+        ],
+      });
+
+      await commandHandler.executeTargetingCommand(event, 'pk;rp bob', systemWithBob);
+
+      expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
+      expect(jest.spyOn(lastMessageCache, 'delete')).toHaveBeenCalledWith(roomId, 'seraphim');
+    }, 15000);
+
+    it('pk;autoproxy should update autoproxyId', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;autoproxy', 'lily'];
+
+      await commandHandler.handleCommand(event, 'autoproxy', parts, mockSystem);
+
+      expect(mockPrisma.system.update).toHaveBeenCalledWith({
+        where: { id: 'sys123' },
+        data: { autoproxyId: 'mem1', autoproxyMode: 'member' },
+      });
+    });
+
+    describe('pk;autoproxy edge cases', () => {
+      let sendEncryptedTextSpy: jest.SpyInstance;
+      beforeEach(() => {
+        sendEncryptedTextSpy = jest
+          .spyOn(commandHandler, 'sendEncryptedText')
+          .mockResolvedValue({ event_id: '$event' });
+      });
+
+      it('pk;autoproxy off should disable autoproxy', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;autoproxy', 'off'];
+
+        await commandHandler.handleCommand(event, 'autoproxy', parts, mockSystem);
+
+        expect(mockPrisma.system.update).toHaveBeenCalledWith({
+          where: { id: 'sys123' },
+          data: { autoproxyId: null, autoproxyMode: 'off' },
+        });
+      });
+
+      it('pk;autoproxy latch should enable latch mode', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;autoproxy', 'latch'];
+
+        await commandHandler.handleCommand(event, 'autoproxy', parts, mockSystem);
+
+        expect(mockPrisma.system.update).toHaveBeenCalledWith({
+          where: { id: 'sys123' },
+          data: { autoproxyMode: 'latch' },
+        });
+      });
+
+      it('pk;autoproxy should error if member not found', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;autoproxy', 'notfound'];
+
+        const handled = await commandHandler.handleCommand(event, 'autoproxy', parts, mockSystem);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('No member found with ID: notfound'),
+        );
+      });
+    });
+
+    describe('pk;member command', () => {
+      let sendRichTextSpy: jest.SpyInstance;
+
+      beforeEach(() => {
+        sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: '$event' });
+      });
+
+      it('should display own member details', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'lily'];
+
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Member Details: Lily'),
+        );
+      });
+
+      it('should handle member not found error', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'nonexistent'];
+
+        const sendEncryptedTextSpy = jest
+          .spyOn(commandHandler, 'sendEncryptedText')
+          .mockResolvedValue({ event_id: '$event' });
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('No member found with ID: nonexistent'),
+        );
+      });
+
+      it('should error if no member ID is provided', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member'];
+
+        const sendEncryptedTextSpy = jest
+          .spyOn(commandHandler, 'sendEncryptedText')
+          .mockResolvedValue({ event_id: '$event' });
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Usage: `pk;member <id>`'),
+        );
+      });
+
+      it('should log an error if avatar sending fails', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'lily'];
+
+        const systemWithAvatar = createMockSystem({
+          ...mockSystem,
+          members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily', avatarUrl: 'mxc://broken' })],
+        });
+
+        const sendEncryptedImageSpy = jest
+          .spyOn(commandHandler, 'sendEncryptedImage')
+          .mockRejectedValue(new Error('Avatar Upload Fail'));
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+        const handled = await commandHandler.handleCommand(event, 'member', parts, systemWithAvatar);
+
+        expect(handled).toBe(true);
+        expect(sendEncryptedImageSpy).toHaveBeenCalled();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('[Bot] Failed to send avatar for lily:'),
+          'Avatar Upload Fail',
+        );
+
+        consoleSpy.mockRestore();
+      });
+
+      it('should respect privacy settings for external queries', async () => {
+        const event = { room_id: '!room:localhost', sender: '@bob:localhost' }; // Bob querying Alice's member
+        const parts = ['pk;member', 'abcde']; // Global pkId query
+
+        // Mock global search finding Alice's member
+        const privateMember = {
+          id: 'mem1',
+          slug: 'lily',
+          name: 'Lily',
+          pkId: 'abcde',
+          system: mockSystem,
+          privacy: { visibility: 'private' },
+        };
+
+        // Mock the getSenderSystem hit for bob (null) so he doesn't hit the "no system" global check before running the command
+        mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
+        mockPrisma.member.findMany.mockResolvedValue([privateMember]);
+
+        const sendEncryptedTextSpy = jest
+          .spyOn(commandHandler, 'sendEncryptedText')
+          .mockResolvedValue({ event_id: '$event' });
+        const handled = await commandHandler.handleCommand(
+          event,
+          'member',
+          parts,
+          createMockSystem({ id: 'bobsys', members: [] }),
+        );
+
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('No member found with ID: abcde'),
+        );
+      });
+
+      it('should fallback to displayName if name is private for external queries', async () => {
+        const event = { room_id: '!room:localhost', sender: '@bob:localhost' };
+        const parts = ['pk;member', 'abcde'];
+
+        const namePrivateMember = {
+          id: 'mem1',
+          slug: 'lily',
+          name: 'Secret Name',
+          displayName: 'Public Face',
+          pkId: 'abcde',
+          system: mockSystem,
+          privacy: { visibility: 'public', name_privacy: 'private' },
+        };
+
+        mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
+        mockPrisma.member.findMany.mockResolvedValue([namePrivateMember]);
+
+        const handled = await commandHandler.handleCommand(
+          event,
+          'member',
+          parts,
+          createMockSystem({ id: 'bobsys', members: [] }),
+        );
+
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Member Details: Public Face'),
+        );
+        expect(sendRichTextSpy).not.toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Secret Name'),
+        );
+      });
+    });
+
+    describe('pk;group commands', () => {
+      let sendRichTextSpy: jest.SpyInstance;
+      let sendEncryptedTextSpy: jest.SpyInstance;
+
+      beforeEach(() => {
+        sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: '$event' });
+        sendEncryptedTextSpy = jest
+          .spyOn(commandHandler, 'sendEncryptedText')
+          .mockResolvedValue({ event_id: '$event' });
+      });
+
+      const mockSystemWithGroups = createMockSystem({
+        id: 'sys1',
+        name: 'Test System',
+        members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })],
+        groups: [
+          createMockGroup({
+            id: 'g1',
+            slug: 'testgroup',
+            name: 'Test Group',
+            members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })],
+          }),
+          createMockGroup({ id: 'g2', slug: 'emptygroup', name: 'Empty Group', members: [] }),
+        ],
+      });
+      const groupEvent = { room_id: '!room:localhost', sender: '@alice:localhost' };
+
+      it('pk;group list should show groups', async () => {
+        const parts = ['pk;group', 'list'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Test Group'),
+        );
+      });
+
+      it('pk;group list should report empty if no groups', async () => {
+        const parts = ['pk;group', 'list'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, {
+          ...mockSystemWithGroups,
+          groups: [],
+        });
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining("You don't have any groups"),
+        );
+      });
+
+      it('pk;group <group> list should show members', async () => {
+        const parts = ['pk;group', 'testgroup', 'list'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Lily'),
+        );
+      });
+
+      it('pk;group <group> list should report empty if no members', async () => {
+        const parts = ['pk;group', 'emptygroup', 'list'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('has no members'),
+        );
+      });
+
+      it('pk;group new should create a group', async () => {
+        const parts = ['pk;group', 'new', 'My New Group'];
+        mockPrisma.group.create.mockResolvedValue({ id: 'g2', name: 'My New Group' });
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.create).toHaveBeenCalled();
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Created group'),
+        );
+      });
+
+      it('pk;group new without name should error', async () => {
+        const parts = ['pk;group', 'new'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Usage: `pk;group new'),
+        );
+      });
+
+      it('pk;group <group> should show error if group not found', async () => {
+        const parts = ['pk;group', 'notfoundgroup'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('No group found with ID: notfoundgroup'),
+        );
+      });
+
+      it('pk;group <group> add should add members', async () => {
+        const parts = ['pk;group', 'testgroup', 'add', 'lily'];
+        mockPrisma.group.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: { members: { connect: [{ id: 'm1' }] } },
+          }),
+        );
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Added 1 member'),
+        );
+      });
+
+      it('pk;group <group> remove should remove members', async () => {
+        const parts = ['pk;group', 'testgroup', 'remove', 'lily'];
+        mockPrisma.group.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: { members: { disconnect: [{ id: 'm1' }] } },
+          }),
+        );
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Removed 1 member'),
+        );
+      });
+
+      it('pk;group <group> add without args should error', async () => {
+        const parts = ['pk;group', 'testgroup', 'add'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Usage: `pk;group testgroup add'),
+        );
+      });
+
+      it('pk;group <group> should show error if no members found', async () => {
+        const parts = ['pk;group', 'testgroup', 'add', 'notfound'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('None of the specified members were found'),
+        );
+      });
+
+      it('pk;group <group> rename should rename the group', async () => {
+        const parts = ['pk;group', 'testgroup', 'rename', 'New Name'];
+        mockPrisma.group.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: { name: 'New Name' },
+          }),
+        );
+      });
+
+      it('pk;group <group> rename without args should error', async () => {
+        const parts = ['pk;group', 'testgroup', 'rename'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Usage: `pk;group testgroup rename'),
+        );
+      });
+
+      it('pk;group <group> description should update description', async () => {
+        const parts = ['pk;group', 'testgroup', 'desc', 'New description'];
+        mockPrisma.group.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: { description: 'New description' },
+          }),
+        );
+      });
+
+      it('pk;group <group> description empty should clear description', async () => {
+        const parts = ['pk;group', 'testgroup', 'desc'];
+        mockPrisma.group.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: { description: null },
+          }),
+        );
+      });
+
+      it('pk;group <group> icon should update icon', async () => {
+        const parts = ['pk;group', 'testgroup', 'icon', 'mxc://icon'];
+        mockPrisma.group.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: { icon: 'mxc://icon' },
+          }),
+        );
+      });
+
+      it('pk;group <group> delete should delete the group', async () => {
+        const parts = ['pk;group', 'testgroup', 'delete'];
+        mockPrisma.group.delete.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(mockPrisma.group.delete).toHaveBeenCalledWith({
+          where: { id: 'g1' },
+        });
+      });
+
+      it('pk;group <group> unknown action should show error', async () => {
+        const parts = ['pk;group', 'testgroup', 'hack'];
+        const handled = await commandHandler.handleCommand(groupEvent, 'group', parts, mockSystemWithGroups);
+        expect(handled).toBe(true);
+        expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('Unknown group action: hack'),
+        );
+      });
+    });
+
+    describe('pk;system commands', () => {
+      let sendRichTextSpy: jest.SpyInstance;
+
+      beforeEach(() => {
+        sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: '$event' });
+      });
+
+      const mockSystemExtended = createMockSystem({
+        id: 'sys1',
+        slug: 'testsys',
+        name: 'Test System',
+        description: 'A test system',
+        systemTag: '🚀',
+        members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })],
+      });
+      const sysEvent = { room_id: '!room:localhost', sender: '@alice:localhost' };
+
+      it('pk;system should show system info', async () => {
+        const parts = ['pk;system'];
+        const handled = await commandHandler.handleCommand(sysEvent, 'system', parts, mockSystemExtended);
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('A test system'),
+        );
+      });
+
+      it('pk;system rename should update system name', async () => {
+        const parts = ['pk;system', 'rename', 'New Name'];
+        mockPrisma.system.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(sysEvent, 'system', parts, mockSystemExtended);
+        expect(handled).toBe(true);
+        expect(mockPrisma.system.update).toHaveBeenCalledWith({
+          where: { id: 'sys1' },
+          data: { name: 'New Name' },
+        });
+      });
+
+      it('pk;system description should update system description', async () => {
+        const parts = ['pk;system', 'description', 'New desc'];
+        mockPrisma.system.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(sysEvent, 'system', parts, mockSystemExtended);
+        expect(handled).toBe(true);
+        expect(mockPrisma.system.update).toHaveBeenCalledWith({
+          where: { id: 'sys1' },
+          data: { description: 'New desc' },
+        });
+      });
+
+      it('pk;system tag should update system tag', async () => {
+        const parts = ['pk;system', 'tag', '🔖'];
+        mockPrisma.system.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(sysEvent, 'system', parts, mockSystemExtended);
+        expect(handled).toBe(true);
+        expect(mockPrisma.system.update).toHaveBeenCalledWith({
+          where: { id: 'sys1' },
+          data: { systemTag: '🔖' },
+        });
+      });
+
+      it('pk;system avatar should update system avatarUrl', async () => {
+        const parts = ['pk;system', 'avatar', 'mxc://example.com/123'];
+        mockPrisma.system.update.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(sysEvent, 'system', parts, mockSystemExtended);
+        expect(handled).toBe(true);
+        expect(mockPrisma.system.update).toHaveBeenCalledWith({
+          where: { id: 'sys1' },
+          data: { avatarUrl: 'mxc://example.com/123' },
+        });
+      });
+    });
+  });
+
+  describe('resolveGhostMessage', () => {
+    const roomId = '!room:localhost';
+    const systemSlug = 'seraphim';
+
+    it('should return data from cache if available (Fast Path)', async () => {
+      const cachedData = {
+        rootEventId: '$root',
+        latestEventId: '$edit',
+        latestContent: { body: 'cached text' },
+        sender: '@_plural_seraphim_lily:localhost',
+      };
+      (lastMessageCache.get as jest.Mock).mockReturnValue(cachedData);
+
+      const result = await commandHandler.resolveGhostMessage(roomId, systemSlug);
+
+      expect(result).toEqual({
+        event: expect.objectContaining({ event_id: '$edit' }) as unknown,
+        latestContent: cachedData.latestContent,
+        originalId: '$root',
+      });
+      // Should NOT fetch history
+      expect(mockBotClient.doRequest).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to history if cache is empty (Slow Path)', async () => {
+      (lastMessageCache.get as jest.Mock).mockReturnValue(null);
+      mockBotClient.doRequest.mockResolvedValue({ chunk: [] });
+
+      await commandHandler.resolveGhostMessage(roomId, systemSlug);
+
+      expect(mockBotClient.doRequest).toHaveBeenCalled();
+    });
+  });
+
+  describe('getSenderSystem', () => {
+    it('should return system if account link exists', async () => {
+      const sender = '@newuser:localhost';
+
+      // Mock DB hit
+      const mockSys = { id: 'sys_new', slug: 'newuser', members: [] };
+      mockPrisma.accountLink.findUnique.mockResolvedValue({
+        system: mockSys,
+      });
+
+      // We need to call the private method via any
+      const result = await commandHandler['getSenderSystem'](sender);
+
+      expect(mockPrisma.accountLink.findUnique).toHaveBeenCalledWith({
+        where: { matrixId: sender },
+        include: { system: { include: { members: true, groups: { include: { members: true } } } } },
+      });
+      expect(result).toEqual(mockSys);
+    });
+
+    it('should return null if no link exists', async () => {
+      const sender = '@newuser:localhost';
+
+      // Mock DB miss
+      mockPrisma.accountLink.findUnique.mockResolvedValue(null);
+
+      // We need to call the private method via any
+      const result = await commandHandler['getSenderSystem'](sender);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('promoteSystemPowerLevels', () => {
+    const roomId = '!room:localhost';
+    const ghostUserId = '@_plural_seraphim_lily:localhost';
+    const ownerUserId = '@chiara:localhost';
+    const botUserId = '@plural_bot:localhost';
+
+    it('should promote bot and owner to match ghost level', async () => {
+      // Mock ghost is PL 100, others are 0
+      mockBotClient.getRoomStateEvent.mockResolvedValue({
+        users: { [ghostUserId]: 100, [botUserId]: 0, [ownerUserId]: 0 },
+        users_default: 0,
+      });
+
+      mockPrisma.system.findUnique.mockResolvedValue({
+        id: 'sys123',
+        slug: 'seraphim',
+        accountLinks: [{ matrixId: ownerUserId, isPrimary: true }],
+      });
+
+      const sendStateMock = jest.fn().mockResolvedValue({});
+      mockBotClient.sendStateEvent = sendStateMock;
+
+      await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+      expect(sendStateMock).toHaveBeenCalledWith(
+        roomId,
+        'm.room.power_levels',
+        '',
+        expect.objectContaining({
+          users: expect.objectContaining({
+            [botUserId]: 100,
+            [ownerUserId]: 100,
+          }) as unknown,
+        }) as unknown,
+      );
+    });
+
+    it('should do nothing if ghost has no authority (PL < 50)', async () => {
+      mockBotClient.getRoomStateEvent.mockResolvedValue({
+        users: { [ghostUserId]: 0 },
+        users_default: 0,
+      });
+
+      const sendStateMock = jest.fn();
+      mockBotClient.sendStateEvent = sendStateMock;
+
+      await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+      expect(sendStateMock).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing if bot and owner are already promoted', async () => {
+      mockBotClient.getRoomStateEvent.mockResolvedValue({
+        users: { [ghostUserId]: 100, [botUserId]: 100, [ownerUserId]: 100 },
+        users_default: 0,
+      });
+
+      const sendStateMock = jest.fn();
+      mockBotClient.sendStateEvent = sendStateMock;
+
+      await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+      expect(sendStateMock).not.toHaveBeenCalled();
+    });
+
+    it('should handle Matrix API errors gracefully', async () => {
+      mockBotClient.getRoomStateEvent.mockRejectedValue(new Error('API Error'));
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to pre-emptively promote'), 'API Error');
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Message Queries', () => {
+    const roomId = '!room:localhost';
+    const senderId = '@alice:localhost';
+    const targetEventId = '$target_event';
+    const systemSlug = 'testsys';
+    const memberSlug = 'testmem';
+    const ghostId = `@_plural_${systemSlug}_${memberSlug}:localhost`;
 
     beforeEach(() => {
-        jest.clearAllMocks();
-
-        mockBotClient = {
-            getUserId: jest.fn().mockReturnValue('@plural_bot:localhost'),
-            uploadContent: jest.fn().mockResolvedValue('mxc://mock/avatar'),
-            redactEvent: jest.fn().mockResolvedValue({}),
-            getEvent: jest.fn(),
-            getUserProfile: jest.fn(),
-            getRoomStateEvent: jest.fn().mockResolvedValue({ algorithm: "m.megolm.v1.aes-sha2" }),
-            getJoinedRoomMembers: jest.fn().mockResolvedValue(["@alice:localhost", "@_plural_seraphim_lily:localhost"]),
-            homeserverUrl: "http://localhost:8008",
-            doRequest: jest.fn()
-        };
-
-        const createMockIntent = (userId: string) => ({
-            userId: userId,
-            sendEvent: jest.fn().mockResolvedValue({ event_id: "$new_event" }),
-            sendText: jest.fn(),
-            join: jest.fn(),
-            ensureRegistered: jest.fn(),
-            setDisplayName: jest.fn(),
-            setAvatarUrl: jest.fn(),
-            matrixClient: mockBotClient
-        });
-
-        mockBridge = {
-            getBot: jest.fn().mockReturnValue({
-                getUserId: () => "@plural_bot:localhost",
-                getClient: () => mockBotClient,
-                getIntent: () => createMockIntent("@plural_bot:localhost")
-            }),
-            getIntent: jest.fn().mockImplementation((userId?: string) => createMockIntent(userId || "@plural_bot:localhost"))
-        };
-
-        mockPrisma = {
-            system: {
-                findUnique: jest.fn(),
-                findFirst: jest.fn(),
-                update: jest.fn(),
-                delete: jest.fn(),
-                create: jest.fn()
-            },
-            member: {
-                findUnique: jest.fn(),
-                findFirst: jest.fn(),
-                findMany: jest.fn(),
-                update: jest.fn(),
-                delete: jest.fn()
-            },
-            group: {
-                create: jest.fn(),
-                update: jest.fn(),
-                delete: jest.fn(),
-                findUnique: jest.fn(),
-                findFirst: jest.fn()
-            },
-            accountLink: {
-                findUnique: jest.fn(),
-                findFirst: jest.fn(),
-                findMany: jest.fn(),
-                create: jest.fn(),
-                delete: jest.fn(),
-                update: jest.fn(),
-                updateMany: jest.fn(),
-                count: jest.fn()
-            },
-            $transaction: jest.fn(p => Promise.all(p))
-        };
-
-        mockCryptoManager = {
-            getMachine: jest.fn().mockResolvedValue({
-                deviceId: { toString: () => "MOCK_DEVICE" },
-                decryptRoomEvent: jest.fn().mockResolvedValue({
-                    event: JSON.stringify({ type: "m.room.message", content: { body: "Decrypted Text" } })
-                }),
-                receiveSyncChanges: jest.fn().mockResolvedValue({ event_id: "$event" }),
-                updateTrackedUsers: jest.fn().mockResolvedValue({ event_id: "$event" }),
-                getMissingSessions: jest.fn().mockResolvedValue({ event_id: "$event" }),
-                shareRoomKey: jest.fn().mockResolvedValue([]),
-                encryptRoomEvent: jest.fn().mockResolvedValue(JSON.stringify({ content: { body: "Encrypted" } })),
-                outgoingRequests: jest.fn().mockResolvedValue([])
-            })
-        };
-
-        commandHandler = new CommandHandler(
-            mockBridge as unknown as ConstructorParameters<typeof CommandHandler>[0],
-            mockPrisma as unknown as ConstructorParameters<typeof CommandHandler>[1],
-            mockCryptoManager as unknown as ConstructorParameters<typeof CommandHandler>[2],
-            asToken,
-            domain
-        );
+      mockBotClient.getEvent.mockResolvedValue({
+        sender: ghostId,
+        type: 'm.room.message',
+        content: { body: 'hello' },
+      });
+      mockPrisma.system.findUnique.mockResolvedValue({
+        slug: systemSlug,
+        name: 'Test System',
+        members: [{ slug: memberSlug, name: 'Test Member' }],
+        accountLinks: [{ matrixId: '@owner:localhost', isPrimary: true }],
+      });
     });
 
-    const mockSystem = createMockSystem({
-        id: "sys123",
-        slug: "seraphim",
-        members: [
-            createMockMember({ id: "mem1", slug: "lily", name: "Lily", matrixId: "@_plural_seraphim_lily:localhost", proxyTags: [{ prefix: "lily:", suffix: "" }] as unknown as import('@prisma/client').Prisma.JsonValue })
-        ]
-    }) as SystemWithRelations & { accountLinks: { matrixId: string; isPrimary: boolean }[] };
-    mockSystem.accountLinks = [{ matrixId: "@alice:localhost", isPrimary: true }];
+    it('handleMessageInfoRequest should DM the user with info', async () => {
+      const getOrAutoCreateSpy = jest
+        .spyOn(commandHandler, 'getOrAutoCreateDMRoom')
+        .mockResolvedValue('!dmroom:localhost');
+      const sendCustomTextSpy = jest
+        .spyOn(commandHandler, 'sendEncryptedCustomText')
+        .mockResolvedValue({ event_id: '$new_event' });
 
-    describe('executeTargetingCommand', () => {
-        it('should find the ROOT ID even if the latest event is an edit', async () => {
-            const rootId = "$root_event";
-            const editId = "$edit_event";
-            const roomId = "!room:localhost";
+      await commandHandler.handleMessageInfoRequest(roomId, senderId, targetEventId, false);
 
-            // Mock scrollback: root followed by edit
-            mockBotClient.doRequest.mockResolvedValue({
-                chunk: [
-                    {
-                        event_id: editId,
-                        sender: "@_plural_seraphim_lily:localhost",
-                        type: "m.room.message",
-                        content: { 
-                            "m.new_content": { body: "new text" },
-                            "m.relates_to": { rel_type: "m.replace", event_id: rootId }
-                        }
-                    },
-                    {
-                        event_id: rootId,
-                        sender: "@_plural_seraphim_lily:localhost",
-                        type: "m.room.message",
-                        content: { body: "original text" }
-                    }
-                ]
-            });
-
-            const event = { room_id: roomId, sender: "@alice:localhost", event_id: "$cmd_event" };
-            await commandHandler.executeTargetingCommand(event, "pk;message -delete", mockSystem);
-
-            // Should redact the ROOT event
-            expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
-        });
-
-        it('should correctly resolve chained edits from history', async () => {
-            const rootId = "$root";
-            const edit2Id = "$edit2";
-            const roomId = "!room:localhost";
-
-            mockBotClient.doRequest.mockResolvedValue({
-                chunk: [
-                    {
-                        event_id: edit2Id,
-                        sender: "@_plural_seraphim_lily:localhost",
-                        type: "m.room.message",
-                        content: { "m.new_content": { body: "final text" }, "m.relates_to": { rel_type: "m.replace", event_id: rootId } }
-                    },
-                    {
-                        event_id: rootId,
-                        sender: "@_plural_seraphim_lily:localhost",
-                        type: "m.room.message",
-                        content: { body: "start text" }
-                    }
-                ]
-            });
-
-            const event = { room_id: roomId, sender: "@alice:localhost", event_id: "$cmd_event" };
-            await commandHandler.executeTargetingCommand(event, "pk;edit newer text", mockSystem);
-
-            // Verify crypto getMachine was called for the ghost to send the edit
-            expect(mockCryptoManager.getMachine).toHaveBeenCalledWith("@_plural_seraphim_lily:localhost");
-        });
-
-        it('should not allow editing another system\'s message', async () => {
-            const roomId = "!room:localhost";
-            const eventId = "$target_event";
-            const foreignGhostId = "@_plural_othersys_member:localhost";
-            
-            mockBotClient.getEvent.mockResolvedValue({
-                event_id: eventId,
-                sender: foreignGhostId,
-                type: "m.room.message",
-                content: { body: "hello from other sys" }
-            });
-
-            const event = { 
-                room_id: roomId, 
-                sender: "@alice:localhost",
-                content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
-            };
-
-            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-
-            await commandHandler.executeTargetingCommand(event, "pk;edit hack", mockSystem);
-
-            expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
-            expect(sendSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Could not find a proxied message to modify"));
-            
-            sendSpy.mockRestore();
-        });
-
-        it('should not allow reproxying another system\'s message', async () => {
-            const roomId = "!room:localhost";
-            const eventId = "$target_event";
-            const foreignGhostId = "@_plural_othersys_member:localhost";
-            
-            mockBotClient.getEvent.mockResolvedValue({
-                event_id: eventId,
-                sender: foreignGhostId,
-                type: "m.room.message",
-                content: { body: "hello from other sys" }
-            });
-
-            const event = { 
-                room_id: roomId, 
-                sender: "@alice:localhost",
-                content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
-            };
-
-            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-
-            await commandHandler.executeTargetingCommand(event, "pk;rp lily", mockSystem);
-
-            expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
-            expect(sendSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Could not find a proxied message to modify"));
-
-            sendSpy.mockRestore();
-        });
-
-        it('should not allow deleting another system\'s message', async () => {
-            const roomId = "!room:localhost";
-            const eventId = "$target_event";
-            const foreignGhostId = "@_plural_othersys_member:localhost";
-            
-            mockBotClient.getEvent.mockResolvedValue({
-                event_id: eventId,
-                sender: foreignGhostId,
-                type: "m.room.message",
-                content: { body: "hello from other sys" }
-            });
-
-            const event = { 
-                room_id: roomId, 
-                sender: "@alice:localhost",
-                content: { "m.relates_to": { "m.in_reply_to": { event_id: eventId } } } 
-            };
-
-            const sendSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-
-            await commandHandler.executeTargetingCommand(event, "pk;message -delete", mockSystem);
-
-            expect(mockBotClient.redactEvent).not.toHaveBeenCalled();
-            // Since resolution is strictly scoped to the user's system for -delete, it fails to find it entirely
-            expect(sendSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Could not find that proxied message"));
-
-            sendSpy.mockRestore();
-        });
+      expect(getOrAutoCreateSpy).toHaveBeenCalledWith(senderId);
+      expect(sendCustomTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!dmroom:localhost',
+        expect.stringContaining('Test System'),
+        expect.stringContaining('Test Member'),
+        expect.anything(),
+      );
+      expect(sendCustomTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!dmroom:localhost',
+        expect.stringContaining('Test System'),
+        expect.stringContaining('@owner:localhost'),
+        expect.anything(),
+      );
     });
 
-    describe('handleCommand', () => {
-        it('pk;list should show member list', async () => {
-            const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-            const parts = ["pk;list"];
-            
-            await commandHandler.handleCommand(event, "list", parts, mockSystem);
+    it('handleMessageInfoRequest should reply in-room if requested', async () => {
+      const sendCustomTextSpy = jest
+        .spyOn(commandHandler, 'sendEncryptedCustomText')
+        .mockResolvedValue({ event_id: '$new_event' });
 
-            // Should call resolveIdentity for the bot (to send encrypted response)
-            expect(mockPrisma.system.findFirst).toHaveBeenCalled();
-        });
+      await commandHandler.handleMessageInfoRequest(roomId, senderId, targetEventId, true);
 
-        it('pk;link should create a new link', async () => {
-            const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-            const parts = ["pk;link", "@bob:localhost"];
-            
-            mockPrisma.accountLink.findUnique.mockResolvedValue(null);
-            mockBotClient.getUserProfile.mockResolvedValue({ displayname: "Bob" });
-            
-            await commandHandler.handleCommand(event, "link", parts, mockSystem);
-
-            expect(mockPrisma.accountLink.create).toHaveBeenCalledWith({
-                data: { matrixId: "@bob:localhost", systemId: "sys123" }
-            });
-        });
-
-        it('pk;link should fail if profile does not exist', async () => {
-            const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-            const parts = ["pk;link", "@nonexistent:localhost"];
-            
-            mockBotClient.getUserProfile.mockRejectedValue({ errcode: "M_NOT_FOUND" });
-            
-            await commandHandler.handleCommand(event, "link", parts, mockSystem);
-
-            expect(mockPrisma.accountLink.create).not.toHaveBeenCalled();
-            // Should send an error message
-            expect(mockCryptoManager.getMachine).toHaveBeenCalledWith("@plural_bot:localhost");
-        });
-
-        it('pk;unlink should remove a link', async () => {
-            const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-            const parts = ["pk;unlink", "@bob:localhost"];
-            
-            mockPrisma.accountLink.findUnique.mockResolvedValue({ matrixId: "@bob:localhost", systemId: "sys123" });
-            mockPrisma.accountLink.count.mockResolvedValue(2); // Must be > 1 to allow unlinking
-            
-            await commandHandler.handleCommand(event, "unlink", parts, mockSystem);
-
-            expect(mockPrisma.accountLink.delete).toHaveBeenCalledWith({
-                where: { matrixId: "@bob:localhost" }
-            });
-        });
-
-        it('pk;message -delete should invalidate cache if target is current last message', async () => {
-            const roomId = "!room:localhost";
-            const rootId = "$root";
-            const ghostUserId = "@_plural_seraphim_lily:localhost";
-            const event = { room_id: roomId, sender: "@alice:localhost" };
-            
-            // Mock identity resolution
-            mockPrisma.member.findFirst.mockResolvedValue({ id: "mem1", systemId: "sys123" });
-
-            // Mock cache hit for this exact message
-            (lastMessageCache.get as jest.Mock).mockReturnValue({ 
-                rootEventId: rootId, 
-                latestEventId: rootId, 
-                sender: ghostUserId, 
-                latestContent: { body: "del me" },
-                rootContent: { body: "del me" }
-            });
-
-            jest.spyOn(commandHandler, 'getRoomMessages').mockResolvedValue({
-                chunk: [
-                    { event_id: rootId, room_id: roomId, sender: ghostUserId, type: "m.room.message", content: { body: "del me" } }
-                ]
-            });
-
-            await commandHandler.executeTargetingCommand(event, "pk;message -delete", mockSystem);
-
-            expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
-            // Should invalidate cache
-            expect(jest.spyOn(lastMessageCache, 'delete')).toHaveBeenCalledWith(roomId, "seraphim");
-            });
-
-        it('pk;reproxy should invalidate cache', async () => {
-            const roomId = "!room:localhost";
-            const rootId = "$root";
-            const ghostUserId = "@_plural_seraphim_lily:localhost";
-            const event = { room_id: roomId, sender: "@alice:localhost" };
-            
-            mockPrisma.member.findFirst.mockResolvedValue({ id: "mem1", systemId: "sys123" });
-
-            // Mock cache hit
-            (lastMessageCache.get as jest.Mock).mockReturnValue({ 
-                rootEventId: rootId, 
-                latestEventId: rootId, 
-                sender: ghostUserId, 
-                latestContent: { body: "reproxy me" } 
-            });
-
-            // Reproxy to a hypothetical member 'bob'
-            const systemWithBob = createMockSystem({
-                ...mockSystem,
-                members: [...mockSystem.members, createMockMember({ id: "mem2", slug: "bob", name: "Bob", matrixId: "@_plural_seraphim_bob:localhost" })]
-            });
-
-            await commandHandler.executeTargetingCommand(event, "pk;rp bob", systemWithBob);
-
-            expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
-            expect(jest.spyOn(lastMessageCache, 'delete')).toHaveBeenCalledWith(roomId, "seraphim");
-        }, 15000);
-
-        it('pk;autoproxy should update autoproxyId', async () => {
-            const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-            const parts = ["pk;autoproxy", "lily"];
-            
-            await commandHandler.handleCommand(event, "autoproxy", parts, mockSystem);
-
-            expect(mockPrisma.system.update).toHaveBeenCalledWith({
-                where: { id: "sys123" },
-                data: { autoproxyId: "mem1", autoproxyMode: "member" }
-            });
-        });
-
-        describe('pk;autoproxy edge cases', () => {
-            let sendEncryptedTextSpy: jest.SpyInstance;
-            beforeEach(() => {
-                sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-            });
-
-            it('pk;autoproxy off should disable autoproxy', async () => {
-                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-                const parts = ["pk;autoproxy", "off"];
-                
-                await commandHandler.handleCommand(event, "autoproxy", parts, mockSystem);
-
-                expect(mockPrisma.system.update).toHaveBeenCalledWith({
-                    where: { id: "sys123" },
-                    data: { autoproxyId: null, autoproxyMode: "off" }
-                });
-            });
-
-            it('pk;autoproxy latch should enable latch mode', async () => {
-                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-                const parts = ["pk;autoproxy", "latch"];
-                
-                await commandHandler.handleCommand(event, "autoproxy", parts, mockSystem);
-
-                expect(mockPrisma.system.update).toHaveBeenCalledWith({
-                    where: { id: "sys123" },
-                    data: { autoproxyMode: "latch" }
-                });
-            });
-
-            it('pk;autoproxy should error if member not found', async () => {
-                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-                const parts = ["pk;autoproxy", "notfound"];
-                
-                const handled = await commandHandler.handleCommand(event, "autoproxy", parts, mockSystem);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("No member found with ID: notfound")
-                );
-            });
-        });
-
-        describe('pk;member command', () => {
-            let sendRichTextSpy: jest.SpyInstance;
-            
-            beforeEach(() => {
-                sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: "$event" });
-            });
-
-            it('should display own member details', async () => {
-                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-                const parts = ["pk;member", "lily"];
-                
-                const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
-                
-                expect(handled).toBe(true);
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Member Details: Lily")
-                );
-            });
-
-            it('should handle member not found error', async () => {
-                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-                const parts = ["pk;member", "nonexistent"];
-                
-                const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-                const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
-                
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("No member found with ID: nonexistent")
-                );
-            });
-
-            it('should error if no member ID is provided', async () => {
-                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-                const parts = ["pk;member"];
-                
-                const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-                const handled = await commandHandler.handleCommand(event, "member", parts, mockSystem);
-                
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Usage: `pk;member <id>`")
-                );
-            });
-
-            it('should log an error if avatar sending fails', async () => {
-                const event = { room_id: "!room:localhost", sender: "@alice:localhost" };
-                const parts = ["pk;member", "lily"];
-                
-                const systemWithAvatar = createMockSystem({
-                    ...mockSystem,
-                    members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily', avatarUrl: 'mxc://broken' })]
-                });
-
-                const sendEncryptedImageSpy = jest.spyOn(commandHandler, 'sendEncryptedImage').mockRejectedValue(new Error("Avatar Upload Fail"));
-                const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-                const handled = await commandHandler.handleCommand(event, "member", parts, systemWithAvatar);
-                
-                expect(handled).toBe(true);
-                expect(sendEncryptedImageSpy).toHaveBeenCalled();
-                expect(consoleSpy).toHaveBeenCalledWith(
-                    expect.stringContaining("[Bot] Failed to send avatar for lily:"), 
-                    "Avatar Upload Fail"
-                );
-
-                consoleSpy.mockRestore();
-            });
-
-            it('should respect privacy settings for external queries', async () => {
-                const event = { room_id: "!room:localhost", sender: "@bob:localhost" }; // Bob querying Alice's member
-                const parts = ["pk;member", "abcde"]; // Global pkId query
-                
-                // Mock global search finding Alice's member
-                const privateMember = { 
-                    id: "mem1", 
-                    slug: "lily", 
-                    name: "Lily", 
-                    pkId: "abcde", 
-                    system: mockSystem,
-                    privacy: { visibility: "private" } 
-                };
-                
-                // Mock the getSenderSystem hit for bob (null) so he doesn't hit the "no system" global check before running the command
-                mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
-                mockPrisma.member.findMany.mockResolvedValue([privateMember]);
-                
-                const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-                const handled = await commandHandler.handleCommand(event, "member", parts, createMockSystem({ id: 'bobsys', members: [] }));
-                
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("No member found with ID: abcde")
-                );
-            });
-            
-            it('should fallback to displayName if name is private for external queries', async () => {
-                const event = { room_id: "!room:localhost", sender: "@bob:localhost" }; 
-                const parts = ["pk;member", "abcde"]; 
-                
-                const namePrivateMember = { 
-                    id: "mem1", 
-                    slug: "lily", 
-                    name: "Secret Name", 
-                    displayName: "Public Face",
-                    pkId: "abcde", 
-                    system: mockSystem,
-                    privacy: { visibility: "public", name_privacy: "private" } 
-                };
-                
-                mockPrisma.accountLink.findUnique.mockResolvedValueOnce(null);
-                mockPrisma.member.findMany.mockResolvedValue([namePrivateMember]);
-                
-                const handled = await commandHandler.handleCommand(event, "member", parts, createMockSystem({ id: 'bobsys', members: [] }));
-                
-                expect(handled).toBe(true);
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Member Details: Public Face")
-                );
-                expect(sendRichTextSpy).not.toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Secret Name")
-                );
-            });
-        });
-
-        describe('pk;group commands', () => {
-            let sendRichTextSpy: jest.SpyInstance;
-            let sendEncryptedTextSpy: jest.SpyInstance;
-            
-            beforeEach(() => {
-                sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: "$event" });
-                sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText').mockResolvedValue({ event_id: "$event" });
-            });
-
-            const mockSystemWithGroups = createMockSystem({
-                id: 'sys1',
-                name: 'Test System',
-                members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })],
-                groups: [
-                    createMockGroup({ id: 'g1', slug: 'testgroup', name: 'Test Group', members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })] }),
-                    createMockGroup({ id: 'g2', slug: 'emptygroup', name: 'Empty Group', members: [] })
-                ]
-            });
-            const groupEvent = { room_id: "!room:localhost", sender: "@alice:localhost" };
-
-            it('pk;group list should show groups', async () => {
-                const parts = ["pk;group", "list"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(), 
-                    "!room:localhost", 
-                    expect.stringContaining("Test Group")
-                );
-            });
-
-            it('pk;group list should report empty if no groups', async () => {
-                const parts = ["pk;group", "list"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, { ...mockSystemWithGroups, groups: [] });
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(), 
-                    "!room:localhost", 
-                    expect.stringContaining("You don't have any groups")
-                );
-            });
-
-            it('pk;group <group> list should show members', async () => {
-                const parts = ["pk;group", "testgroup", "list"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Lily")
-                );
-            });
-
-            it('pk;group <group> list should report empty if no members', async () => {
-                const parts = ["pk;group", "emptygroup", "list"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(), 
-                    "!room:localhost", 
-                    expect.stringContaining("has no members")
-                );
-            });
-
-            it('pk;group new should create a group', async () => {
-                const parts = ["pk;group", "new", "My New Group"];
-                (mockPrisma.group.create).mockResolvedValue({ id: 'g2', name: 'My New Group' });
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.create).toHaveBeenCalled();
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Created group")
-                );
-            });
-
-            it('pk;group new without name should error', async () => {
-                const parts = ["pk;group", "new"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Usage: `pk;group new")
-                );
-            });
-
-            it('pk;group <group> should show error if group not found', async () => {
-                const parts = ["pk;group", "notfoundgroup"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("No group found with ID: notfoundgroup")
-                );
-            });
-
-            it('pk;group <group> add should add members', async () => {
-                const parts = ["pk;group", "testgroup", "add", "lily"];
-                (mockPrisma.group.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
-                    data: { members: { connect: [{ id: 'm1' }] } }
-                }));
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Added 1 member")
-                );
-            });
-
-            it('pk;group <group> remove should remove members', async () => {
-                const parts = ["pk;group", "testgroup", "remove", "lily"];
-                (mockPrisma.group.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
-                    data: { members: { disconnect: [{ id: 'm1' }] } }
-                }));
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Removed 1 member")
-                );
-            });
-
-            it('pk;group <group> add without args should error', async () => {
-                const parts = ["pk;group", "testgroup", "add"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Usage: `pk;group testgroup add")
-                );
-            });
-
-            it('pk;group <group> should show error if no members found', async () => {
-                const parts = ["pk;group", "testgroup", "add", "notfound"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("None of the specified members were found")
-                );
-            });
-
-            it('pk;group <group> rename should rename the group', async () => {
-                const parts = ["pk;group", "testgroup", "rename", "New Name"];
-                (mockPrisma.group.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
-                    data: { name: "New Name" }
-                }));
-            });
-
-            it('pk;group <group> rename without args should error', async () => {
-                const parts = ["pk;group", "testgroup", "rename"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Usage: `pk;group testgroup rename")
-                );
-            });
-
-            it('pk;group <group> description should update description', async () => {
-                const parts = ["pk;group", "testgroup", "desc", "New description"];
-                (mockPrisma.group.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
-                    data: { description: "New description" }
-                }));
-            });
-
-            it('pk;group <group> description empty should clear description', async () => {
-                const parts = ["pk;group", "testgroup", "desc"];
-                (mockPrisma.group.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
-                    data: { description: null }
-                }));
-            });
-
-            it('pk;group <group> icon should update icon', async () => {
-                const parts = ["pk;group", "testgroup", "icon", "mxc://icon"];
-                (mockPrisma.group.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
-                    data: { icon: "mxc://icon" }
-                }));
-            });
-
-            it('pk;group <group> delete should delete the group', async () => {
-                const parts = ["pk;group", "testgroup", "delete"];
-                (mockPrisma.group.delete).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(mockPrisma.group.delete).toHaveBeenCalledWith({
-                    where: { id: "g1" }
-                });
-            });
-
-            it('pk;group <group> unknown action should show error', async () => {
-                const parts = ["pk;group", "testgroup", "hack"];
-                const handled = await commandHandler.handleCommand(groupEvent, "group", parts, mockSystemWithGroups);
-                expect(handled).toBe(true);
-                expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
-                    expect.anything(),
-                    "!room:localhost",
-                    expect.stringContaining("Unknown group action: hack")
-                );
-            });
-        });
-
-        describe('pk;system commands', () => {
-            let sendRichTextSpy: jest.SpyInstance;
-            
-            beforeEach(() => {
-                sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: "$event" });
-            });
-
-            const mockSystemExtended = createMockSystem({
-                id: 'sys1',
-                slug: 'testsys',
-                name: 'Test System',
-                description: 'A test system',
-                systemTag: '🚀',
-                members: [createMockMember({ id: 'm1', slug: 'lily', name: 'Lily' })]
-            });
-            const sysEvent = { room_id: "!room:localhost", sender: "@alice:localhost" };
-
-            it('pk;system should show system info', async () => {
-                const parts = ["pk;system"];
-                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
-                expect(handled).toBe(true);
-                expect(sendRichTextSpy).toHaveBeenCalledWith(
-                    expect.anything(), 
-                    "!room:localhost", 
-                    expect.stringContaining("A test system")
-                );
-            });
-
-            it('pk;system rename should update system name', async () => {
-                const parts = ["pk;system", "rename", "New Name"];
-                (mockPrisma.system.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
-                expect(handled).toBe(true);
-                expect(mockPrisma.system.update).toHaveBeenCalledWith({
-                    where: { id: 'sys1' },
-                    data: { name: 'New Name' }
-                });
-            });
-
-            it('pk;system description should update system description', async () => {
-                const parts = ["pk;system", "description", "New desc"];
-                (mockPrisma.system.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
-                expect(handled).toBe(true);
-                expect(mockPrisma.system.update).toHaveBeenCalledWith({
-                    where: { id: 'sys1' },
-                    data: { description: 'New desc' }
-                });
-            });
-
-            it('pk;system tag should update system tag', async () => {
-                const parts = ["pk;system", "tag", "🔖"];
-                (mockPrisma.system.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
-                expect(handled).toBe(true);
-                expect(mockPrisma.system.update).toHaveBeenCalledWith({
-                    where: { id: 'sys1' },
-                    data: { systemTag: '🔖' }
-                });
-            });
-            
-            it('pk;system avatar should update system avatarUrl', async () => {
-                const parts = ["pk;system", "avatar", "mxc://example.com/123"];
-                (mockPrisma.system.update).mockResolvedValue({});
-                const handled = await commandHandler.handleCommand(sysEvent, "system", parts, mockSystemExtended);
-                expect(handled).toBe(true);
-                expect(mockPrisma.system.update).toHaveBeenCalledWith({
-                    where: { id: 'sys1' },
-                    data: { avatarUrl: 'mxc://example.com/123' }
-                });
-            });
-        });
+      expect(sendCustomTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        roomId,
+        expect.stringContaining('Test System'),
+        expect.stringContaining('Test Member'),
+        expect.anything(),
+      );
     });
 
-    describe('resolveGhostMessage', () => {
-        const roomId = "!room:localhost";
-        const systemSlug = "seraphim";
+    it('handleMessagePingRequest should ping the sender in-room', async () => {
+      const sendCustomTextSpy = jest
+        .spyOn(commandHandler, 'sendEncryptedCustomText')
+        .mockResolvedValue({ event_id: '$new_event' });
 
-        it('should return data from cache if available (Fast Path)', async () => {
-            const cachedData = {
-                rootEventId: "$root",
-                latestEventId: "$edit",
-                latestContent: { body: "cached text" },
-                sender: "@_plural_seraphim_lily:localhost"
-            };
-            (lastMessageCache.get as jest.Mock).mockReturnValue(cachedData);
+      await commandHandler.handleMessagePingRequest(roomId, senderId, targetEventId);
 
-            const result = await commandHandler.resolveGhostMessage(roomId, systemSlug);
-
-            expect(result).toEqual({
-                event: expect.objectContaining({ event_id: "$edit" }) as unknown,
-                latestContent: cachedData.latestContent,
-                originalId: "$root"
-            });
-            // Should NOT fetch history
-            expect(mockBotClient.doRequest).not.toHaveBeenCalled();
-        });
-
-        it('should fall back to history if cache is empty (Slow Path)', async () => {
-            (lastMessageCache.get as jest.Mock).mockReturnValue(null);
-            mockBotClient.doRequest.mockResolvedValue({ chunk: [] });
-
-            await commandHandler.resolveGhostMessage(roomId, systemSlug);
-
-            expect(mockBotClient.doRequest).toHaveBeenCalled();
-        });
+      expect(sendCustomTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        roomId,
+        expect.stringContaining('pinged @owner:localhost regarding'),
+        expect.stringContaining('href="https://matrix.to/#/@owner:localhost"'),
+        expect.anything(),
+      );
     });
-
-    describe('getSenderSystem', () => {
-        it('should return system if account link exists', async () => {
-            const sender = "@newuser:localhost";
-            
-            // Mock DB hit
-            const mockSys = { id: 'sys_new', slug: 'newuser', members: [] };
-            mockPrisma.accountLink.findUnique.mockResolvedValue({
-                system: mockSys
-            });
-
-            // We need to call the private method via any
-            const result = await commandHandler['getSenderSystem'](sender);
-
-            expect(mockPrisma.accountLink.findUnique).toHaveBeenCalledWith({
-                where: { matrixId: sender },
-                include: { system: { include: { members: true, groups: { include: { members: true } } } } }
-            });
-            expect(result).toEqual(mockSys);
-        });
-        
-        it('should return null if no link exists', async () => {
-            const sender = "@newuser:localhost";
-            
-            // Mock DB miss
-            mockPrisma.accountLink.findUnique.mockResolvedValue(null);
-
-            // We need to call the private method via any
-            const result = await commandHandler['getSenderSystem'](sender);
-
-            expect(result).toBeNull();
-        });
-    });
-
-    describe('promoteSystemPowerLevels', () => {
-        const roomId = "!room:localhost";
-        const ghostUserId = "@_plural_seraphim_lily:localhost";
-        const ownerUserId = "@chiara:localhost";
-        const botUserId = "@plural_bot:localhost";
-
-        it('should promote bot and owner to match ghost level', async () => {
-            // Mock ghost is PL 100, others are 0
-            mockBotClient.getRoomStateEvent.mockResolvedValue({
-                users: { [ghostUserId]: 100, [botUserId]: 0, [ownerUserId]: 0 },
-                users_default: 0
-            });
-
-            mockPrisma.system.findUnique.mockResolvedValue({
-                id: "sys123",
-                slug: "seraphim",
-                accountLinks: [{ matrixId: ownerUserId, isPrimary: true }]
-            });
-
-            const sendStateMock = jest.fn().mockResolvedValue({});
-            mockBotClient.sendStateEvent = sendStateMock;
-
-            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
-
-            expect(sendStateMock).toHaveBeenCalledWith(roomId, "m.room.power_levels", "", expect.objectContaining({
-                users: expect.objectContaining({
-                    [botUserId]: 100,
-                    [ownerUserId]: 100
-                }) as unknown
-            }) as unknown);
-        });
-
-        it('should do nothing if ghost has no authority (PL < 50)', async () => {
-            mockBotClient.getRoomStateEvent.mockResolvedValue({
-                users: { [ghostUserId]: 0 },
-                users_default: 0
-            });
-
-            const sendStateMock = jest.fn();
-            mockBotClient.sendStateEvent = sendStateMock;
-
-            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
-
-            expect(sendStateMock).not.toHaveBeenCalled();
-        });
-
-        it('should do nothing if bot and owner are already promoted', async () => {
-            mockBotClient.getRoomStateEvent.mockResolvedValue({
-                users: { [ghostUserId]: 100, [botUserId]: 100, [ownerUserId]: 100 },
-                users_default: 0
-            });
-
-            const sendStateMock = jest.fn();
-            mockBotClient.sendStateEvent = sendStateMock;
-
-            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
-
-            expect(sendStateMock).not.toHaveBeenCalled();
-        });
-
-        it('should handle Matrix API errors gracefully', async () => {
-            mockBotClient.getRoomStateEvent.mockRejectedValue(new Error("API Error"));
-            
-            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-            
-            await commandHandler.promoteSystemPowerLevels(roomId, ghostUserId);
-
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to pre-emptively promote"), "API Error");
-            consoleSpy.mockRestore();
-        });
-    });
-
-    describe('Message Queries', () => {
-        const roomId = "!room:localhost";
-        const senderId = "@alice:localhost";
-        const targetEventId = "$target_event";
-        const systemSlug = "testsys";
-        const memberSlug = "testmem";
-        const ghostId = `@_plural_${systemSlug}_${memberSlug}:localhost`;
-
-        beforeEach(() => {
-            mockBotClient.getEvent.mockResolvedValue({
-                sender: ghostId,
-                type: "m.room.message",
-                content: { body: "hello" }
-            });
-            mockPrisma.system.findUnique.mockResolvedValue({
-                slug: systemSlug,
-                name: "Test System",
-                members: [{ slug: memberSlug, name: "Test Member" }],
-                accountLinks: [{ matrixId: "@owner:localhost", isPrimary: true }]
-            });
-        });
-
-        it('handleMessageInfoRequest should DM the user with info', async () => {
-            const getOrAutoCreateSpy = jest.spyOn(commandHandler, 'getOrAutoCreateDMRoom').mockResolvedValue("!dmroom:localhost");
-            const sendCustomTextSpy = jest.spyOn(commandHandler, 'sendEncryptedCustomText').mockResolvedValue({ event_id: "$new_event" });
-
-            await commandHandler.handleMessageInfoRequest(roomId, senderId, targetEventId, false);
-
-            expect(getOrAutoCreateSpy).toHaveBeenCalledWith(senderId);
-            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), "!dmroom:localhost", expect.stringContaining("Test System"), expect.stringContaining("Test Member"), expect.anything());
-            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), "!dmroom:localhost", expect.stringContaining("Test System"), expect.stringContaining("@owner:localhost"), expect.anything());
-        });
-
-        it('handleMessageInfoRequest should reply in-room if requested', async () => {
-            const sendCustomTextSpy = jest.spyOn(commandHandler, 'sendEncryptedCustomText').mockResolvedValue({ event_id: "$new_event" });
-
-            await commandHandler.handleMessageInfoRequest(roomId, senderId, targetEventId, true);
-
-            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("Test System"), expect.stringContaining("Test Member"), expect.anything());
-        });
-
-        it('handleMessagePingRequest should ping the sender in-room', async () => {
-            const sendCustomTextSpy = jest.spyOn(commandHandler, 'sendEncryptedCustomText').mockResolvedValue({ event_id: "$new_event" });
-
-            await commandHandler.handleMessagePingRequest(roomId, senderId, targetEventId);
-
-            expect(sendCustomTextSpy).toHaveBeenCalledWith(expect.anything(), roomId, expect.stringContaining("pinged @owner:localhost regarding"), expect.stringContaining("href=\"https://matrix.to/#/@owner:localhost\""), expect.anything());
-        });
-    });
+  });
 });

@@ -1,4 +1,9 @@
-import { MatrixClient, RustSdkCryptoStorageProvider, MemoryStorageProvider, AutojoinRoomsMixin } from '@vector-im/matrix-bot-sdk';
+import {
+  MatrixClient,
+  RustSdkCryptoStorageProvider,
+  MemoryStorageProvider,
+  AutojoinRoomsMixin,
+} from '@vector-im/matrix-bot-sdk';
 import * as path from 'path';
 import * as fs from 'fs';
 import { config } from '../config';
@@ -6,16 +11,16 @@ import { config } from '../config';
 // Use a helper to get the effective Synapse URL for E2E tests.
 // Outside of Docker, we want to talk to localhost.
 const getSynapseUrl = () => {
-    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
-        return "http://localhost:8008";
-    }
-    return config.synapseUrl;
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return 'http://localhost:8008';
+  }
+  return config.synapseUrl;
 };
 
 const getAppServiceUrl = () => `http://localhost:${config.appPort}`;
 
 const printRateLimitHelp = () => {
-    console.error(`
+  console.error(`
 ================================================================================
 ⚠️  E2E FAILURE: M_LIMIT_EXCEEDED detected!
 ================================================================================
@@ -31,146 +36,146 @@ Your Synapse server is rate-limiting the E2E tests. To fix this:
 };
 
 export const registerUser = async (username: string, password: string): Promise<string> => {
-    console.log(`[E2E] Registering user ${username} with password ${password}...`);
-    const domain = config.synapseDomain;
-    const hsUrl = getSynapseUrl();
-    try {
-        const response = await fetch(`${hsUrl}/_matrix/client/v3/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                username: username,
-                password: password,
-                auth: { type: "m.login.dummy" }
-            })
-        });
+  console.log(`[E2E] Registering user ${username} with password ${password}...`);
+  const domain = config.synapseDomain;
+  const hsUrl = getSynapseUrl();
+  try {
+    const response = await fetch(`${hsUrl}/_matrix/client/v3/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: username,
+        password: password,
+        auth: { type: 'm.login.dummy' },
+      }),
+    });
 
-        const data = await response.json() as Record<string, unknown>;
-        if (!response.ok) {
-            if (data.errcode === 'M_USER_IN_USE') {
-                console.log(`[E2E] User ${username} already exists.`);
-                return `@${username}:${domain}`;
-            }
-            if (data.errcode === 'M_LIMIT_EXCEEDED') {
-                printRateLimitHelp();
-            }
-            throw new Error(`Registration failed: ${JSON.stringify(data)}`);
-        }
-
-        console.log(`[E2E] User ${username} registered successfully.`);
+    const data = (await response.json()) as Record<string, unknown>;
+    if (!response.ok) {
+      if (data.errcode === 'M_USER_IN_USE') {
+        console.log(`[E2E] User ${username} already exists.`);
         return `@${username}:${domain}`;
-    } catch (e: unknown) {
-        console.error(`[E2E] Registration failed for ${username}:`, (e as Error).message);
-        throw e;
+      }
+      if (data.errcode === 'M_LIMIT_EXCEEDED') {
+        printRateLimitHelp();
+      }
+      throw new Error(`Registration failed: ${JSON.stringify(data)}`);
     }
+
+    console.log(`[E2E] User ${username} registered successfully.`);
+    return `@${username}:${domain}`;
+  } catch (e: unknown) {
+    console.error(`[E2E] Registration failed for ${username}:`, (e as Error).message);
+    throw e;
+  }
 };
 
 export const getMatrixClient = async (username: string, password: string): Promise<MatrixClient> => {
-    console.log(`[E2E] Logging in user ${username} to Matrix...`);
-    const hsUrl = getSynapseUrl();
-    const response = await fetch(`${hsUrl}/_matrix/client/v3/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            type: "m.login.password",
-            identifier: { type: "m.id.user", user: username },
-            password: password
-        })
-    });
-    
-    const data = await response.json() as Record<string, unknown>;
-    if (!response.ok) {
-        if (data.errcode === 'M_LIMIT_EXCEEDED') {
-            printRateLimitHelp();
-        }
-        console.error(`[E2E] Matrix login failed for ${username}:`, JSON.stringify(data));
-        throw new Error(`Login failed: ${JSON.stringify(data)}`);
-    }
-    
-    console.log(`[E2E] User ${username} logged in to Matrix.`);
+  console.log(`[E2E] Logging in user ${username} to Matrix...`);
+  const hsUrl = getSynapseUrl();
+  const response = await fetch(`${hsUrl}/_matrix/client/v3/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'm.login.password',
+      identifier: { type: 'm.id.user', user: username },
+      password: password,
+    }),
+  });
 
-    // Enable E2EE for E2E tests
-    const storagePath = path.join(process.cwd(), 'data', 'e2e_crypto', username);
-    if (!fs.existsSync(storagePath)) {
-        fs.mkdirSync(storagePath, { recursive: true });
+  const data = (await response.json()) as Record<string, unknown>;
+  if (!response.ok) {
+    if (data.errcode === 'M_LIMIT_EXCEEDED') {
+      printRateLimitHelp();
     }
+    console.error(`[E2E] Matrix login failed for ${username}:`, JSON.stringify(data));
+    throw new Error(`Login failed: ${JSON.stringify(data)}`);
+  }
 
-    // In modern matrix-bot-sdk, the 3rd arg is the base storage, 4th is crypto
-    const baseStorage = new MemoryStorageProvider();
-    const crypto = new RustSdkCryptoStorageProvider(storagePath, 0); // 0 = Sqlite (usually)
-    
-    const client = new MatrixClient(hsUrl, data.access_token as string, baseStorage, crypto);
-    AutojoinRoomsMixin.setupOnClient(client);
-    return client;
+  console.log(`[E2E] User ${username} logged in to Matrix.`);
+
+  // Enable E2EE for E2E tests
+  const storagePath = path.join(process.cwd(), 'data', 'e2e_crypto', username);
+  if (!fs.existsSync(storagePath)) {
+    fs.mkdirSync(storagePath, { recursive: true });
+  }
+
+  // In modern matrix-bot-sdk, the 3rd arg is the base storage, 4th is crypto
+  const baseStorage = new MemoryStorageProvider();
+  const crypto = new RustSdkCryptoStorageProvider(storagePath, 0); // 0 = Sqlite (usually)
+
+  const client = new MatrixClient(hsUrl, data.access_token as string, baseStorage, crypto);
+  AutojoinRoomsMixin.setupOnClient(client);
+  return client;
 };
 
 export const getPluralMatrixToken = async (mxid: string, password: string): Promise<string> => {
-    console.log(`[E2E] Fetching PluralMatrix JWT for ${mxid}...`);
-    const response = await fetch(`${getAppServiceUrl()}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mxid, password })
-    });
-    
-    const data = await response.json() as Record<string, unknown>;
-    if (!response.ok) {
-        console.error(`[E2E] PluralMatrix login failed for ${mxid}:`, JSON.stringify(data));
-        throw new Error(`PluralMatrix login failed: ${JSON.stringify(data)}`);
-    }
-    
-    console.log(`[E2E] PluralMatrix JWT obtained for ${mxid}.`);
-    return data.token as string;
+  console.log(`[E2E] Fetching PluralMatrix JWT for ${mxid}...`);
+  const response = await fetch(`${getAppServiceUrl()}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mxid, password }),
+  });
+
+  const data = (await response.json()) as Record<string, unknown>;
+  if (!response.ok) {
+    console.error(`[E2E] PluralMatrix login failed for ${mxid}:`, JSON.stringify(data));
+    throw new Error(`PluralMatrix login failed: ${JSON.stringify(data)}`);
+  }
+
+  console.log(`[E2E] PluralMatrix JWT obtained for ${mxid}.`);
+  return data.token as string;
 };
 
 export const setupTestRoom = async (client: MatrixClient): Promise<string> => {
-    console.log(`[E2E] Creating test room...`);
-    const domain = config.synapseDomain;
-    const roomId = await client.createRoom({
-        visibility: 'private',
-        name: `E2E Test Room ${Date.now()}`,
-        invite: [`@plural_bot:${domain}`]
-    });
-    console.log(`[E2E] Test room created: ${roomId}`);
-    return roomId;
+  console.log(`[E2E] Creating test room...`);
+  const domain = config.synapseDomain;
+  const roomId = await client.createRoom({
+    visibility: 'private',
+    name: `E2E Test Room ${Date.now()}`,
+    invite: [`@plural_bot:${domain}`],
+  });
+  console.log(`[E2E] Test room created: ${roomId}`);
+  return roomId;
 };
 
 export const deactivateUser = async (userId: string, accessToken: string) => {
-    console.log(`[E2E] Deactivating user ${userId} via Client API...`);
-    const hsUrl = getSynapseUrl();
-    try {
-        const response = await fetch(`${hsUrl}/_matrix/client/v3/account/deactivate`, {
-            method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                auth: {
-                    type: "m.login.password",
-                    identifier: {
-                        type: "m.id.user",
-                        user: userId
-                    },
-                    password: "ui_test_password"
-                }
-            })
-        });
-        
-        if (!response.ok) {
-            const data = await response.json() as Record<string, unknown>;
-            console.warn(`[E2E] Deactivation failed for ${userId}: ${JSON.stringify(data)}`);
-        } else {
-            console.log(`[E2E] User ${userId} successfully deactivated.`);
-        }
-    } catch (e: unknown) {
-        console.error(`[E2E] Error during deactivation of ${userId}:`, (e as Error).message);
+  console.log(`[E2E] Deactivating user ${userId} via Client API...`);
+  const hsUrl = getSynapseUrl();
+  try {
+    const response = await fetch(`${hsUrl}/_matrix/client/v3/account/deactivate`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        auth: {
+          type: 'm.login.password',
+          identifier: {
+            type: 'm.id.user',
+            user: userId,
+          },
+          password: 'ui_test_password',
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const data = (await response.json()) as Record<string, unknown>;
+      console.warn(`[E2E] Deactivation failed for ${userId}: ${JSON.stringify(data)}`);
+    } else {
+      console.log(`[E2E] User ${userId} successfully deactivated.`);
     }
+  } catch (e: unknown) {
+    console.error(`[E2E] Error during deactivation of ${userId}:`, (e as Error).message);
+  }
 };
 
 export const cleanupCryptoStorage = (username: string) => {
-    const storagePath = path.join(process.cwd(), 'data', 'e2e_crypto', username);
-    if (fs.existsSync(storagePath)) {
-        console.log(`[E2E] Cleaning up crypto storage for ${username}...`);
-        fs.rmSync(storagePath, { recursive: true, force: true });
-    }
+  const storagePath = path.join(process.cwd(), 'data', 'e2e_crypto', username);
+  if (fs.existsSync(storagePath)) {
+    console.log(`[E2E] Cleaning up crypto storage for ${username}...`);
+    fs.rmSync(storagePath, { recursive: true, force: true });
+  }
 };

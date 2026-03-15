@@ -1,65 +1,76 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Generates a unique slug for a system.
  * If the baseSlug is taken, it appends -2, -3, etc. until a free one is found.
- * 
- * NOTE: This is a "Check-then-Act" operation and is NOT atomic. 
+ *
+ * NOTE: This is a "Check-then-Act" operation and is NOT atomic.
  * High-concurrency callers should handle Prisma P2002 errors and retry if necessary.
  */
-export async function ensureUniqueSlug(prisma: PrismaClient, baseSlug: string, currentSystemId?: string): Promise<string> {
-    // 1. Basic Sanitization
-    const cleaned = baseSlug.toLowerCase()
-        .replace(/[^a-z0-9-]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-    
-    const slug = cleaned || "system";
+export async function ensureUniqueSlug(
+  prisma: PrismaClient,
+  baseSlug: string,
+  currentSystemId?: string,
+): Promise<string> {
+  // 1. Basic Sanitization
+  const cleaned = baseSlug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 
-    let candidate = slug.substring(0, 50);
-    let counter = 2; // Start appending from -2 if the base slug is taken
+  const slug = cleaned || 'system';
 
-    while (true) {
-        const existing = await prisma.system.findUnique({
-            where: { slug: candidate },
-            select: { id: true }
-        });
+  let candidate = slug.substring(0, 50);
+  let counter = 2; // Start appending from -2 if the base slug is taken
 
-        if (!existing || (currentSystemId && existing.id === currentSystemId)) {
-            return candidate;
-        }
+  while (true) {
+    const existing = await prisma.system.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    });
 
-        // Base is taken, start appending counters
-        const suffix = `-${counter}`;
-        // Ensure slug + suffix <= 50
-        candidate = slug.substring(0, 50 - suffix.length) + suffix;
-        counter++;
+    if (!existing || (currentSystemId && existing.id === currentSystemId)) {
+      return candidate;
     }
+
+    // Base is taken, start appending counters
+    const suffix = `-${counter}`;
+    // Ensure slug + suffix <= 50
+    candidate = slug.substring(0, 50 - suffix.length) + suffix;
+    counter++;
+  }
 }
 
-export async function ensureUniqueGroupSlug(prisma: PrismaClient, systemId: string, baseSlug: string, currentGroupId?: string): Promise<string> {
-    const cleaned = baseSlug.toLowerCase()
-        .replace(/[^a-z0-9-]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-    
-    const slug = cleaned || "group";
+export async function ensureUniqueGroupSlug(
+  prisma: PrismaClient,
+  systemId: string,
+  baseSlug: string,
+  currentGroupId?: string,
+): Promise<string> {
+  const cleaned = baseSlug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 
-    let candidate = slug.substring(0, 50);
-    let counter = 2; 
+  const slug = cleaned || 'group';
 
-    while (true) {
-        const existing = await prisma.group.findUnique({
-            where: { systemId_slug: { systemId, slug: candidate } },
-            select: { id: true }
-        });
+  let candidate = slug.substring(0, 50);
+  let counter = 2;
 
-        if (!existing || (currentGroupId && existing.id === currentGroupId)) {
-            return candidate;
-        }
+  while (true) {
+    const existing = await prisma.group.findUnique({
+      where: { systemId_slug: { systemId, slug: candidate } },
+      select: { id: true },
+    });
 
-        const suffix = `-${counter}`;
-        candidate = slug.substring(0, 50 - suffix.length) + suffix;
-        counter++;
+    if (!existing || (currentGroupId && existing.id === currentGroupId)) {
+      return candidate;
     }
+
+    const suffix = `-${counter}`;
+    candidate = slug.substring(0, 50 - suffix.length) + suffix;
+    counter++;
+  }
 }

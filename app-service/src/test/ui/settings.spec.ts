@@ -3,269 +3,285 @@ import { registerUser, getMatrixClient, deactivateUser, cleanupCryptoStorage } f
 import * as path from 'path';
 
 test.describe('System Settings and Member Management', () => {
-    let username: string;
-    let fullMxid: string;
-    let linkUsername: string;
-    let linkFullMxid: string;
-    const password = "ui_test_password";
-    let matrixAccessToken: string;
+  let username: string;
+  let fullMxid: string;
+  let linkUsername: string;
+  let linkFullMxid: string;
+  const password = 'ui_test_password';
+  let matrixAccessToken: string;
 
-    test.beforeAll(async () => {
-        // Register primary user
-        username = `ui_set_user_${Math.random().toString(36).substring(7)}`;
-        fullMxid = await registerUser(username, password);
-        const client = await getMatrixClient(username, password);
-        matrixAccessToken = client.accessToken;
-        client.stop();
+  test.beforeAll(async () => {
+    // Register primary user
+    username = `ui_set_user_${Math.random().toString(36).substring(7)}`;
+    fullMxid = await registerUser(username, password);
+    const client = await getMatrixClient(username, password);
+    matrixAccessToken = client.accessToken;
+    client.stop();
 
-        // Register link target user
-        linkUsername = `ui_link_user_${Math.random().toString(36).substring(7)}`;
-        linkFullMxid = await registerUser(linkUsername, password);
-    });
+    // Register link target user
+    linkUsername = `ui_link_user_${Math.random().toString(36).substring(7)}`;
+    linkFullMxid = await registerUser(linkUsername, password);
+  });
 
-    test.afterAll(async () => {
-        if (fullMxid && matrixAccessToken) {
-            await deactivateUser(fullMxid, matrixAccessToken);
-        }
-        cleanupCryptoStorage(username);
-        // Link user gets deleted natively when we delete the primary system since they're linked
-    });
+  test.afterAll(async () => {
+    if (fullMxid && matrixAccessToken) {
+      await deactivateUser(fullMxid, matrixAccessToken);
+    }
+    cleanupCryptoStorage(username);
+    // Link user gets deleted natively when we delete the primary system since they're linked
+  });
 
-    test('User can manage avatar uploads, account links, and view DLQ', async ({ page, context }) => {
-        test.setTimeout(60000);
+  test('User can manage avatar uploads, account links, and view DLQ', async ({ page, context }) => {
+    test.setTimeout(60000);
 
-        // Grant clipboard permissions
-        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    // Grant clipboard permissions
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-        // 1. Setup Phase
-        await page.goto('/login');
-        await page.getByTestId('login-mxid-input').fill(fullMxid);
-        await page.getByTestId('login-password-input').fill(password);
-        
-        const loginPromise = page.waitForResponse(response => response.url().includes('/api/auth/login') && response.status() === 200);
-        await page.getByTestId('login-submit-button').click();
-        await loginPromise;
+    // 1. Setup Phase
+    await page.goto('/login');
+    await page.getByTestId('login-mxid-input').fill(fullMxid);
+    await page.getByTestId('login-password-input').fill(password);
 
-        await expect(page).toHaveURL(/\/setup/);
-        
-        const createSystemPromise = page.waitForResponse(response => response.url().includes('/api/system') && response.status() === 201);
-        await page.getByTestId('create-system-button').click();
-        await createSystemPromise;
-        await page.getByTestId('acknowledge-warning-button').click();
-        await page.waitForURL(/\/s\/[a-z0-9-]+/);
+    const loginPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/auth/login') && response.status() === 200,
+    );
+    await page.getByTestId('login-submit-button').click();
+    await loginPromise;
 
-        // 2. Member Avatar Upload
-        await page.getByTestId('add-member-button').waitFor({ state: 'visible' });
-        await page.getByTestId('add-member-button').click();
-        
-        await expect(page.getByTestId('member-editor-title')).toBeVisible();
+    await expect(page).toHaveURL(/\/setup/);
 
-        await page.fill('input[name="name"]', 'Avatar Tester');
-        await page.fill('input[name="slug"]', 'avatar');
-        await page.fill('input[name="prefix"]', 'a:');
+    const createSystemPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/system') && response.status() === 201,
+    );
+    await page.getByTestId('create-system-button').click();
+    await createSystemPromise;
+    await page.getByTestId('acknowledge-warning-button').click();
+    await page.waitForURL(/\/s\/[a-z0-9-]+/);
 
-        const uploadPromise = page.waitForResponse(response => 
-            response.url().includes('/api/media/upload') && response.status() === 200
-        );
+    // 2. Member Avatar Upload
+    await page.getByTestId('add-member-button').waitFor({ state: 'visible' });
+    await page.getByTestId('add-member-button').click();
 
-        const fixturePath = path.join(__dirname, 'fixtures', 'dummy.png');
-        // Playwright handles hidden file inputs fine if targeted specifically
-        await page.locator('[data-testid="avatar-upload-input"]').setInputFiles(fixturePath);
-        
-        console.log('[UI-Settings-Test] Waiting for image upload API...');
-        await uploadPromise;
+    await expect(page.getByTestId('member-editor-title')).toBeVisible();
 
-        // Image should now be visible in the preview circle
-        await expect(page.locator('img[alt="Avatar"]')).toBeVisible();
+    await page.fill('input[name="name"]', 'Avatar Tester');
+    await page.fill('input[name="slug"]', 'avatar');
+    await page.fill('input[name="prefix"]', 'a:');
 
-        const createMemberPromise = page.waitForResponse(response => 
-            response.url().includes('/api/members') && response.status() === 201
-        );
-        await page.getByTestId('save-member-button').click();
-        await createMemberPromise;
+    const uploadPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/media/upload') && response.status() === 200,
+    );
 
-        // 3. Settings & Account Links
-        await page.getByTestId('system-settings-button').click();
-        await expect(page.getByTestId('system-settings-title')).toBeVisible();
+    const fixturePath = path.join(__dirname, 'fixtures', 'dummy.png');
+    // Playwright handles hidden file inputs fine if targeted specifically
+    await page.locator('[data-testid="avatar-upload-input"]').setInputFiles(fixturePath);
 
-        // Update System Profile (Description and Avatar)
-        const descInput = page.locator('textarea[name="description"]');
-        await expect(descInput).toBeVisible();
-        await descInput.fill('My awesome test system');
-        
-        const systemAvatarUploadPromise = page.waitForResponse(response => 
-            response.url().includes('/api/media/upload') && response.status() === 200
-        );
-        await page.locator('[data-testid="system-avatar-upload"]').setInputFiles(fixturePath);
-        await systemAvatarUploadPromise;
-        await expect(page.locator('img[alt="System Avatar"]')).toBeVisible();
+    console.log('[UI-Settings-Test] Waiting for image upload API...');
+    await uploadPromise;
 
-        const updateSystemPromise = page.waitForResponse(response => response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200);
-        await page.getByTestId('save-system-settings-button').click();
-        await updateSystemPromise;
+    // Image should now be visible in the preview circle
+    await expect(page.locator('img[alt="Avatar"]')).toBeVisible();
 
-        // Re-open settings and test clearing the avatar
-        await page.getByTestId('system-settings-button').click();
-        await expect(page.getByTestId('system-settings-title')).toBeVisible();
+    const createMemberPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/members') && response.status() === 201,
+    );
+    await page.getByTestId('save-member-button').click();
+    await createMemberPromise;
 
-        await expect(page.locator('img[alt="System Avatar"]')).toBeVisible();
-        await page.locator('button[title="Clear System Avatar"]').click();
-        await expect(page.locator('img[alt="System Avatar"]')).not.toBeVisible();
+    // 3. Settings & Account Links
+    await page.getByTestId('system-settings-button').click();
+    await expect(page.getByTestId('system-settings-title')).toBeVisible();
 
-        const updateSystemClearPromise = page.waitForResponse(response => response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200);
-        await page.getByTestId('save-system-settings-button').click();
-        await updateSystemClearPromise;
+    // Update System Profile (Description and Avatar)
+    const descInput = page.locator('textarea[name="description"]');
+    await expect(descInput).toBeVisible();
+    await descInput.fill('My awesome test system');
 
-        // Re-open settings to continue with links
-        await page.getByTestId('system-settings-button').click();
-        await expect(page.getByTestId('system-settings-title')).toBeVisible();
+    const systemAvatarUploadPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/media/upload') && response.status() === 200,
+    );
+    await page.locator('[data-testid="system-avatar-upload"]').setInputFiles(fixturePath);
+    await systemAvatarUploadPromise;
+    await expect(page.locator('img[alt="System Avatar"]')).toBeVisible();
 
-        // Add a new link
-        await page.getByTestId('new-link-input').fill(linkFullMxid);
-        
-        const addLinkPromise = page.waitForResponse(response => response.url().includes('/api/system/links'));
-        await page.getByTestId('add-link-button').click();
-        
-        const addLinkRes = await addLinkPromise;
-        console.log(`[UI-Settings-Test] Add Link Status: ${addLinkRes.status()}`);
-        if (addLinkRes.status() !== 201) {
-            console.error('[UI-Settings-Test] Add Link failed with body:', await addLinkRes.text());
-        }
-        expect(addLinkRes.status()).toBe(201);
+    const updateSystemPromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200,
+    );
+    await page.getByTestId('save-system-settings-button').click();
+    await updateSystemPromise;
 
-        // Verify link appeared (check for the text inside the list)
-        await expect(page.locator(`text=${linkFullMxid}`)).toBeVisible();
+    // Re-open settings and test clearing the avatar
+    await page.getByTestId('system-settings-button').click();
+    await expect(page.getByTestId('system-settings-title')).toBeVisible();
 
-        // Set as primary
-        const setPrimaryPromise = page.waitForResponse(response => response.url().includes('/api/system/links/primary') && response.status() === 200);
-        await page.getByTestId(`set-primary-${linkFullMxid}`).click();
-        await setPrimaryPromise;
+    await expect(page.locator('img[alt="System Avatar"]')).toBeVisible();
+    await page.locator('button[title="Clear System Avatar"]').click();
+    await expect(page.locator('img[alt="System Avatar"]')).not.toBeVisible();
 
-        // Remove link
-        page.on('dialog', dialog => dialog.accept());
-        const removeLinkPromise = page.waitForResponse(response => response.url().includes('/api/system/links') && response.status() === 200);
-        await page.getByTestId(`remove-link-${linkFullMxid}`).click();
-        await removeLinkPromise;
+    const updateSystemClearPromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/system') && response.request().method() === 'PATCH' && response.status() === 200,
+    );
+    await page.getByTestId('save-system-settings-button').click();
+    await updateSystemClearPromise;
 
-        await expect(page.locator(`text=${linkFullMxid}`)).not.toBeVisible();
+    // Re-open settings to continue with links
+    await page.getByTestId('system-settings-button').click();
+    await expect(page.getByTestId('system-settings-title')).toBeVisible();
 
-        // 4. Dead Letter Queue
-        // Intercept the API to return a mock dead letter instead of relying on the backend state
-        await page.route('**/api/system/dead_letters', async route => {
-            if (route.request().method() === 'GET') {
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify([{
-                        id: 'mock-dl-123',
-                        timestamp: Date.now(),
-                        roomId: '!mockroom:localhost',
-                        ghostUserId: '@_plural_ui_set_mock_ghost:localhost',
-                        plaintext: 'This message failed to send due to an error.',
-                        errorReason: 'Forbidden: Cannot join room'
-                    }])
-                });
-            } else if (route.request().method() === 'DELETE') {
-                await route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' });
-            } else {
-                await route.continue();
-            }
+    // Add a new link
+    await page.getByTestId('new-link-input').fill(linkFullMxid);
+
+    const addLinkPromise = page.waitForResponse((response) => response.url().includes('/api/system/links'));
+    await page.getByTestId('add-link-button').click();
+
+    const addLinkRes = await addLinkPromise;
+    console.log(`[UI-Settings-Test] Add Link Status: ${addLinkRes.status()}`);
+    if (addLinkRes.status() !== 201) {
+      console.error('[UI-Settings-Test] Add Link failed with body:', await addLinkRes.text());
+    }
+    expect(addLinkRes.status()).toBe(201);
+
+    // Verify link appeared (check for the text inside the list)
+    await expect(page.locator(`text=${linkFullMxid}`)).toBeVisible();
+
+    // Set as primary
+    const setPrimaryPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/system/links/primary') && response.status() === 200,
+    );
+    await page.getByTestId(`set-primary-${linkFullMxid}`).click();
+    await setPrimaryPromise;
+
+    // Remove link
+    page.on('dialog', (dialog) => dialog.accept());
+    const removeLinkPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/system/links') && response.status() === 200,
+    );
+    await page.getByTestId(`remove-link-${linkFullMxid}`).click();
+    await removeLinkPromise;
+
+    await expect(page.locator(`text=${linkFullMxid}`)).not.toBeVisible();
+
+    // 4. Dead Letter Queue
+    // Intercept the API to return a mock dead letter instead of relying on the backend state
+    await page.route('**/api/system/dead_letters', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'mock-dl-123',
+              timestamp: Date.now(),
+              roomId: '!mockroom:localhost',
+              ghostUserId: '@_plural_ui_set_mock_ghost:localhost',
+              plaintext: 'This message failed to send due to an error.',
+              errorReason: 'Forbidden: Cannot join room',
+            },
+          ]),
         });
-
-        await page.getByTestId('open-dlq-button').click();
-        await expect(page.getByTestId('dlq-modal-title')).toBeVisible();
-        
-        // The mock dead letter should be visible in the list
-        await expect(page.locator('text=This message failed to send due to an error.')).toBeVisible();
-        await expect(page.locator('text=Forbidden')).toBeVisible();
-
-        // Click the item to view details
-        await page.getByTestId('dlq-item-mock-dl-123').click();
-        
-        // Verify details view
-        await expect(page.locator('text=Message Recovery')).toBeVisible();
-        await expect(page.locator('text=Forbidden: Cannot join room')).toBeVisible();
-        
-        // Use a more specific locator for the textarea content
-        const textarea = page.locator('textarea[readonly]');
-        await expect(textarea).toHaveValue('This message failed to send due to an error.');
-
-        // Test copy action
-        await page.getByTestId('dlq-copy-button').click();
-        await expect(page.locator('text=Copied!')).toBeVisible();
-
-        // Verify clipboard content
-        const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-        expect(clipboardText).toBe('This message failed to send due to an error.');
-
-        // Close details view
-        await page.getByTestId('dlq-detail-done-button').click();
-
-        // Test deletion from the list view
-        const deletePromise = page.waitForResponse(response => 
-            response.url().includes('/api/system/dead_letters/mock-dl-123') && 
-            response.request().method() === 'DELETE'
-        );
-        await page.getByTestId('dlq-delete-mock-dl-123').click();
-        await deletePromise;
-        
-        // Verify it disappeared from the list
-        await expect(page.locator('text=This message failed to send due to an error.')).not.toBeVisible();
-
-        await page.getByTestId('dlq-close-button').click();
-        
-        // Ensure the main settings modal is also closed before trying to interact with the dashboard
-        await page.getByTestId('close-settings-button').click();
-
-        // 5. Logout from Dashboard
-        console.log('[UI-Settings-Test] Starting Step 5: LOGOUT FROM DASHBOARD');
-        await page.getByTestId('dashboard-logout-button').click();
-        await expect(page).toHaveURL(/\/login/);
-        await expect(page.getByTestId('login-submit-button')).toBeVisible();
-
-        console.log('[UI-Settings-Test] Success!');
+      } else if (route.request().method() === 'DELETE') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' });
+      } else {
+        await route.continue();
+      }
     });
 
-    test('Closing settings immediately after opening should not prompt for unsaved changes', async ({ page }) => {
-        const testUser = `ui_set_user2_${Math.random().toString(36).substring(7)}`;
-        const testFullMxid = await registerUser(testUser, password);
-        const client = await getMatrixClient(testUser, password);
-        const testToken = client.accessToken;
-        client.stop();
+    await page.getByTestId('open-dlq-button').click();
+    await expect(page.getByTestId('dlq-modal-title')).toBeVisible();
 
-        page.on('console', msg => console.log(`[Browser] ${msg.text()}`));
-        // 1. Log in
-        await page.goto('/login');
-        await page.getByTestId('login-mxid-input').fill(testFullMxid);
-        await page.getByTestId('login-password-input').fill(password);
-        
-        await page.getByTestId('login-submit-button').click();
-        await page.waitForURL(/\/setup/);
+    // The mock dead letter should be visible in the list
+    await expect(page.locator('text=This message failed to send due to an error.')).toBeVisible();
+    await expect(page.locator('text=Forbidden')).toBeVisible();
 
-        await page.getByTestId('create-system-button').click();
-        await page.getByTestId('acknowledge-warning-button').click();
-        await page.waitForURL(/\/s\/[a-z0-9-]+/);
+    // Click the item to view details
+    await page.getByTestId('dlq-item-mock-dl-123').click();
 
-        // Track dialogs to ensure none are triggered
-        let dialogTriggered = false;
-        page.on('dialog', async dialog => {
-            dialogTriggered = true;
-            await dialog.accept();
-        });
+    // Verify details view
+    await expect(page.locator('text=Message Recovery')).toBeVisible();
+    await expect(page.locator('text=Forbidden: Cannot join room')).toBeVisible();
 
-        // 2. Open settings
-        await page.getByTestId('system-settings-button').click();
-        await expect(page.getByTestId('system-settings-title')).toBeVisible();
+    // Use a more specific locator for the textarea content
+    const textarea = page.locator('textarea[readonly]');
+    await expect(textarea).toHaveValue('This message failed to send due to an error.');
 
-        // 3. Close immediately
-        await page.getByTestId('close-settings-button').click();
+    // Test copy action
+    await page.getByTestId('dlq-copy-button').click();
+    await expect(page.locator('text=Copied!')).toBeVisible();
 
-        // 4. Verify no dialog was triggered and modal closed
-        expect(dialogTriggered).toBe(false);
-        await expect(page.getByTestId('system-settings-title')).not.toBeVisible();
+    // Verify clipboard content
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText).toBe('This message failed to send due to an error.');
 
-        // Cleanup
-        await deactivateUser(testFullMxid, testToken);
-        cleanupCryptoStorage(testUser);
+    // Close details view
+    await page.getByTestId('dlq-detail-done-button').click();
+
+    // Test deletion from the list view
+    const deletePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/system/dead_letters/mock-dl-123') && response.request().method() === 'DELETE',
+    );
+    await page.getByTestId('dlq-delete-mock-dl-123').click();
+    await deletePromise;
+
+    // Verify it disappeared from the list
+    await expect(page.locator('text=This message failed to send due to an error.')).not.toBeVisible();
+
+    await page.getByTestId('dlq-close-button').click();
+
+    // Ensure the main settings modal is also closed before trying to interact with the dashboard
+    await page.getByTestId('close-settings-button').click();
+
+    // 5. Logout from Dashboard
+    console.log('[UI-Settings-Test] Starting Step 5: LOGOUT FROM DASHBOARD');
+    await page.getByTestId('dashboard-logout-button').click();
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByTestId('login-submit-button')).toBeVisible();
+
+    console.log('[UI-Settings-Test] Success!');
+  });
+
+  test('Closing settings immediately after opening should not prompt for unsaved changes', async ({ page }) => {
+    const testUser = `ui_set_user2_${Math.random().toString(36).substring(7)}`;
+    const testFullMxid = await registerUser(testUser, password);
+    const client = await getMatrixClient(testUser, password);
+    const testToken = client.accessToken;
+    client.stop();
+
+    page.on('console', (msg) => console.log(`[Browser] ${msg.text()}`));
+    // 1. Log in
+    await page.goto('/login');
+    await page.getByTestId('login-mxid-input').fill(testFullMxid);
+    await page.getByTestId('login-password-input').fill(password);
+
+    await page.getByTestId('login-submit-button').click();
+    await page.waitForURL(/\/setup/);
+
+    await page.getByTestId('create-system-button').click();
+    await page.getByTestId('acknowledge-warning-button').click();
+    await page.waitForURL(/\/s\/[a-z0-9-]+/);
+
+    // Track dialogs to ensure none are triggered
+    let dialogTriggered = false;
+    page.on('dialog', async (dialog) => {
+      dialogTriggered = true;
+      await dialog.accept();
     });
+
+    // 2. Open settings
+    await page.getByTestId('system-settings-button').click();
+    await expect(page.getByTestId('system-settings-title')).toBeVisible();
+
+    // 3. Close immediately
+    await page.getByTestId('close-settings-button').click();
+
+    // 4. Verify no dialog was triggered and modal closed
+    expect(dialogTriggered).toBe(false);
+    await expect(page.getByTestId('system-settings-title')).not.toBeVisible();
+
+    // Cleanup
+    await deactivateUser(testFullMxid, testToken);
+    cleanupCryptoStorage(testUser);
+  });
 });

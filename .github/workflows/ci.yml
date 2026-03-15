@@ -94,11 +94,11 @@ jobs:
           ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
           SCCACHE_GHA_ENABLED: "on"
         run: |
+          ./restart-stack.sh
           sudo chown -R 991:991 synapse/config 2>/dev/null || true
-          # Boot with relaxed rate limits for testing
+          # Restart Synapse with relaxed rate limits for testing
           sudo docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d synapse
           until [ "$(sudo docker inspect -f '{{.State.Health.Status}}' pluralmatrix-synapse)" == "healthy" ]; do echo -n "."; sleep 2; done
-          ./restart-stack.sh
 
       - name: Run Synapse Module Unit Tests
         run: |
@@ -149,16 +149,11 @@ jobs:
           ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
           SCCACHE_GHA_ENABLED: "on"
         run: |
+          ./restart-stack.sh
           sudo chown -R 991:991 synapse/config 2>/dev/null || true
-          # Boot with relaxed rate limits for E2E
+          # Restart Synapse with relaxed rate limits for E2E
           sudo docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d synapse
           until [ "$(sudo docker inspect -f '{{.State.Health.Status}}' pluralmatrix-synapse)" == "healthy" ]; do echo -n "."; sleep 2; done
-          ./restart-stack.sh
-
-      - name: Install Playwright Browsers
-        run: |
-          cd app-service
-          npx playwright install --with-deps
 
       - name: Regenerate Prisma Client
         run: |
@@ -173,7 +168,7 @@ jobs:
       - name: Run UI Tests (Playwright)
         run: |
           cd app-service
-          npx playwright test
+          sudo docker run --rm --network host --ipc=host -v "$(pwd)/..:/app" -w /app/app-service mcr.microsoft.com/playwright:v1.58.2-jammy npx playwright test
         
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4

@@ -3,6 +3,9 @@ import { prisma } from './bot';
 import { PassThrough } from 'stream';
 import AdmZip from 'adm-zip';
 import * as importModule from './import';
+import { createMockMember, createMockSystem } from './test/factories';
+import { Member } from '@prisma/client';
+import { SystemWithRelations } from './types';
 
 // Stable mocks for deep nesting
 const mockBotClient = {
@@ -100,19 +103,19 @@ describe('PluralKit Roundtrip', () => {
             ]
         };
 
-        let savedSystem: Partial<import('@prisma/client').System> = {};
-        const savedMembers: Partial<import('@prisma/client').Member>[] = [];
+        let savedSystem: SystemWithRelations = createMockSystem();
+        const savedMembers: Member[] = [];
 
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 
         (prisma.system.create as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
-            savedSystem = { ...args.data, id: 'sys-uuid', createdAt: new Date() } as Partial<import('@prisma/client').System>;
+            savedSystem = createMockSystem({ ...args.data, id: 'sys-uuid', createdAt: new Date() } as unknown as Partial<SystemWithRelations>);
             return Promise.resolve(savedSystem);
         });
 
         (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
-            const member = { ...args.create, id: 'mock-uuid', createdAt: new Date() } as Partial<import('@prisma/client').Member>;
+            const member = createMockMember({ ...args.create, id: 'mock-uuid', createdAt: new Date() } as unknown as Partial<Member>);
             savedMembers.push(member);
             return Promise.resolve(member);
         });
@@ -164,19 +167,19 @@ describe('PluralKit Roundtrip', () => {
             ]
         };
 
-        let savedSystem: Partial<import('@prisma/client').System> = {};
-        const savedMembers: Partial<import('@prisma/client').Member>[] = [];
+        let savedSystem: SystemWithRelations = createMockSystem();
+        const savedMembers: Member[] = [];
 
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 
         (prisma.system.create as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
-            savedSystem = { ...args.data, id: 'sys-uuid', createdAt: new Date() } as Partial<import('@prisma/client').System>;
+            savedSystem = createMockSystem({ ...args.data, id: 'sys-uuid', createdAt: new Date() } as unknown as Partial<SystemWithRelations>);
             return Promise.resolve(savedSystem);
         });
 
         (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
-            const member = { ...args.create, id: 'mem-uuid', createdAt: new Date() } as Partial<import('@prisma/client').Member>;
+            const member = createMockMember({ ...args.create, id: 'mem-uuid', createdAt: new Date() } as unknown as Partial<Member>);
             savedMembers.push(member);
             return Promise.resolve(member);
         });

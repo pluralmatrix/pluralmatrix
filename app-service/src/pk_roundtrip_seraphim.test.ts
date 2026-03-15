@@ -3,7 +3,9 @@ import { prisma } from './bot';
 import * as importModule from './import';
 import fs from 'fs';
 import path from 'path';
-import { PKExport } from './types';
+import { PKExport, SystemWithRelations } from './types';
+import { Member } from '@prisma/client';
+import { createMockMember, createMockSystem } from './test/factories';
 
 // Mock fetch globally
 (global as unknown as { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({
@@ -93,45 +95,45 @@ describe('Seraphim PK Roundtrip', () => {
         const originalJson = JSON.parse(fs.readFileSync(dumpPath, 'utf8')) as PKExport;
 
         // State for our mock DB
-        let storedSystem: Partial<import('@prisma/client').System> = {
+        let storedSystem: SystemWithRelations = createMockSystem({
             id: 'mock-sys-uuid',
             slug: 'mock-slug',
             createdAt: new Date(),
             updatedAt: new Date()
-        };
-        const storedMembers: Map<string, Partial<import('@prisma/client').Member>> = new Map();
+        });
+        const storedMembers: Map<string, Member> = new Map();
 
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 
         (prisma.system.create as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
-            storedSystem = { 
+            storedSystem = createMockSystem({ 
                 ...storedSystem,
                 ...args.data,
-            } as Partial<import('@prisma/client').System>;
+            } as unknown as Partial<SystemWithRelations>);
             return Promise.resolve(storedSystem);
         });
 
         (prisma.system.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.SystemCreateInput, where: { slug: string } }) => {
-            storedSystem = { 
+            storedSystem = createMockSystem({ 
                 ...storedSystem,
                 ...(args.create || {}),
                 slug: args.create?.slug || args.where?.slug || storedSystem.slug,
-            } as Partial<import('@prisma/client').System>;
+            } as unknown as Partial<SystemWithRelations>);
             return Promise.resolve(storedSystem);
         });
 
         (prisma.system.update as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemUpdateInput }) => {
-            storedSystem = { ...storedSystem, ...args.data } as Partial<import('@prisma/client').System>;
+            storedSystem = createMockSystem({ ...storedSystem, ...args.data } as unknown as Partial<SystemWithRelations>);
             return Promise.resolve(storedSystem);
         });
 
         (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
-            const member = { 
+            const member = createMockMember({ 
                 id: `mock-mem-uuid-${(args.create?.pkId as string) || Math.random()}`,
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 ...args.create,
-            } as Partial<import('@prisma/client').Member>;
+            } as unknown as Partial<Member>);
             storedMembers.set(member.slug as string, member);
             return Promise.resolve(member);
         });

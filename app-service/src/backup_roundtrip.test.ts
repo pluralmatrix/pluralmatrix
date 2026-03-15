@@ -2,6 +2,9 @@ import { exportSystemZip, importSystemZip } from './import';
 import { prisma } from './bot';
 import { PassThrough } from 'stream';
 import * as importModule from './import';
+import { createMockMember, createMockSystem } from './test/factories';
+import { Member } from '@prisma/client';
+import { SystemWithRelations } from './types';
 
 const mockBotClient = {
     uploadContent: jest.fn().mockResolvedValue('mxc://new/avatar')
@@ -101,16 +104,16 @@ describe('PluralMatrix Backup Roundtrip', () => {
                 }
             }); // 2. importAvatarsZip call
 
-        let savedSystem: Partial<import('@prisma/client').System>;
-        let savedMember: Partial<import('@prisma/client').Member>;
+        let savedSystem: SystemWithRelations;
+        let savedMember: Member;
 
         (prisma.system.create as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
-            savedSystem = { ...args.data, id: 'new-sys-id' } as Partial<import('@prisma/client').System>;
+            savedSystem = createMockSystem({ ...args.data, id: 'new-sys-id' } as unknown as Partial<SystemWithRelations>);
             return Promise.resolve(savedSystem);
         });
 
         (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
-            savedMember = { ...args.create, id: 'new-mem-id' } as Partial<import('@prisma/client').Member>;
+            savedMember = createMockMember({ ...args.create, id: 'new-mem-id' } as unknown as Partial<Member>);
             return Promise.resolve(savedMember);
         });
 

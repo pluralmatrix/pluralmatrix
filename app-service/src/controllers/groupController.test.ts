@@ -72,7 +72,7 @@ describe('Group Controller', () => {
             const res = await request(app).get('/groups');
 
             expect(res.status).toBe(500);
-            expect(res.body.error).toBe('Failed to fetch groups');
+            expect((res.body as { error: string }).error).toBe('Failed to fetch groups');
         });
     });
 
@@ -91,11 +91,11 @@ describe('Group Controller', () => {
                 .send({ name: 'New Group', slug: 'new-group', members: ['mem1'] });
 
             expect(res.status).toBe(201);
-            expect(prisma.group.create).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.group, 'create')).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({ 
                     name: 'New Group',
                     members: { connect: [{ id: 'mem1' }] }
-                })
+                }) as unknown
             }));
             expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
         });
@@ -114,11 +114,11 @@ describe('Group Controller', () => {
                 .send({ name: 'New Group', slug: 'new-group' });
 
             expect(res.status).toBe(201);
-            expect(prisma.group.create).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.group, 'create')).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({ 
                     name: 'New Group',
                     members: undefined
-                })
+                }) as unknown
             }));
         });
 
@@ -130,7 +130,7 @@ describe('Group Controller', () => {
                 .send({ name: 'New Group', slug: 'new-group' });
 
             expect(res.status).toBe(404);
-            expect(res.body.error).toBe('System not found');
+            expect((res.body as { error: string }).error).toBe('System not found');
         });
 
         it('should handle unexpected errors', async () => {
@@ -141,7 +141,7 @@ describe('Group Controller', () => {
                 .send({ name: 'New Group', slug: 'new-group' });
 
             expect(res.status).toBe(500);
-            expect(res.body.error).toBe('Failed to create group');
+            expect((res.body as { error: string }).error).toBe('Failed to create group');
         });
 
         it('should validate inputs', async () => {
@@ -150,7 +150,7 @@ describe('Group Controller', () => {
                 .send({ name: '' }); // Invalid name
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toBe('Invalid input format');
+            expect((res.body as { error: string }).error).toBe('Invalid input format');
         });
     });
 
@@ -170,12 +170,12 @@ describe('Group Controller', () => {
                 .send({ name: 'Updated Name', slug: 'updated-name', members: ['mem2'] });
 
             expect(res.status).toBe(200);
-            expect(prisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.group, 'update')).toHaveBeenCalledWith(expect.objectContaining({
                 where: { id: 'g1' },
                 data: expect.objectContaining({ 
                     name: 'Updated Name',
                     members: { set: [{ id: 'mem2' }] }
-                })
+                }) as unknown
             }));
             expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
         });
@@ -195,12 +195,12 @@ describe('Group Controller', () => {
                 .send({ name: 'Updated Name', slug: 'updated-name' });
 
             expect(res.status).toBe(200);
-            expect(prisma.group.update).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.group, 'update')).toHaveBeenCalledWith(expect.objectContaining({
                 where: { id: 'g1' },
                 data: expect.objectContaining({ 
                     name: 'Updated Name',
                     members: undefined
-                })
+                }) as unknown
             }));
         });
 
@@ -212,7 +212,7 @@ describe('Group Controller', () => {
                 .send({ name: 'Updated Name', slug: 'updated-name' });
 
             expect(res.status).toBe(403);
-            expect(res.body.error).toBe('Forbidden');
+            expect((res.body as { error: string }).error).toBe('Forbidden');
         });
 
         it('should return 404 if group not found', async () => {
@@ -224,7 +224,7 @@ describe('Group Controller', () => {
                 .send({ name: 'Updated Name', slug: 'updated-name' });
 
             expect(res.status).toBe(404);
-            expect(res.body.error).toBe('Group not found');
+            expect((res.body as { error: string }).error).toBe('Group not found');
         });
 
         it('should handle validation errors', async () => {
@@ -233,7 +233,7 @@ describe('Group Controller', () => {
                 .send({ name: '' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toBe('Invalid input format');
+            expect((res.body as { error: string }).error).toBe('Invalid input format');
         });
 
         it('should handle unexpected errors', async () => {
@@ -244,7 +244,7 @@ describe('Group Controller', () => {
                 .send({ name: 'Updated Name', slug: 'updated-name' });
 
             expect(res.status).toBe(500);
-            expect(res.body.error).toBe('Failed to update group');
+            expect((res.body as { error: string }).error).toBe('Failed to update group');
         });
     });
 
@@ -258,7 +258,7 @@ describe('Group Controller', () => {
             const res = await request(app).delete('/groups/g1');
 
             expect(res.status).toBe(204);
-            expect(prisma.group.delete).toHaveBeenCalledWith({ where: { id: 'g1' } });
+            expect(jest.spyOn(prisma.group, 'delete')).toHaveBeenCalledWith({ where: { id: 'g1' } });
             expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
         });
 
@@ -268,7 +268,7 @@ describe('Group Controller', () => {
             const res = await request(app).delete('/groups/g1');
 
             expect(res.status).toBe(403);
-            expect(res.body.error).toBe('Forbidden');
+            expect((res.body as { error: string }).error).toBe('Forbidden');
         });
 
         it('should return 404 if group not found', async () => {
@@ -280,7 +280,7 @@ describe('Group Controller', () => {
             const res = await request(app).delete('/groups/g1');
 
             expect(res.status).toBe(404);
-            expect(prisma.group.delete).not.toHaveBeenCalled();
+            expect(jest.spyOn(prisma.group, 'delete')).not.toHaveBeenCalled();
         });
 
         it('should handle unexpected errors', async () => {
@@ -289,7 +289,7 @@ describe('Group Controller', () => {
             const res = await request(app).delete('/groups/g1');
 
             expect(res.status).toBe(500);
-            expect(res.body.error).toBe('Failed to delete group');
+            expect((res.body as { error: string }).error).toBe('Failed to delete group');
         });
     });
 });

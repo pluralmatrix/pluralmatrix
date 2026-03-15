@@ -37,8 +37,10 @@ export const checkMessage = async (req: Request, res: Response) => {
                 try {
                     const decrypted = await machine.decryptRoomEvent(JSON.stringify(fullEncryptedEvent), rustRoomId);
                     if (decrypted.event) {
-                        const parsed = JSON.parse(decrypted.event);
-                        content = parsed.content;
+                        const parsed = JSON.parse(decrypted.event) as { content?: PluralMatrixEventContent };
+                        if (parsed.content) {
+                            content = parsed.content;
+                        }
                         break;
                     }
                 } catch (decErr: unknown) {

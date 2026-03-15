@@ -62,7 +62,7 @@ describe('GatekeeperController', () => {
         } as Request;
 
         await checkMessage(req, mockRes as unknown as Response);
-        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
+        expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
     it('should ALLOW if the body starts with a backslash', async () => {
@@ -73,7 +73,7 @@ describe('GatekeeperController', () => {
         } as Request;
 
         await checkMessage(req, mockRes as unknown as Response);
-        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
+        expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
     it('should BLOCK and trigger proxy if unencrypted match is found', async () => {
@@ -84,10 +84,10 @@ describe('GatekeeperController', () => {
         } as unknown as Request;
 
         await checkMessage(req, mockRes as unknown as Response);
-        expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+        expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'BLOCK' });
         expect(sendGhostMessage).toHaveBeenCalledWith(expect.objectContaining({
             cleanContent: 'Hello',
-            member: expect.objectContaining({ slug: 'lily' })
+            member: expect.objectContaining({ slug: 'lily' }) as unknown
         }));
     });
 
@@ -100,7 +100,7 @@ describe('GatekeeperController', () => {
         } as unknown as Request;
 
         await checkMessage(req, mockRes as unknown as Response);
-        expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+        expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'BLOCK' });
         expect(sendGhostMessage).toHaveBeenCalled();
     });
 
@@ -125,7 +125,7 @@ describe('GatekeeperController', () => {
         });
 
         await checkMessage(req, mockRes as unknown as Response);
-        expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
+        expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'BLOCK' });
         // Should NOT trigger proxy here, bot.ts will do it
         expect(sendGhostMessage).not.toHaveBeenCalled();
     });
@@ -139,8 +139,8 @@ describe('GatekeeperController', () => {
             } as unknown as Request;
 
             await checkMessage(req, mockRes as unknown as Response);
-            expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
-            expect(commandHandler.executeTargetingCommand).toHaveBeenCalled();
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'BLOCK' });
+            expect(jest.spyOn(commandHandler, 'executeTargetingCommand')).toHaveBeenCalled();
         });
 
         it('should BLOCK and trigger executeTargetingCommand for unencrypted pk;rp', async () => {
@@ -151,8 +151,8 @@ describe('GatekeeperController', () => {
             } as unknown as Request;
 
             await checkMessage(req, mockRes as unknown as Response);
-            expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
-            expect(commandHandler.executeTargetingCommand).toHaveBeenCalled();
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'BLOCK' });
+            expect(jest.spyOn(commandHandler, 'executeTargetingCommand')).toHaveBeenCalled();
         });
 
         it('should BLOCK but NOT trigger executeTargetingCommand for ENCRYPTED pk;edit (bot sync handles it)', async () => {
@@ -175,8 +175,8 @@ describe('GatekeeperController', () => {
             });
 
             await checkMessage(req, mockRes as unknown as Response);
-            expect(mockRes.json).toHaveBeenCalledWith({ action: 'BLOCK' });
-            expect(commandHandler.executeTargetingCommand).not.toHaveBeenCalled();
+            expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'BLOCK' });
+            expect(jest.spyOn(commandHandler, 'executeTargetingCommand')).not.toHaveBeenCalled();
         });
     });
 
@@ -186,7 +186,7 @@ describe('GatekeeperController', () => {
         } as Request;
 
         await checkMessage(req, mockRes as unknown as Response);
-        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
+        expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
     it('should ALLOW if E2EE decryption fails completely after retries', async () => {
@@ -205,7 +205,7 @@ describe('GatekeeperController', () => {
         });
 
         await checkMessage(req, mockRes as unknown as Response);
-        expect(mockRes.json).toHaveBeenCalledWith({ action: 'ALLOW' });
+        expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({ action: 'ALLOW' });
     });
 
     it('should update latch autoproxy if configured and tag is used', async () => {
@@ -223,12 +223,12 @@ describe('GatekeeperController', () => {
         // Wait a tick for async background task
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(prisma.system.update).toHaveBeenCalledWith({
+        expect(jest.spyOn(prisma.system, 'update')).toHaveBeenCalledWith({
             where: { id: 'sys1' },
             data: { autoproxyId: 'm1' }
         });
-        expect(proxyCache.invalidate).toHaveBeenCalledWith('@alice:localhost');
-        expect(emitSystemUpdate).toHaveBeenCalledWith('@alice:localhost');
+        expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@alice:localhost');
+        expect(jest.mocked(emitSystemUpdate)).toHaveBeenCalledWith('@alice:localhost');
     });
 
     it('should handle edit events and fetch original event', async () => {

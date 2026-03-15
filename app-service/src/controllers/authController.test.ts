@@ -31,15 +31,19 @@ jest.mock('../services/cache', () => ({
 describe('AuthController - login', () => {
     let mockReq: import('express').Request;
     let mockRes: import('express').Response;
+    let jsonMock: jest.Mock;
+    let statusMock: jest.Mock;
 
     beforeEach(() => {
         jest.clearAllMocks();
         mockReq = {
             body: { mxid: '@alice:localhost', password: 'password' }
         } as unknown as import('express').Request;
+        jsonMock = jest.fn();
+        statusMock = jest.fn().mockReturnThis();
         mockRes = {
-            json: jest.fn(),
-            status: jest.fn().mockReturnThis()
+            json: jsonMock,
+            status: statusMock
         } as unknown as import('express').Response;
     });
 
@@ -49,24 +53,24 @@ describe('AuthController - login', () => {
 
         await login(mockReq, mockRes);
 
-        expect(prisma.system.create).not.toHaveBeenCalled();
-        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
+        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
             token: 'mock_token',
             hasSystem: true
         }));
     });
 
     it('should auto-format mxid if missing @ or domain', async () => {
-        mockReq.body.mxid = 'ALICE';
+        (mockReq.body as { mxid: string }).mxid = 'ALICE';
         (auth.loginToMatrix as jest.Mock).mockResolvedValue(true);
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue({ id: "link1" });
 
         await login(mockReq, mockRes);
 
-        expect(prisma.accountLink.findUnique).toHaveBeenCalledWith({
+        expect(jest.spyOn(prisma.accountLink, 'findUnique')).toHaveBeenCalledWith({
             where: { matrixId: '@alice:localhost' }
         });
-        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
             mxid: '@alice:localhost'
         }));
     });
@@ -77,8 +81,8 @@ describe('AuthController - login', () => {
 
         await login(mockReq, mockRes);
 
-        expect(prisma.system.create).not.toHaveBeenCalled();
-        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        expect(jest.spyOn(prisma.system, 'create')).not.toHaveBeenCalled();
+        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
             token: 'mock_token',
             hasSystem: false
         }));
@@ -89,8 +93,8 @@ describe('AuthController - login', () => {
 
         await login(mockReq, mockRes);
 
-        expect(mockRes.status).toHaveBeenCalledWith(401);
-        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid Matrix credentials' });
+        expect(statusMock).toHaveBeenCalledWith(401);
+        expect(jsonMock).toHaveBeenCalledWith({ error: 'Invalid Matrix credentials' });
     });
 
     it('should return 400 for invalid inputs', async () => {
@@ -98,8 +102,8 @@ describe('AuthController - login', () => {
 
         await login(mockReq, mockRes);
 
-        expect(mockRes.status).toHaveBeenCalledWith(400);
-        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid input format' }));
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid input format' }));
     });
 
     it('should return 500 on unexpected errors', async () => {
@@ -107,8 +111,8 @@ describe('AuthController - login', () => {
 
         await login(mockReq, mockRes);
 
-        expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        expect(statusMock).toHaveBeenCalledWith(500);
+        expect(jsonMock).toHaveBeenCalledWith({ error: 'Internal server error' });
     });
 });
 
@@ -117,10 +121,11 @@ import { me } from './authController';
 describe('AuthController - me', () => {
     it('should return req.user', () => {
         const mockReq = { user: { mxid: '@test:localhost' } } as Partial<import('express').Request> as import('express').Request;
-        const mockRes = { json: jest.fn() } as unknown as import('express').Response;
+        const jsonMockMe = jest.fn();
+        const mockRes = { json: jsonMockMe } as unknown as import('express').Response;
 
         me(mockReq, mockRes);
 
-        expect(mockRes.json).toHaveBeenCalledWith({ user: { mxid: '@test:localhost' } });
+        expect(jsonMockMe).toHaveBeenCalledWith({ user: { mxid: '@test:localhost' } });
     });
 });

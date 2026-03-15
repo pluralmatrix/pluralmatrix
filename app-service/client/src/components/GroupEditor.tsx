@@ -5,23 +5,11 @@ import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
 import { useDirtyState } from '../hooks/useDirtyState';
 import PrivacyToggle from './PrivacyToggle';
-
-interface GroupData {
-  id: string;
-  slug: string;
-  name: string;
-  displayName?: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  members?: unknown[];
-  privacy?: Record<string, string>;
-  [key: string]: unknown;
-}
+import type { SystemGroup, SystemMember } from '../types';
 
 interface GroupEditorProps {
-  group?: GroupData;
-  systemMembers: { id: string; name: string; [key: string]: unknown }[];
+  group?: Partial<SystemGroup>;
+  systemMembers: SystemMember[];
   isReadOnly?: boolean;
   onSave: () => void;
   onCancel: () => void;
@@ -118,7 +106,7 @@ const GroupEditor: React.FC<GroupEditorProps> = ({ group, systemMembers, isReadO
       if (isNew) {
         await groupService.create(payload);
       } else {
-        await groupService.update(group.id, payload);
+        await groupService.update(group.id as string, payload);
       }
       onSave();
     } catch (err: unknown) {

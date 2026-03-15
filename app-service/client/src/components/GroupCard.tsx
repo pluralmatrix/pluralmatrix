@@ -2,22 +2,12 @@ import React, { useRef, useState } from 'react';
 import { Edit2, Trash2, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getAvatarUrl } from '../utils/matrix';
-
-interface GroupData {
-  id: string;
-  slug: string;
-  name: string;
-  displayName?: string;
-  description?: string;
-  icon?: string;
-  members?: unknown[];
-  [key: string]: unknown;
-}
+import type { SystemGroup } from '../types';
 
 interface GroupCardProps {
-  group: GroupData;
+  group: SystemGroup;
   isReadOnly?: boolean;
-  onEdit?: (group: GroupData) => void;
+  onEdit?: (group: SystemGroup) => void;
   onDelete?: (id: string) => void;
 }
 

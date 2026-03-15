@@ -21,6 +21,7 @@ export interface SystemGroup {
   description?: string | null;
   icon?: string | null;
   color?: string | null;
+  members?: { id: string; name: string; color?: string }[];
   privacy?: Record<string, string>;
   [key: string]: unknown;
 }

@@ -10,7 +10,7 @@ import { z } from 'zod';
 
 import { ensureUniqueSlug } from '../utils/slug';
 import { maskMxid } from '../utils/privacy';
-import { Prisma } from '@prisma/client';
+import { Prisma, Member } from '@prisma/client';
 import { getSystemPrivacy, getMemberPrivacy } from '../types';
 
 export const streamSystemEvents = (req: AuthRequest, res: Response) => {
@@ -335,7 +335,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
     }
 
     // If the system slug is changing, we must decommission all old ghosts
-    let membersToMigrate: import('@prisma/client').Member[] = [];
+    let membersToMigrate: Member[] = [];
     if (slugChanged) {
       const systemWithMembers = await prisma.system.findUnique({
         where: { id: currentSystemId },

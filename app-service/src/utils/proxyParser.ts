@@ -77,8 +77,7 @@ export function parseProxyMatch(
   let wasAutoproxied = false;
   if (!matchFound && !rawBody.startsWith('\\')) {
     if (system.autoproxyMode === 'front') {
-      const switches = (system as unknown as { switches?: import('../types').SwitchWithMembers[] }).switches;
-      const latestSwitch = switches?.[0];
+      const latestSwitch = system.switches?.[0];
       if (latestSwitch && latestSwitch.members.length > 0) {
         const frontMemberId = latestSwitch.members[0]?.memberId;
         const autoMember = system.members.find((m) => m.id === frontMemberId);

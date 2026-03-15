@@ -1,4 +1,5 @@
 import { OlmMachine, UserId, DeviceId } from '@matrix-org/matrix-sdk-crypto-nodejs';
+import { Intent } from 'matrix-appservice-bridge';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Mutex } from 'async-mutex';
@@ -9,7 +10,7 @@ export class OlmMachineManager {
   private machines: Map<string, OlmMachine> = new Map();
   private locks: Map<string, Mutex> = new Map();
   private storageRoot: string;
-  private bridge: { getIntent: (userId: string) => import('matrix-appservice-bridge').Intent } | undefined;
+  private bridge: { getIntent: (userId: string) => Intent } | undefined;
   private asToken: string | undefined;
 
   constructor(storageRoot: string = './data/crypto') {
@@ -19,7 +20,7 @@ export class OlmMachineManager {
     }
   }
 
-  setContext(bridge: { getIntent: (userId: string) => import('matrix-appservice-bridge').Intent }, asToken: string) {
+  setContext(bridge: { getIntent: (userId: string) => Intent }, asToken: string) {
     this.bridge = bridge;
     this.asToken = asToken;
   }

@@ -5,25 +5,11 @@ import { getAvatarUrl } from '../utils/matrix';
 import { validateAvatarImage } from '../utils/imageValidation';
 import { useDirtyState } from '../hooks/useDirtyState';
 import PrivacyToggle from './PrivacyToggle';
-
-interface MemberData {
-  id?: string;
-  slug?: string;
-  name?: string;
-  displayName?: string;
-  pronouns?: string;
-  description?: string;
-  color?: string;
-  avatarUrl?: string;
-  proxyTags?: { prefix?: string; suffix?: string }[];
-  groups?: unknown[];
-  privacy?: Record<string, string>;
-  [key: string]: unknown;
-}
+import type { SystemMember, SystemGroup } from '../types';
 
 interface MemberEditorProps {
-  member?: MemberData;
-  systemGroups?: { id: string; name: string; [key: string]: unknown }[];
+  member?: Partial<SystemMember>;
+  systemGroups?: SystemGroup[];
   isReadOnly?: boolean;
   onSave: () => void;
   onCancel: () => void;

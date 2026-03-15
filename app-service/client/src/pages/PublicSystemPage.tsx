@@ -5,14 +5,15 @@ import MemberCard from '../components/MemberCard';
 import MemberEditor from '../components/MemberEditor';
 import { Search, LayoutGrid, List, Info, ArrowLeft, Loader2, Lock } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
+import type { SystemMember, PluralSystem } from '../types';
 
 const PublicSystemPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const [system, setSystem] = useState<Record<string, unknown> | null>(null);
+  const [system, setSystem] = useState<PluralSystem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [selectedMember, setSelectedMember] = useState<Record<string, unknown> | null>(null);
+  const [selectedMember, setSelectedMember] = useState<SystemMember | null>(null);
 
   useEffect(() => {
     const fetchPublicSystem = async () => {
@@ -32,8 +33,8 @@ const PublicSystemPage: React.FC = () => {
     fetchPublicSystem();
   }, [slug]);
 
-  const filteredMembers = ((system?.members as Record<string, unknown>[]) || []).filter(
-    (m: Record<string, unknown>) =>
+  const filteredMembers = ((system?.members as SystemMember[]) || []).filter(
+    (m: SystemMember) =>
       (typeof m.name === 'string' && m.name.toLowerCase().includes(search.toLowerCase())) ||
       (typeof m.slug === 'string' && m.slug.toLowerCase().includes(search.toLowerCase())),
   );
@@ -141,13 +142,13 @@ const PublicSystemPage: React.FC = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <AnimatePresence mode="popLayout">
-                {filteredMembers.map((member: Record<string, unknown>) => (
+                {filteredMembers.map((member: SystemMember) => (
                   <MemberCard
                     key={member.id as string}
                     member={member as unknown as React.ComponentProps<typeof MemberCard>['member']}
                     isReadOnly={true}
                     isAutoproxy={system.autoproxyId === member.id}
-                    onEdit={(m) => setSelectedMember(m as unknown as Record<string, unknown>)}
+                    onEdit={(m) => setSelectedMember(m as unknown as SystemMember)}
                     onDelete={() => {}}
                   />
                 ))}

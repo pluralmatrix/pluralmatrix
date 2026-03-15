@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { proxyCache } from './cache';
 import { emitSystemUpdate } from './events';
-import { SystemWithRelations, SwitchWithMembers } from '../types';
+import { SystemWithRelations } from '../types';
 
 /**
  * Applies the autoproxy latch and proxy autoswitch effects.
@@ -30,8 +30,7 @@ export async function applyProxyEffects(
 
     // 2. Proxy Autoswitch
     if (system.proxyAutoswitch === 'new' || system.proxyAutoswitch === 'add') {
-      const switches = (system as unknown as { switches?: SwitchWithMembers[] }).switches;
-      const latestSwitch = switches?.[0];
+      const latestSwitch = system.switches?.[0];
       const currentFront: string[] = latestSwitch ? latestSwitch.members.map((sm) => sm.memberId) : [];
 
       if (system.proxyAutoswitch === 'new') {

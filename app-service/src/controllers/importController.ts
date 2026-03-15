@@ -4,6 +4,7 @@ import { PluralKitImportSchema } from '../schemas/import';
 import { proxyCache } from '../services/cache';
 import { emitSystemUpdate } from '../services/events';
 import { prisma } from '../bot';
+import type { PKExport } from '../types';
 import {
   importFromPluralKit,
   generatePkJson,
@@ -25,7 +26,7 @@ const getExportFilename = async (mxid: string, prefix: string, ext: string) => {
 export const importPluralKit = async (req: AuthRequest, res: Response) => {
   try {
     const mxid = req.user!.mxid;
-    const jsonData = PluralKitImportSchema.parse(req.body) as import('../types').PKExport;
+    const jsonData = PluralKitImportSchema.parse(req.body) as PKExport;
     const result = await importFromPluralKit(mxid, jsonData);
     const { count, systemSlug, failedAvatars } = result;
     proxyCache.invalidate(mxid);

@@ -2,25 +2,13 @@ import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, MessageSquare, Info, Trash2, Edit3, Star } from 'lucide-react';
 import { getAvatarUrl } from '../utils/matrix';
-
-interface Member {
-  id: string;
-  slug: string;
-  name: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-  pronouns: string | null;
-  description: string | null;
-  color: string | null;
-  proxyTags: { prefix?: string; suffix?: string }[];
-  groups?: { id: string; name: string; color?: string }[];
-}
+import type { SystemMember } from '../types';
 
 interface MemberCardProps {
-  member: Member;
+  member: SystemMember;
   isAutoproxy?: boolean;
   isReadOnly?: boolean;
-  onEdit: (member: Member) => void;
+  onEdit: (member: SystemMember) => void;
   onDelete: (id: string) => void;
   onToggleAutoproxy?: (id: string) => void;
 }

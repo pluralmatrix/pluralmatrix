@@ -9,7 +9,7 @@ import imageSize from 'image-size';
 import os from 'os';
 import { config } from './config';
 import { PKExport, PluralKitMember, PluralKitSystem, PluralKitGroup } from './types';
-import { Member, System } from '@prisma/client';
+import { Member, System, Prisma } from '@prisma/client';
 
 export interface AvatarMigrationError {
   slug: string;
@@ -467,7 +467,9 @@ export const importFromPluralKit = async (
     try {
       const slug = pkMember.finalSlug;
       const rawTags = (pkMember.proxy_tags || []) as { prefix?: string; suffix?: string }[];
-      const proxyTags = rawTags.filter((t) => t.prefix).map((t) => ({ prefix: t.prefix, suffix: t.suffix || '' }));
+      const proxyTags: Prisma.InputJsonValue = rawTags
+        .filter((t) => t.prefix)
+        .map((t) => ({ prefix: t.prefix, suffix: t.suffix || '' }));
 
       const migrationResult = await migrateAvatar(pkMember.avatar_url as string);
       const avatarUrl = migrationResult?.mxcUrl;
@@ -484,7 +486,7 @@ export const importFromPluralKit = async (
         pronouns: pkMember.pronouns,
         description: pkMember.description,
         color: pkMember.color,
-        proxyTags: proxyTags as unknown as import('@prisma/client').Prisma.InputJsonValue,
+        proxyTags: proxyTags,
       };
 
       const member = await prisma.member.upsert({
@@ -1070,7 +1072,7 @@ export const importAvatarsZip = async (
     const ext = filename.split('.').pop() || 'png';
     const contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
-    let affectedMembers: import('@prisma/client').Member[] = [];
+    let affectedMembers: Member[] = [];
     let affectedGroups: LooseGroup[] = [];
 
     if (isGroupIcon) {

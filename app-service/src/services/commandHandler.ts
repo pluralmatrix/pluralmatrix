@@ -1,5 +1,5 @@
 import { Bridge, Intent } from 'matrix-appservice-bridge';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma, Member, Group } from '@prisma/client';
 import {
   SystemWithRelations,
   PluralMatrixEvent,
@@ -1338,7 +1338,7 @@ ${webUrl}
         return true;
       }
 
-      let member = system?.members.find((m) => m.slug === subCmdLower || m.pkId === subCmdLower);
+      let member: Member | undefined = system?.members.find((m) => m.slug === subCmdLower || m.pkId === subCmdLower);
       let isOwnMember = !!member;
 
       if (!member && system) {
@@ -1355,7 +1355,7 @@ ${webUrl}
             include: { system: true },
           });
           if (members.length === 1) {
-            member = members[0] as unknown as typeof member;
+            member = members[0];
             isOwnMember = false;
           }
         }
@@ -1629,7 +1629,7 @@ ${webUrl}
 
         await this.prisma.member.update({
           where: { id: member.id },
-          data: { proxyTags: finalTags as unknown as import('@prisma/client').Prisma.InputJsonArray },
+          data: { proxyTags: finalTags as unknown as Prisma.InputJsonArray },
         });
         proxyCache.invalidate(sender);
         emitSystemUpdate(sender);
@@ -1793,9 +1793,7 @@ ${webUrl}
       // Commands that target a specific group: `pk;group <group> <action>`
       const groupSlug = subCmd;
 
-      const group = (system.groups || []).find(
-        (g: import('@prisma/client').Group) => g.slug === groupSlug || g.pkId === groupSlug,
-      );
+      const group = (system.groups || []).find((g: Group) => g.slug === groupSlug || g.pkId === groupSlug);
 
       if (!group) {
         await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No group found with ID: ${groupSlug}`);
@@ -2055,7 +2053,7 @@ ${webUrl}
         isOut = true;
       }
 
-      const resolvedMembers: import('@prisma/client').Member[] = [];
+      const resolvedMembers: Member[] = [];
       if (!isOut) {
         for (const slug of memberSlugs) {
           const lowerSlug = slug.toLowerCase();

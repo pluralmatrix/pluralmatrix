@@ -72,13 +72,13 @@ describe('ghostService', () => {
         expect(getBridge).toHaveBeenCalled();
         expect(mockIntent.ensureRegistered).toHaveBeenCalled();
         expect(mockIntent.join).toHaveBeenCalledWith('!room:localhost');
-        expect(cryptoManager.getMachine).toHaveBeenCalledWith('@_plural_sys1_mem1:localhost');
+        expect(jest.spyOn(cryptoManager, 'getMachine')).toHaveBeenCalledWith('@_plural_sys1_mem1:localhost');
         expect(registerDevice).toHaveBeenCalledWith(mockIntent, 'TEST_DEVICE_ID', expect.anything(), 'mem1');
         
         expect(mockIntent.setDisplayName).toHaveBeenCalledWith('Display Name TAG');
         expect(mockIntent.setAvatarUrl).toHaveBeenCalledWith('mxc://avatar');
 
-        expect(messageQueue.enqueue).toHaveBeenCalledWith(
+        expect(jest.spyOn(messageQueue, 'enqueue')).toHaveBeenCalledWith(
             '!room:localhost',
             '@sender:localhost',
             mockIntent,
@@ -99,7 +99,7 @@ describe('ghostService', () => {
         await sendGhostMessage(defaultOptions);
 
         expect(mockIntent.ensureRegistered).not.toHaveBeenCalled();
-        expect(messageQueue.enqueue).not.toHaveBeenCalled();
+        expect(jest.spyOn(messageQueue, 'enqueue')).not.toHaveBeenCalled();
         
         consoleSpy.mockRestore();
     });
@@ -111,7 +111,7 @@ describe('ghostService', () => {
 
         expect(mockIntent.join).toHaveBeenCalledTimes(2);
         expect(mockBotIntent.invite).toHaveBeenCalledWith('!room:localhost', '@_plural_sys1_mem1:localhost');
-        expect(messageQueue.enqueue).toHaveBeenCalled();
+        expect(jest.spyOn(messageQueue, 'enqueue')).toHaveBeenCalled();
     });
 
     it('should ignore invite/join failures and still queue message', async () => {
@@ -121,7 +121,7 @@ describe('ghostService', () => {
         await sendGhostMessage(defaultOptions);
 
         expect(mockIntent.join).toHaveBeenCalledTimes(1);
-        expect(messageQueue.enqueue).toHaveBeenCalled(); // Should still try to queue it
+        expect(jest.spyOn(messageQueue, 'enqueue')).toHaveBeenCalled(); // Should still try to queue it
     });
 
     it('should use member name if displayName is not provided', async () => {
@@ -153,7 +153,7 @@ describe('ghostService', () => {
         await sendGhostMessage(defaultOptions);
 
         // Should not throw, should continue to enqueue
-        expect(messageQueue.enqueue).toHaveBeenCalled();
+        expect(jest.spyOn(messageQueue, 'enqueue')).toHaveBeenCalled();
     });
 
     it('should catch and log unexpected top-level errors', async () => {
@@ -163,7 +163,7 @@ describe('ghostService', () => {
         await sendGhostMessage(defaultOptions);
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[GhostService] Failed to queue message'), 'Critical failure');
-        expect(messageQueue.enqueue).not.toHaveBeenCalled();
+        expect(jest.spyOn(messageQueue, 'enqueue')).not.toHaveBeenCalled();
         
         consoleSpy.mockRestore();
     });

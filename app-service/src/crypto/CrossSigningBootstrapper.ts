@@ -16,7 +16,7 @@ async function doAsRequest(
     method: string, 
     path: string,
     body: unknown
-    ) {    const url = new URL(`${hsUrl}${path}`);
+    ): Promise<Record<string, unknown>> {    const url = new URL(`${hsUrl}${path}`);
     url.searchParams.set("user_id", targetUserId);
 
     const headers = {
@@ -34,7 +34,7 @@ async function doAsRequest(
         const text = await res.text();
         throw new Error(`Matrix API Error ${res.status}: ${text}`);
     }
-    return res.json();
+    return (await res.json()) as Record<string, unknown>;
 }
 
 export interface BootstrapResult {
@@ -42,6 +42,13 @@ export interface BootstrapResult {
     keysResponse: Record<string, unknown>;
     signaturesRequestId: string;
     signaturesResponse: Record<string, unknown>;
+}
+
+interface BootstrapOutput {
+    upload_keys: Record<string, unknown>;
+    upload_signatures: Record<string, unknown>;
+    upload_keys_id: string;
+    upload_signatures_id: string;
 }
 
 /**
@@ -67,7 +74,7 @@ export async function bootstrapCrossSigning(
     
     try {
         const { stdout } = await execFileAsync(helperPath, [userId, deviceId, storePath]);
-        const output = JSON.parse(stdout);
+        const output = JSON.parse(stdout) as BootstrapOutput;
 
         const hsUrl = intent.matrixClient.homeserverUrl.replace(/\/$/, "");
 

@@ -353,9 +353,26 @@ export async function dispatchRequest(machine: OlmMachine, intent: Intent, asTok
                 try {
                     response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}") as Record<string, unknown>, deviceId);
                 } catch (err: unknown) {
-                    if ((err as { body?: string }).body && (err as { body: string }).body.includes("already exists")) {
+                    const errBody = (err as { body?: string }).body;
+                    if (errBody && errBody.includes("already exists")) {
                         response = { "one_time_key_counts": { "signed_curve25519": 50 } };
-                    } else throw err;
+                    } else if (errBody && errBody.includes("M_UNKNOWN_DEVICE")) {
+                        console.warn(`[Crypto] Synapse lost device ${deviceId} for ${userId}. Forcing re-registration...`);
+                        
+                        // Clear from cache to allow re-registration
+                        registeredDevices.delete(`${userId}|${deviceId}`);
+                        
+                        // Wait a moment for synapse state
+                        await sleep(500);
+                        
+                        // Attempt re-registration
+                        await registerDevice(intent, deviceId);
+                        
+                        // Retry the upload
+                        response = await doAsRequest(hsUrl, asToken, userId, "POST", "/_matrix/client/v3/keys/upload", JSON.parse(typedReq.body || "{}") as Record<string, unknown>, deviceId);
+                    } else {
+                        throw err;
+                    }
                 }                break;
 
             case RequestType.KeysQuery: {

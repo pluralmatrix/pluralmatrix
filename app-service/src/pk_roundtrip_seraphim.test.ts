@@ -134,7 +134,7 @@ describe('Seraphim PK Roundtrip', () => {
                 updatedAt: new Date(),
                 ...args.create,
             } as unknown as Partial<Member>);
-            storedMembers.set(member.slug as string, member);
+            storedMembers.set(member.slug, member);
             return Promise.resolve(member);
         });
 

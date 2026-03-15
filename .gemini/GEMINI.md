@@ -1,7 +1,7 @@
 # PluralMatrix: Developer Notes 🌌
 
 ## Git Mandate
-* **NEVER** do a `git checkout` to discard changes or start over without explicit permission from the user. It is irreversible and the user must be in the loop.
+* **NEVER** do a `git checkout` or `git reset --hard` to discard changes or start over without explicit permission from the user. It is irreversible and the user must be in the loop. Do not unilaterally throw away or discard work!
 * **NEVER** commit and push to GitHub without stopping and asking for explicit permission first.
 * **Security Guard:** A local `pre-push` hook has been installed in `.git/hooks/pre-push`. It uses the `GEMINI_CLI=1` environment variable to detect my process and hard-block any `git push` attempts I make. This ensures that only the user can push code to the remote repository from a standard terminal.
 * **Reinstalling Guard:** If working in a new clone, run `./.gemini/install-hooks.sh` to reinstall this protection.

@@ -451,10 +451,11 @@ export const startMatrixBot = async () => {
         next();
     });
 
-    if (app._router?.stack) {
-        const stack = app._router.stack;
+    const _app = app as unknown as { _router?: { stack: unknown[] } };
+    if (_app._router?.stack) {
+        const stack = _app._router.stack;
         const myLayer = stack.pop();
-        const insertionIndex = stack.findIndex((l: { route?: unknown }) => l.route);
+        const insertionIndex = stack.findIndex((l) => (l as { route?: unknown }).route);
         if (insertionIndex !== -1) stack.splice(insertionIndex, 0, myLayer);
         else stack.unshift(myLayer);
     }
@@ -466,7 +467,7 @@ export const startMatrixBot = async () => {
 const joinPendingInvites = async (bridgeInstance: Bridge) => {
     try {
         const botClient = bridgeInstance.getBot().getClient();
-        const syncData = await botClient.doRequest("GET", "/_matrix/client/v3/sync", { filter: '{"room":{"timeline":{"limit":1}}}' });
+        const syncData = (await botClient.doRequest("GET", "/_matrix/client/v3/sync", { filter: '{"room":{"timeline":{"limit":1}}}' })) as { rooms?: { invite?: Record<string, unknown> } };
         if (syncData.rooms?.invite) {
             for (const roomId of Object.keys(syncData.rooms.invite)) {
                 try { await bridgeInstance.getIntent().join(roomId); } catch {

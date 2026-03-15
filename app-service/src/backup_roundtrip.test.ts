@@ -78,7 +78,7 @@ describe('PluralMatrix Backup Roundtrip', () => {
         // 1. Export to ZIP
         const chunks: Buffer[] = [];
         const zipStream = new PassThrough();
-        zipStream.on('data', (chunk) => chunks.push(chunk));
+        zipStream.on('data', (chunk: Buffer) => chunks.push(chunk));
         
         const [zipBuffer] = await Promise.all([
             new Promise<Buffer>((resolve) => {
@@ -104,17 +104,17 @@ describe('PluralMatrix Backup Roundtrip', () => {
         let savedSystem: Record<string, unknown>;
         let savedMember: Record<string, unknown>;
 
-        (prisma.system.create as jest.Mock).mockImplementation((args) => {
+        (prisma.system.create as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
             savedSystem = { ...args.data, id: 'new-sys-id' };
             return Promise.resolve(savedSystem);
         });
 
-        (prisma.member.upsert as jest.Mock).mockImplementation((args) => {
+        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: Record<string, unknown> }) => {
             savedMember = { ...args.create, id: 'new-mem-id' };
             return Promise.resolve(savedMember);
         });
 
-        (prisma.member.update as jest.Mock).mockImplementation((args) => {
+        (prisma.member.update as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
             return Promise.resolve({ ...mockSystem.members[0], ...args.data, id: 'new-mem-id' });
         });
 
@@ -128,14 +128,12 @@ describe('PluralMatrix Backup Roundtrip', () => {
         expect(importResult.failedAvatars).toHaveLength(0);
         expect(importResult.systemSlug).toBe('seraphim-main');
 
-        expect(prisma.system.create).toHaveBeenCalledWith(expect.objectContaining({
-            data: expect.objectContaining({ slug: 'seraphim-main' })
-        }));
+        const createCall = ((prisma.system.create as jest.Mock).mock.calls as unknown[][])[0][0] as { data: { slug: string } };
+        expect(createCall.data.slug).toBe('seraphim-main');
 
-        expect(prisma.member.upsert).toHaveBeenCalledWith(expect.objectContaining({
-            create: expect.objectContaining({ slug: 'riven-fox' })
-        }));
+        const upsertCall = ((prisma.member.upsert as jest.Mock).mock.calls as unknown[][])[0][0] as { create: { slug: string } };
+        expect(upsertCall.create.slug).toBe('riven-fox');
 
-        expect(mockBotClient.uploadContent).toHaveBeenCalled();
+        expect(jest.mocked(mockBotClient.uploadContent)).toHaveBeenCalled();
     });
 });

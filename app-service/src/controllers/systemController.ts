@@ -374,7 +374,7 @@ export const getLinks = async (req: AuthRequest, res: Response) => {
 export const createLink = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        let { targetMxid } = req.body;
+        let targetMxid = (req.body as { targetMxid?: string }).targetMxid;
         console.log(`[API] createLink initiated by ${mxid} for target ${targetMxid}`);
         if (!targetMxid) return res.status(400).json({ error: 'Missing targetMxid' });
 
@@ -509,7 +509,7 @@ export const deleteLink = async (req: AuthRequest, res: Response) => {
 export const setPrimaryAccount = async (req: AuthRequest, res: Response) => {
     try {
         const mxid = req.user!.mxid;
-        let { targetMxid } = req.body;
+        let targetMxid = (req.body as { targetMxid?: string }).targetMxid;
         if (!targetMxid) return res.status(400).json({ error: 'Missing targetMxid' });
 
         targetMxid = targetMxid.toLowerCase();

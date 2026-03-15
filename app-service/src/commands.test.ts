@@ -70,7 +70,7 @@ describe('CommandHandler Tests', () => {
                 getClient: () => mockBotClient,
                 getIntent: () => createMockIntent("@plural_bot:localhost")
             }),
-            getIntent: jest.fn().mockImplementation((userId) => createMockIntent(userId || "@plural_bot:localhost"))
+            getIntent: jest.fn().mockImplementation((userId?: string) => createMockIntent(userId || "@plural_bot:localhost"))
         };
 
         mockPrisma = {
@@ -370,7 +370,7 @@ describe('CommandHandler Tests', () => {
 
             expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
             // Should invalidate cache
-            expect(lastMessageCache.delete).toHaveBeenCalledWith(roomId, "seraphim");
+            expect(jest.spyOn(lastMessageCache, 'delete')).toHaveBeenCalledWith(roomId, "seraphim");
             });
 
         it('pk;reproxy should invalidate cache', async () => {
@@ -398,7 +398,7 @@ describe('CommandHandler Tests', () => {
             await commandHandler.executeTargetingCommand(event, "pk;rp bob", systemWithBob);
 
             expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, rootId, expect.anything());
-            expect(lastMessageCache.delete).toHaveBeenCalledWith(roomId, "seraphim");
+            expect(jest.spyOn(lastMessageCache, 'delete')).toHaveBeenCalledWith(roomId, "seraphim");
         }, 15000);
 
         it('pk;autoproxy should update autoproxyId', async () => {
@@ -908,7 +908,7 @@ describe('CommandHandler Tests', () => {
             const result = await commandHandler.resolveGhostMessage(roomId, systemSlug);
 
             expect(result).toEqual({
-                event: expect.objectContaining({ event_id: "$edit" }),
+                event: expect.objectContaining({ event_id: "$edit" }) as unknown,
                 latestContent: cachedData.latestContent,
                 originalId: "$root"
             });
@@ -987,8 +987,8 @@ describe('CommandHandler Tests', () => {
                 users: expect.objectContaining({
                     [botUserId]: 100,
                     [ownerUserId]: 100
-                })
-            }));
+                }) as unknown
+            }) as unknown);
         });
 
         it('should do nothing if ghost has no authority (PL < 50)', async () => {

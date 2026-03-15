@@ -20,26 +20,27 @@ import {
   Trash2,
   Download,
   ChevronDown,
-  Database,
-  Edit3,
   Loader2,
   Info,
   Archive,
   Users,
   User,
   ArrowRightLeft,
+  Edit3,
+  Database,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getAvatarUrl } from '../utils/matrix';
+import type { SystemMember, PluralSystem } from '../types';
 
 const DashboardPage: React.FC = () => {
   const { slug: urlSlug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
 
-  const [system, setSystem] = useState<Record<string, unknown> | null>(null);
-  const [members, setMembers] = useState<Record<string, unknown>[]>([]);
-  const [groups, setGroups] = useState<Record<string, unknown>[]>([]);
+  const [system, setSystem] = useState<PluralSystem | null>(null);
+  const [members, setMembers] = useState<SystemMember[]>([]);
+  const [groups, setGroups] = useState<SystemMember[]>([]);
   const [activeTab, setActiveTab] = useState<'members' | 'groups' | 'fronting'>('members');
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,15 +49,15 @@ const DashboardPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<Record<string, unknown> | null>(null);
-  const [selectedGroup, setSelectedGroup] = useState<Record<string, unknown> | null>(null);
+  const [selectedMember, setSelectedMember] = useState<PluralSystem | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<PluralSystem | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
 
   // Refs to avoid stale closures in SSE/fetchData
   const isModalOpenRef = React.useRef(false);
-  const systemRef = React.useRef<Record<string, unknown> | null>(null);
+  const systemRef = React.useRef<PluralSystem | null>(null);
 
   React.useEffect(() => {
     isModalOpenRef.current = isImporting || isSettingsOpen;
@@ -100,8 +101,8 @@ const DashboardPage: React.FC = () => {
           const pubSystem = pubRes.data;
 
           setSystem(pubSystem);
-          setMembers((pubSystem.members as Record<string, unknown>[]) || []);
-          setGroups((pubSystem.groups as Record<string, unknown>[]) || []);
+          setMembers((pubSystem.members as SystemMember[]) || []);
+          setGroups((pubSystem.groups as SystemMember[]) || []);
         }
 
         setError(null);
@@ -215,11 +216,11 @@ const DashboardPage: React.FC = () => {
 
   const filteredMembers = members
     .filter(
-      (m: Record<string, unknown>) =>
+      (m: SystemMember) =>
         (typeof m.name === 'string' && m.name.toLowerCase().includes(search.toLowerCase())) ||
         (typeof m.slug === 'string' && m.slug.toLowerCase().includes(search.toLowerCase())),
     )
-    .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+    .sort((a: SystemMember, b: SystemMember) => {
       if (system?.autoproxyId) {
         if (a.id === system.autoproxyId) return -1;
         if (b.id === system.autoproxyId) return 1;
@@ -551,14 +552,14 @@ const DashboardPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
               {activeTab === 'members'
-                ? filteredMembers.map((member: Record<string, unknown>) => (
+                ? filteredMembers.map((member: SystemMember) => (
                     <MemberCard
                       key={member.id as string}
                       member={member as unknown as React.ComponentProps<typeof MemberCard>['member']}
                       isReadOnly={!isOwner}
                       isAutoproxy={system?.autoproxyId === member.id}
                       onEdit={(m) => {
-                        setSelectedMember(m as unknown as Record<string, unknown>);
+                        setSelectedMember(m as unknown as SystemMember);
                         setIsEditing(true);
                       }}
                       onDelete={handleDelete}
@@ -567,14 +568,14 @@ const DashboardPage: React.FC = () => {
                   ))
                 : groups
                     .filter(
-                      (g: Record<string, unknown>) =>
+                      (g: SystemMember) =>
                         (typeof g.name === 'string' && g.name.toLowerCase().includes(search.toLowerCase())) ||
                         (typeof g.slug === 'string' && g.slug.toLowerCase().includes(search.toLowerCase())),
                     )
-                    .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
+                    .sort((a: SystemMember, b: SystemMember) =>
                       typeof a.slug === 'string' && typeof b.slug === 'string' ? a.slug.localeCompare(b.slug) : 0,
                     )
-                    .map((group: Record<string, unknown>) => (
+                    .map((group: SystemMember) => (
                       <GroupCard
                         key={group.id as string}
                         group={group as unknown as React.ComponentProps<typeof GroupCard>['group']}
@@ -594,8 +595,7 @@ const DashboardPage: React.FC = () => {
           (activeTab === 'groups' && groups.length === 0 && search === '') ||
           (activeTab === 'groups' &&
             groups.filter(
-              (g: Record<string, unknown>) =>
-                typeof g.name === 'string' && g.name.toLowerCase().includes(search.toLowerCase()),
+              (g: SystemMember) => typeof g.name === 'string' && g.name.toLowerCase().includes(search.toLowerCase()),
             ).length === 0)) && (
           <div className="text-center py-20 space-y-4">
             <div className="w-20 h-20 bg-matrix-light rounded-full flex items-center justify-center mx-auto text-matrix-muted opacity-50">

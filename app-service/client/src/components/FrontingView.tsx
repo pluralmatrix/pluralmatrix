@@ -4,16 +4,18 @@ import { getAvatarUrl } from '../utils/matrix';
 import { Clock, Plus, Loader2, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import type { SystemMember, PluralSystem } from '../types';
+
 export interface FrontingViewProps {
   isOwner: boolean;
-  members: Record<string, unknown>[];
-  system: Record<string, unknown>;
+  members: SystemMember[];
+  system: PluralSystem;
 }
 
 interface Switch {
   id: string;
   timestamp: string;
-  members: { member: Record<string, unknown> }[];
+  members: { member: SystemMember }[];
 }
 
 const FrontingView: React.FC<FrontingViewProps> = ({ isOwner, members, system }) => {
@@ -92,7 +94,7 @@ const FrontingView: React.FC<FrontingViewProps> = ({ isOwner, members, system })
           {!isEditingFront && (
             <button
               onClick={() => {
-                setSelectedFronters(currentSwitch ? currentSwitch.members.map((m) => m.member.id as string) : []);
+                setSelectedFronters(currentSwitch ? currentSwitch.members.map((m) => m.member.id) : []);
                 setIsEditingFront(true);
               }}
               data-testid="log-switch-button"
@@ -121,7 +123,7 @@ const FrontingView: React.FC<FrontingViewProps> = ({ isOwner, members, system })
                       key={memberId}
                       className="flex items-center bg-matrix-dark/80 rounded-full pl-3 pr-1 py-1 border border-white/5"
                     >
-                      <span className="text-sm font-bold mr-2">{(member?.name as string) || 'Unknown'}</span>
+                      <span className="text-sm font-bold mr-2">{member?.name || 'Unknown'}</span>
                       <button
                         onClick={() => setSelectedFronters((prev) => prev.filter((id) => id !== memberId))}
                         data-testid={`remove-fronter-${memberId}`}
@@ -136,26 +138,26 @@ const FrontingView: React.FC<FrontingViewProps> = ({ isOwner, members, system })
 
               <div className="bg-matrix-dark/50 p-4 rounded-xl border border-white/5 max-h-64 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                 {[...members]
-                  .filter((m) => !selectedFronters.includes(m.id as string))
-                  .sort((a, b) => ((a.name as string) || '').localeCompare((b.name as string) || ''))
+                  .filter((m) => !selectedFronters.includes(m.id))
+                  .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                   .map((member) => (
                     <button
-                      key={member.id as string}
-                      onClick={() => setSelectedFronters((prev) => [...prev, member.id as string])}
+                      key={member.id}
+                      onClick={() => setSelectedFronters((prev) => [...prev, member.id])}
                       className="flex items-center p-2 rounded-lg hover:bg-white/5 transition-colors text-left"
                     >
                       {member.avatarUrl ? (
                         <img
-                          src={getAvatarUrl(member.avatarUrl as string) || undefined}
+                          src={getAvatarUrl(member.avatarUrl) || undefined}
                           alt=""
                           className="w-8 h-8 rounded-full object-cover mr-3"
                         />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-matrix-dark flex items-center justify-center mr-3 font-bold text-xs uppercase border border-white/10">
-                          {(member.name as string).substring(0, 2)}
+                          {member.name.substring(0, 2)}
                         </div>
                       )}
-                      <span className="font-medium text-sm truncate">{member.name as string}</span>
+                      <span className="font-medium text-sm truncate">{member.name}</span>
                     </button>
                   ))}
               </div>
@@ -193,17 +195,17 @@ const FrontingView: React.FC<FrontingViewProps> = ({ isOwner, members, system })
                   >
                     {sm.member.avatarUrl ? (
                       <img
-                        src={getAvatarUrl(sm.member.avatarUrl as string) || undefined}
+                        src={getAvatarUrl(sm.member.avatarUrl) || undefined}
                         alt=""
                         className="w-12 h-12 rounded-xl object-cover shadow-md"
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-matrix-dark flex items-center justify-center font-bold text-lg uppercase border border-white/10 shadow-md">
-                        {(sm.member.name as string).substring(0, 2)}
+                        {sm.member.name.substring(0, 2)}
                       </div>
                     )}
                     <div>
-                      <div className="font-bold">{sm.member.name as string}</div>
+                      <div className="font-bold">{sm.member.name}</div>
                       <div className="text-xs text-matrix-muted">Fronter {idx + 1}</div>
                     </div>
                   </div>
@@ -239,14 +241,12 @@ const FrontingView: React.FC<FrontingViewProps> = ({ isOwner, members, system })
                       >
                         {sm.member.avatarUrl ? (
                           <img
-                            src={getAvatarUrl(sm.member.avatarUrl as string) || undefined}
+                            src={getAvatarUrl(sm.member.avatarUrl) || undefined}
                             alt=""
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <span className="text-xs font-bold uppercase">
-                            {(sm.member.name as string).substring(0, 2)}
-                          </span>
+                          <span className="text-xs font-bold uppercase">{sm.member.name.substring(0, 2)}</span>
                         )}
                       </div>
                     ))

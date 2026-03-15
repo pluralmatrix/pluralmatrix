@@ -9,6 +9,7 @@ import GroupCard from '../components/GroupCard';
 import GroupEditor from '../components/GroupEditor';
 import ImportTool from '../components/ImportTool';
 import SystemSettings from '../components/SystemSettings';
+import FrontingView from '../components/FrontingView';
 import {
   LogOut,
   Plus,
@@ -26,6 +27,7 @@ import {
   Archive,
   Users,
   User,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getAvatarUrl } from '../utils/matrix';
@@ -38,7 +40,7 @@ const DashboardPage: React.FC = () => {
   const [system, setSystem] = useState<Record<string, unknown> | null>(null);
   const [members, setMembers] = useState<Record<string, unknown>[]>([]);
   const [groups, setGroups] = useState<Record<string, unknown>[]>([]);
-  const [activeTab, setActiveTab] = useState<'members' | 'groups'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'groups' | 'fronting'>('members');
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -508,6 +510,17 @@ const DashboardPage: React.FC = () => {
             >
               <Users size={16} /> <span>Groups ({groups.length})</span>
             </button>
+            <button
+              onClick={() => setActiveTab('fronting')}
+              data-testid="tab-fronting"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap ${
+                activeTab === 'fronting'
+                  ? 'bg-matrix-primary text-white shadow-md'
+                  : 'text-matrix-muted hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <ArrowRightLeft size={16} /> <span>Fronting</span>
+            </button>
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 items-center w-full md:w-auto flex-1 md:justify-end">
@@ -531,47 +544,51 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence mode="popLayout">
-            {activeTab === 'members'
-              ? filteredMembers.map((member: Record<string, unknown>) => (
-                  <MemberCard
-                    key={member.id as string}
-                    member={member as unknown as React.ComponentProps<typeof MemberCard>['member']}
-                    isReadOnly={!isOwner}
-                    isAutoproxy={system?.autoproxyId === member.id}
-                    onEdit={(m) => {
-                      setSelectedMember(m as unknown as Record<string, unknown>);
-                      setIsEditing(true);
-                    }}
-                    onDelete={handleDelete}
-                    onToggleAutoproxy={handleToggleAutoproxy}
-                  />
-                ))
-              : groups
-                  .filter(
-                    (g: Record<string, unknown>) =>
-                      (typeof g.name === 'string' && g.name.toLowerCase().includes(search.toLowerCase())) ||
-                      (typeof g.slug === 'string' && g.slug.toLowerCase().includes(search.toLowerCase())),
-                  )
-                  .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
-                    typeof a.slug === 'string' && typeof b.slug === 'string' ? a.slug.localeCompare(b.slug) : 0,
-                  )
-                  .map((group: Record<string, unknown>) => (
-                    <GroupCard
-                      key={group.id as string}
-                      group={group as unknown as React.ComponentProps<typeof GroupCard>['group']}
+        {/* Grid or View */}
+        {activeTab === 'fronting' ? (
+          <FrontingView isOwner={isOwner} members={members} system={system} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <AnimatePresence mode="popLayout">
+              {activeTab === 'members'
+                ? filteredMembers.map((member: Record<string, unknown>) => (
+                    <MemberCard
+                      key={member.id as string}
+                      member={member as unknown as React.ComponentProps<typeof MemberCard>['member']}
                       isReadOnly={!isOwner}
-                      onEdit={(g) => {
-                        setSelectedGroup(g);
-                        setIsEditingGroup(true);
+                      isAutoproxy={system?.autoproxyId === member.id}
+                      onEdit={(m) => {
+                        setSelectedMember(m as unknown as Record<string, unknown>);
+                        setIsEditing(true);
                       }}
-                      onDelete={handleDeleteGroup}
+                      onDelete={handleDelete}
+                      onToggleAutoproxy={handleToggleAutoproxy}
                     />
-                  ))}
-          </AnimatePresence>
-        </div>
+                  ))
+                : groups
+                    .filter(
+                      (g: Record<string, unknown>) =>
+                        (typeof g.name === 'string' && g.name.toLowerCase().includes(search.toLowerCase())) ||
+                        (typeof g.slug === 'string' && g.slug.toLowerCase().includes(search.toLowerCase())),
+                    )
+                    .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
+                      typeof a.slug === 'string' && typeof b.slug === 'string' ? a.slug.localeCompare(b.slug) : 0,
+                    )
+                    .map((group: Record<string, unknown>) => (
+                      <GroupCard
+                        key={group.id as string}
+                        group={group as unknown as React.ComponentProps<typeof GroupCard>['group']}
+                        isReadOnly={!isOwner}
+                        onEdit={(g) => {
+                          setSelectedGroup(g);
+                          setIsEditingGroup(true);
+                        }}
+                        onDelete={handleDeleteGroup}
+                      />
+                    ))}
+            </AnimatePresence>
+          </div>
+        )}
 
         {((activeTab === 'members' && filteredMembers.length === 0) ||
           (activeTab === 'groups' && groups.length === 0 && search === '') ||

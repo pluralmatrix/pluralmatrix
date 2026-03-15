@@ -483,6 +483,18 @@ describe('CommandHandler Tests', () => {
         });
       });
 
+      it('pk;autoproxy front should enable front mode', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;autoproxy', 'front'];
+
+        await commandHandler.handleCommand(event, 'autoproxy', parts, mockSystem);
+
+        expect(mockPrisma.system.update).toHaveBeenCalledWith({
+          where: { id: 'sys123' },
+          data: { autoproxyMode: 'front' },
+        });
+      });
+
       it('pk;autoproxy should error if member not found', async () => {
         const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
         const parts = ['pk;autoproxy', 'notfound'];

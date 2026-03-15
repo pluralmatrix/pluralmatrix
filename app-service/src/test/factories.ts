@@ -55,6 +55,7 @@ export function createMockSystem(overrides?: Partial<SystemWithRelations>): Syst
     color: null,
     systemTag: null,
     autoproxyMode: 'off',
+    proxyAutoswitch: 'off',
     autoproxyId: null,
     privacy: {} as unknown as Prisma.JsonValue,
     deviceRegistered: true,

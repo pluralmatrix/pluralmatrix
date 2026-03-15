@@ -283,6 +283,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
       slug: requestedSlug,
       autoproxyId,
       autoproxyMode,
+      proxyAutoswitch,
       description,
       avatarUrl,
       privacy,
@@ -302,6 +303,7 @@ export const updateSystem = async (req: AuthRequest, res: Response) => {
       systemTag,
       autoproxyId,
       autoproxyMode,
+      proxyAutoswitch,
       description,
       avatarUrl,
     };
@@ -598,4 +600,84 @@ export const deleteDeadLetter = (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   messageQueue.deleteDeadLetter(id as string);
   res.json({ success: true });
+};
+
+export const getSwitches = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const mxid = user.mxid;
+
+    const link = await prisma.accountLink.findUnique({
+      where: { matrixId: mxid },
+    });
+
+    if (!link) return res.status(404).json({ error: 'System not found' });
+
+    const switches = await prisma.switch.findMany({
+      where: { systemId: link.systemId },
+      orderBy: { timestamp: 'desc' },
+      take: 20,
+      include: {
+        members: {
+          include: { member: true },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    res.json(switches);
+  } catch (error) {
+    console.error('Failed to get switches:', error);
+    res.status(500).json({ error: 'Failed to retrieve switches' });
+  }
+};
+
+export const logSwitch = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const mxid = user.mxid;
+
+    if (typeof req.body !== 'object' || req.body === null) {
+      return res.status(400).json({ error: 'Invalid body' });
+    }
+    const members = (req.body as Record<string, unknown>).members;
+
+    if (!Array.isArray(members)) {
+      return res.status(400).json({ error: 'members array is required' });
+    }
+
+    const link = await prisma.accountLink.findUnique({
+      where: { matrixId: mxid },
+    });
+
+    if (!link) return res.status(404).json({ error: 'System not found' });
+
+    const newSwitch = await prisma.switch.create({
+      data: {
+        systemId: link.systemId,
+        members: {
+          create: members.map((memberId: unknown, idx: number) => ({
+            memberId: String(memberId),
+            order: idx,
+          })),
+        },
+      },
+      include: {
+        members: {
+          include: { member: true },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    proxyCache.invalidate(mxid);
+    emitSystemUpdate(mxid);
+
+    res.json(newSwitch);
+  } catch (error) {
+    console.error('Failed to log switch:', error);
+    res.status(500).json({ error: 'Failed to log switch' });
+  }
 };

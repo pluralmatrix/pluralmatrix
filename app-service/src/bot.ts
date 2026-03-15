@@ -15,7 +15,7 @@ import { CommandHandler } from './services/commandHandler';
 import { parseCommand } from './utils/commandParser';
 import { parseProxyMatch } from './utils/proxyParser';
 import { IntentWithClient, PluralMatrixEvent, PluralMatrixEventContent } from './types';
-import { applyAutoproxyLatch } from './services/autoproxyService';
+import { applyProxyEffects } from './services/autoproxyService';
 
 // Configuration
 const REGISTRATION_PATH = '/data/app-service-registration.yaml';
@@ -336,7 +336,7 @@ export const handleEvent = async (
     };
     const format = cleanFormattedBody ? 'org.matrix.custom.html' : undefined;
 
-    await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prismaClient);
+    await applyProxyEffects(system, targetMember.id, wasAutoproxied, sender, prismaClient);
 
     // If it's an edit, redact the original root event (Matrix server will cascade redact all associated m.replace edits)
     // If it's a new message, redact the event itself

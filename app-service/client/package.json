@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prettier": "echo 'Please run ./format.sh from the project root instead.' && exit 1",
+    "format": "cd ../.. && ./format.sh"
   },
   "dependencies": {
     "axios": "^1.13.5",

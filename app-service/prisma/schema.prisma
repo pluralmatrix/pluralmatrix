@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -9,55 +9,58 @@ datasource db {
 }
 
 model System {
-  id          String   @id @default(uuid())
-  slug        String   @unique // Unique identifier for ghost user IDs (e.g. "chiara")
-  pkId        String?  // PluralKit-compatible random ID (e.g. "abcde")
-  name        String?
-  description String?
-  pronouns    String?
-  avatarUrl   String?
-  banner      String?
-  color       String?
-  systemTag   String?  // The suffix tag (e.g. ⛩️ Seraphim ⛩️)
-  autoproxyMode String @default("off") // "off", "latch", "member"
-  autoproxyId String?
-  autoproxy   Member?  @relation("Autoproxy", fields: [autoproxyId], references: [id])
-  privacy     Json?
-  members     Member[] @relation("SystemMembers")
-  groups      Group[]  @relation("SystemGroups")
-  accountLinks AccountLink[]
-  deviceRegistered Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String        @id @default(uuid())
+  slug             String        @unique // Unique identifier for ghost user IDs (e.g. "chiara")
+  pkId             String? // PluralKit-compatible random ID (e.g. "abcde")
+  name             String?
+  description      String?
+  pronouns         String?
+  avatarUrl        String?
+  banner           String?
+  color            String?
+  systemTag        String? // The suffix tag (e.g. ⛩️ Seraphim ⛩️)
+  autoproxyMode    String        @default("off") // "off", "latch", "member", "front"
+  autoproxyId      String?
+  proxyAutoswitch  String        @default("off") // "off", "new", "add"
+  autoproxy        Member?       @relation("Autoproxy", fields: [autoproxyId], references: [id])
+  privacy          Json?
+  members          Member[]      @relation("SystemMembers")
+  groups           Group[]       @relation("SystemGroups")
+  switches         Switch[]      @relation("SystemSwitches")
+  accountLinks     AccountLink[]
+  deviceRegistered Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 model AccountLink {
-  matrixId String @id // The full Matrix Identifier (@user:domain)
-  systemId String
-  system   System @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  matrixId  String  @id // The full Matrix Identifier (@user:domain)
+  systemId  String
+  system    System  @relation(fields: [systemId], references: [id], onDelete: Cascade)
   isPrimary Boolean @default(false)
 }
 
 model Member {
-  id          String   @id @default(uuid())
-  systemId    String
-  system      System   @relation("SystemMembers", fields: [systemId], references: [id], onDelete: Cascade)
-  autoproxiedSystems System[] @relation("Autoproxy")
-  slug        String   // Name-based ID for commands (e.g. "lily")
-  pkId        String?  // PluralKit-compatible random ID (e.g. "abcde")
-  name        String
-  displayName String?
-  avatarUrl   String?
-  pronouns    String?
-  description String?
-  color       String?
-  proxyTags   Json     // Array of { prefix: string, suffix: string }
-  matrixId    String?  // The Ghost User ID (@_plural_id:server)
-  groups      Group[]  @relation("MemberGroups")
-  privacy     Json?
-  deviceRegistered Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String         @id @default(uuid())
+  systemId           String
+  system             System         @relation("SystemMembers", fields: [systemId], references: [id], onDelete: Cascade)
+  autoproxiedSystems System[]       @relation("Autoproxy")
+  slug               String // Name-based ID for commands (e.g. "lily")
+  pkId               String? // PluralKit-compatible random ID (e.g. "abcde")
+  name               String
+  displayName        String?
+  avatarUrl          String?
+  pronouns           String?
+  description        String?
+  color              String?
+  proxyTags          Json // Array of { prefix: string, suffix: string }
+  matrixId           String? // The Ghost User ID (@_plural_id:server)
+  groups             Group[]        @relation("MemberGroups")
+  switches           SwitchMember[] @relation("MemberSwitches")
+  privacy            Json?
+  deviceRegistered   Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@unique([systemId, slug])
   @@unique([systemId, pkId])
@@ -67,12 +70,12 @@ model Group {
   id          String   @id @default(uuid())
   systemId    String
   system      System   @relation("SystemGroups", fields: [systemId], references: [id], onDelete: Cascade)
-  slug        String   // Name-based ID for commands
-  pkId        String?  // PluralKit-compatible random ID
+  slug        String // Name-based ID for commands
+  pkId        String? // PluralKit-compatible random ID
   name        String
   displayName String?
   description String?
-  icon        String?  // Avatar/icon URL
+  icon        String? // Avatar/icon URL
   color       String?
   members     Member[] @relation("MemberGroups")
   privacy     Json?
@@ -81,4 +84,25 @@ model Group {
 
   @@unique([systemId, slug])
   @@unique([systemId, pkId])
+}
+
+model Switch {
+  id        String         @id @default(uuid())
+  systemId  String
+  system    System         @relation("SystemSwitches", fields: [systemId], references: [id], onDelete: Cascade)
+  timestamp DateTime       @default(now())
+  members   SwitchMember[] @relation("SwitchMembers")
+
+  @@index([systemId, timestamp(sort: Desc)])
+}
+
+model SwitchMember {
+  id       String @id @default(uuid())
+  switchId String
+  switch   Switch @relation("SwitchMembers", fields: [switchId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member @relation("MemberSwitches", fields: [memberId], references: [id], onDelete: Cascade)
+  order    Int
+
+  @@unique([switchId, memberId])
 }

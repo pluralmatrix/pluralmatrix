@@ -157,6 +157,20 @@ When the Gatekeeper intercepts a message, it immediately hides the original but 
 
 A core philosophy of PluralMatrix is that users own their system data.
 
+### Database Migrations
+
+PluralMatrix uses Prisma as its ORM. Because the local development environment relies on Docker, performing database migrations requires executing the Prisma CLI from _inside_ the running App Service container so it can reach the PostgreSQL database, and then copying the generated SQL files back out to the host filesystem to be committed.
+
+To create and apply a new migration after modifying `schema.prisma`:
+
+1. Copy your updated schema into the container:
+   `sudo docker cp app-service/prisma/schema.prisma pluralmatrix-app-service:/app/prisma/schema.prisma`
+2. Run the migration inside the container:
+   `sudo docker exec pluralmatrix-app-service npx prisma migrate dev --name your_migration_name`
+3. Identify the new migration folder generated inside the container (e.g. `202X..._your_migration_name`) and copy it back to your host machine:
+   `sudo docker cp pluralmatrix-app-service:/app/prisma/migrations/YOUR_MIGRATION_FOLDER app-service/prisma/migrations/`
+4. Locally run `cd app-service && npx prisma generate` to update the TypeScript types in your editor.
+
 ### PluralKit Compatibility
 
 The system provides first-class support for migrating to and from Discord-based setups via PluralKit.

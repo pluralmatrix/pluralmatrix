@@ -19,6 +19,10 @@ router.post('/links', systemController.createLink);
 router.post('/links/primary', systemController.setPrimaryAccount);
 router.delete('/links/:mxid', systemController.deleteLink);
 
+// Switches
+router.get('/switches', systemController.getSwitches);
+router.post('/switches', systemController.logSwitch);
+
 // DLQ Routes
 router.get('/dead_letters', systemController.getDeadLetters);
 router.delete('/dead_letters/:id', systemController.deleteDeadLetter);

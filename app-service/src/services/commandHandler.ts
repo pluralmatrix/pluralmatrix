@@ -19,6 +19,7 @@ import { emitSystemUpdate } from './events';
 import { ensureUniqueSlug, ensureUniqueGroupSlug } from '../utils/slug';
 import { buildWebUrl } from '../utils/url';
 import { parseCommand } from '../utils/commandParser';
+import { parseTime } from '../utils/timeParser';
 import { generateSlug, syncGhostProfile, decommissionGhost, migrateAvatar } from '../import';
 
 export class CommandHandler {
@@ -920,6 +921,76 @@ ${webUrl}
         return true;
       }
 
+      if (subCmd === 'fronter') {
+        if (!isOwnSystem && sysPrivacy.front_privacy === 'private') {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, "❌ This system's front is private.");
+          return true;
+        }
+
+        const latestSwitch = await this.prisma.switch.findFirst({
+          where: { systemId: targetSystem.id },
+          orderBy: { timestamp: 'desc' },
+          include: { members: { include: { member: true }, orderBy: { order: 'asc' } } },
+        });
+
+        if (!latestSwitch || latestSwitch.members.length === 0) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No one is currently fronting.`);
+          return true;
+        }
+
+        const memberNames = latestSwitch.members
+          .map((sm) => {
+            const mp = getMemberPrivacy(sm.member.privacy);
+            return !isOwnSystem && mp.name_privacy === 'private'
+              ? sm.member.displayName || sm.member.name
+              : sm.member.name;
+          })
+          .join(', ');
+
+        await this.sendRichText(this.bridge.getIntent(), roomId, `**Current Fronter(s):** ${memberNames}`);
+        return true;
+      }
+
+      if (subCmd === 'fronthistory' || subCmd === 'fh') {
+        if (!isOwnSystem && sysPrivacy.front_history_privacy === 'private') {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, "❌ This system's front history is private.");
+          return true;
+        }
+
+        const switches = await this.prisma.switch.findMany({
+          where: { systemId: targetSystem.id },
+          orderBy: { timestamp: 'desc' },
+          take: 10,
+          include: { members: { include: { member: true }, orderBy: { order: 'asc' } } },
+        });
+
+        if (switches.length === 0) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No front history logged.`);
+          return true;
+        }
+
+        const historyLines = switches
+          .map((sw) => {
+            const timeStr = sw.timestamp.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+            if (sw.members.length === 0) {
+              return `* [${timeStr}] *(switch-out)*`;
+            }
+            const memberNames = sw.members
+              .map((sm) => {
+                const mp = getMemberPrivacy(sm.member.privacy);
+                return !isOwnSystem && mp.name_privacy === 'private'
+                  ? sm.member.displayName || sm.member.name
+                  : sm.member.name;
+              })
+              .join(', ');
+            return `* [${timeStr}] **${memberNames}**`;
+          })
+          .join('\n');
+
+        await this.sendRichText(this.bridge.getIntent(), roomId, `### Front History\n${historyLines}`);
+        return true;
+      }
+
       // Commands below require ownership
       if (!isOwnSystem) {
         await this.sendEncryptedText(this.bridge.getIntent(), roomId, `❌ You can only modify your own system.`);
@@ -1637,6 +1708,21 @@ ${webUrl}
         return true;
       }
 
+      if (targetSlug === 'front') {
+        await this.prisma.system.update({
+          where: { id: system.id },
+          data: { autoproxyMode: 'front' },
+        });
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendEncryptedText(
+          this.bridge.getIntent(),
+          roomId,
+          'Autoproxy front mode enabled. The first currently fronting member will be automatically locked in.',
+        );
+        return true;
+      }
+
       const member = system.members.find((m) => m.slug === targetSlug);
       if (!member) {
         await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${targetSlug}`);
@@ -1842,6 +1928,242 @@ ${webUrl}
       // Unrecognized group action
       await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Unknown group action: ${action}`);
       return true;
+    }
+
+    if (cmd === 'switch' || cmd === 'sw') {
+      if (!system) {
+        await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have a system registered yet.");
+        return true;
+      }
+
+      const subCmd = parts[1]?.toLowerCase();
+
+      if (subCmd === 'delete') {
+        const arg = parts[2]?.toLowerCase();
+        if (arg === 'all') {
+          if (parts[3]?.toLowerCase() !== '-confirm') {
+            await this.sendEncryptedText(
+              this.bridge.getIntent(),
+              roomId,
+              `⚠️ This will delete your entire switch history. To confirm, run: \`pk;switch delete all -confirm\``,
+            );
+            return true;
+          }
+          await this.prisma.switch.deleteMany({ where: { systemId: system.id } });
+          proxyCache.invalidate(sender);
+          emitSystemUpdate(sender);
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Deleted all switches.`);
+          return true;
+        } else {
+          const latestSwitch = await this.prisma.switch.findFirst({
+            where: { systemId: system.id },
+            orderBy: { timestamp: 'desc' },
+          });
+          if (!latestSwitch) {
+            await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No switches logged.`);
+            return true;
+          }
+          if (arg !== '-confirm') {
+            await this.sendEncryptedText(
+              this.bridge.getIntent(),
+              roomId,
+              `⚠️ Delete the most recent switch? To confirm, run: \`pk;switch delete -confirm\``,
+            );
+            return true;
+          }
+          await this.prisma.switch.delete({ where: { id: latestSwitch.id } });
+          proxyCache.invalidate(sender);
+          emitSystemUpdate(sender);
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Deleted the most recent switch.`);
+          return true;
+        }
+      }
+
+      if (subCmd === 'move') {
+        const timeStr = parts.slice(2).join(' ');
+        if (!timeStr) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Usage: \`pk;switch move <time>\``);
+          return true;
+        }
+
+        const latestSwitch = await this.prisma.switch.findFirst({
+          where: { systemId: system.id },
+          orderBy: { timestamp: 'desc' },
+        });
+        if (!latestSwitch) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No switches logged.`);
+          return true;
+        }
+
+        const newTime = parseTime(timeStr);
+        if (!newTime) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Invalid time format.`);
+          return true;
+        }
+
+        const previousSwitch = await this.prisma.switch.findFirst({
+          where: { systemId: system.id, timestamp: { lt: latestSwitch.timestamp } },
+          orderBy: { timestamp: 'desc' },
+        });
+
+        if (previousSwitch && newTime <= previousSwitch.timestamp) {
+          await this.sendEncryptedText(
+            this.bridge.getIntent(),
+            roomId,
+            `Cannot move switch before the previous switch.`,
+          );
+          return true;
+        }
+
+        if (newTime > new Date()) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Cannot move switch into the future.`);
+          return true;
+        }
+
+        await this.prisma.switch.update({
+          where: { id: latestSwitch.id },
+          data: { timestamp: newTime },
+        });
+
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(
+          this.bridge.getIntent(),
+          roomId,
+          `✅ Moved latest switch to ${newTime.toLocaleString()}.`,
+        );
+        return true;
+      }
+
+      let isEdit = false;
+      let memberSlugs: string[];
+
+      if (subCmd === 'edit') {
+        isEdit = true;
+        memberSlugs = parts.slice(2);
+      } else {
+        memberSlugs = parts.slice(1);
+      }
+
+      if (memberSlugs.length === 0 && !isEdit) {
+        await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Usage: \`pk;switch <member...>\``);
+        return true;
+      }
+
+      let isOut = false;
+      if (memberSlugs.length === 1 && memberSlugs[0]?.toLowerCase() === 'out') {
+        isOut = true;
+      }
+
+      const resolvedMembers: import('@prisma/client').Member[] = [];
+      if (!isOut) {
+        for (const slug of memberSlugs) {
+          const lowerSlug = slug.toLowerCase();
+          let m = system.members.find((m) => m.slug === lowerSlug || m.pkId === lowerSlug);
+          if (!m) {
+            m = system.members.find(
+              (m) => m.name.toLowerCase() === lowerSlug || m.displayName?.toLowerCase() === lowerSlug,
+            );
+          }
+          if (!m) {
+            await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Member not found: ${slug}`);
+            return true;
+          }
+          resolvedMembers.push(m);
+        }
+      }
+
+      if (isEdit) {
+        const latestSwitch = await this.prisma.switch.findFirst({
+          where: { systemId: system.id },
+          orderBy: { timestamp: 'desc' },
+        });
+
+        if (!latestSwitch) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No switches logged.`);
+          return true;
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.switchMember.deleteMany({ where: { switchId: latestSwitch.id } });
+          if (!isOut && resolvedMembers.length > 0) {
+            await tx.switchMember.createMany({
+              data: resolvedMembers.map((m, idx) => ({
+                switchId: latestSwitch.id,
+                memberId: m.id,
+                order: idx,
+              })),
+            });
+          }
+        });
+
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+
+        if (isOut || resolvedMembers.length === 0) {
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Switch edited (Switch-out).`);
+        } else {
+          const names = resolvedMembers.map((m) => m.name).join(', ');
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Switch edited: **${names}**`);
+        }
+        return true;
+      }
+
+      // Create new switch
+      await this.prisma.$transaction(async (tx) => {
+        const newSwitch = await tx.switch.create({
+          data: {
+            systemId: system.id,
+          },
+        });
+        if (!isOut && resolvedMembers.length > 0) {
+          await tx.switchMember.createMany({
+            data: resolvedMembers.map((m, idx) => ({
+              switchId: newSwitch.id,
+              memberId: m.id,
+              order: idx,
+            })),
+          });
+        }
+      });
+
+      proxyCache.invalidate(sender);
+      emitSystemUpdate(sender);
+
+      if (isOut || resolvedMembers.length === 0) {
+        await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Logged switch-out.`);
+      } else {
+        const names = resolvedMembers.map((m) => m.name).join(', ');
+        await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Switch logged: **${names}**`);
+      }
+      return true;
+    }
+
+    if (cmd === 'config') {
+      if (!system) {
+        await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have a system registered yet.");
+        return true;
+      }
+
+      if (parts[1]?.toLowerCase() === 'proxy' && parts[2]?.toLowerCase() === 'switch') {
+        const setting = parts[3]?.toLowerCase();
+        if (['new', 'add', 'off'].includes(setting)) {
+          await this.prisma.system.update({
+            where: { id: system.id },
+            data: { proxyAutoswitch: setting },
+          });
+          proxyCache.invalidate(sender);
+          emitSystemUpdate(sender);
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Proxy autoswitch configured to **${setting}**.`);
+        } else {
+          await this.sendEncryptedText(
+            this.bridge.getIntent(),
+            roomId,
+            `Usage: \`pk;config proxy switch [new|add|off]\``,
+          );
+        }
+        return true;
+      }
     }
 
     // Targeting Logic

@@ -6,7 +6,7 @@ import { sendGhostMessage } from '../services/ghostService';
 import { parseCommand } from '../utils/commandParser';
 import { parseProxyMatch } from '../utils/proxyParser';
 import { PluralMatrixEventContent, PluralMatrixEvent, IntentWithClient } from '../types';
-import { applyAutoproxyLatch } from '../services/autoproxyService';
+import { applyProxyEffects } from '../services/autoproxyService';
 import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
 import { fetchAndDecryptHistoricalEvent } from '../crypto/crypto-utils';
 
@@ -152,7 +152,7 @@ export const checkMessage = async (req: Request, res: Response) => {
 
             const { targetMember, cleanBody, cleanFormattedBody, wasAutoproxied } = finalProxyMatch;
 
-            await applyAutoproxyLatch(system, targetMember.id, wasAutoproxied, sender, prisma);
+            await applyProxyEffects(system, targetMember.id, wasAutoproxied, sender, prisma);
 
             let relatesTo: PluralMatrixEventContent['m.relates_to'] | undefined = undefined;
             const sourceContent = isEdit && originalEvent?.content ? originalEvent.content : content;

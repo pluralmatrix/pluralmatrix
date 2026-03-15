@@ -8,7 +8,9 @@
     "test:ui": "playwright test",
     "test:ui:coverage": "rm -rf .nyc_output && VITE_COVERAGE=true playwright test && node remap-coverage.js && nyc report",
     "lint": "eslint .",
-    "start": "ts-node src/index.ts"
+    "start": "ts-node src/index.ts",
+    "prettier": "echo 'Please run ./format.sh from the project root instead.' && exit 1",
+    "format": "cd .. && ./format.sh"
   },
   "keywords": [],
   "author": "",

@@ -1,4 +1,4 @@
-import { System, Member, Group, Prisma } from '@prisma/client';
+import { System, Member, Group, Prisma, Switch, SwitchMember } from '@prisma/client';
 import { Intent } from 'matrix-appservice-bridge';
 
 export type PrivacyLevel = 'public' | 'private';
@@ -99,9 +99,11 @@ export interface PKExport {
 }
 
 export type GroupWithMembers = Group & { members: Member[] };
+export type SwitchWithMembers = Switch & { members: (SwitchMember & { member: Member })[] };
 export type SystemWithRelations = System & {
   members: Member[];
   groups: GroupWithMembers[];
+  switches?: SwitchWithMembers[];
 };
 
 export interface PluralMatrixEventContent {

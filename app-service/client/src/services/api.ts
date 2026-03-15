@@ -65,6 +65,8 @@ export const systemService = {
   getDeadLetters: () => api.get('/system/dead_letters'),
   deleteDeadLetter: (id: string) => api.delete(`/system/dead_letters/${encodeURIComponent(id)}`),
   getPublic: (slug: string) => api.get(`/system/public/${slug}`),
+  getSwitches: () => api.get('/system/switches'),
+  logSwitch: (members: string[]) => api.post('/system/switches', { members }),
 };
 
 export const groupService = {

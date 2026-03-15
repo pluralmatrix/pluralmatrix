@@ -42,6 +42,11 @@ export class ProxyCacheService {
           include: {
             members: true,
             groups: { include: { members: true } },
+            switches: {
+              orderBy: { timestamp: 'desc' },
+              take: 1,
+              include: { members: { include: { member: true }, orderBy: { order: 'asc' } } },
+            },
           },
         },
       },

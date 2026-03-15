@@ -278,6 +278,7 @@ const MemberEditor: React.FC<MemberEditorProps> = ({ member, systemGroups = [], 
                         ) : (
                           <input
                             name="name"
+                            data-testid="member-name-input"
                             className="matrix-input text-sm"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}

@@ -134,9 +134,6 @@ export async function sendEncryptedEvent(
                     console.error(`[Crypto]   - Failed to dispatch:`, (dispatchErr as Error).message);
                 }
             }
-            // Delay to allow Synapse to propagate the to-device message to clients
-            // before the encrypted room event arrives on their sync streams.
-            await new Promise(r => setTimeout(r, 2000));
         }
 
         // Pass 3: Final cleanup

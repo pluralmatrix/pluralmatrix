@@ -851,12 +851,6 @@ describe('PluralMatrix E2E Roundtrip', () => {
         const ghostFromSenderPromise = waitForGhostMessage(client, e2eeRoomId, 60000);
         const ghostFromObserverPromise = waitForGhostMessage(observer, e2eeRoomId, 60000);
 
-        // Pre-warm encryption: send a dummy message to force the client to generate and share the room key.
-        // This prevents the key-share (to-device) and the trigger message (room event) from racing in Synapse.
-        console.log(`[E2E-E2EE] Sending dummy message to pre-warm encryption keys...`);
-        await client.sendText(e2eeRoomId, "dummy key warm-up");
-        await new Promise(r => setTimeout(r, 2000));
-
         // 4. Send trigger message (encrypted)
         console.log(`[E2E-E2EE] Sending trigger: ${proxyPrefix} ${messageBody}`);
         const triggerEventId = await client.sendText(e2eeRoomId, `${proxyPrefix} ${messageBody}`);

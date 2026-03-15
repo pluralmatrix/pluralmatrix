@@ -35,9 +35,9 @@ if ! command -v black &> /dev/null; then
 fi
 
 if [ $CHECK_MODE -eq 1 ]; then
-    black synapse/modules/ --line-length 120 --check
+    black synapse/modules/ --check
 else
-    black synapse/modules/ --line-length 120
+    black synapse/modules/
 fi
 
 echo "🔒 Restoring synapse/modules ownership..."

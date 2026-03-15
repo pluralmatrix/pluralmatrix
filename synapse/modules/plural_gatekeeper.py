@@ -24,7 +24,9 @@ class PluralGatekeeper:
     def __init__(self, config: Dict[str, Any], api: ModuleApi):
         self.api = api
         # Port 9001 is the internal-only "Deep-Check" port on the app-service
-        self.service_url = config.get("service_url", "http://pluralmatrix-app-service:9001/check")
+        self.service_url = config.get(
+            "service_url", "http://pluralmatrix-app-service:9001/check"
+        )
         self.bot_id = config.get("bot_id", f"@plural_bot:{self.api.server_name}")
         self.gatekeeper_secret = config.get("gatekeeper_secret")
         self._cache = {}  # (room_id, event_id) -> is_proxy: bool
@@ -32,18 +34,29 @@ class PluralGatekeeper:
         # Robust Feature Detection
         try:
             sig = inspect.signature(self.api.register_third_party_rules_callbacks)
-            self.has_visibility_hook = "check_visibility_can_see_event" in sig.parameters
+            self.has_visibility_hook = (
+                "check_visibility_can_see_event" in sig.parameters
+            )
         except Exception:
             self.has_visibility_hook = False
 
         # Register callbacks
-        callbacks = {"check_event_allowed": self.check_event_allowed, "on_new_event": self.on_new_event}
+        callbacks = {
+            "check_event_allowed": self.check_event_allowed,
+            "on_new_event": self.on_new_event,
+        }
 
         if self.has_visibility_hook:
-            callbacks["check_visibility_can_see_event"] = self.check_visibility_can_see_event
-            logger.info("PluralGatekeeper: Visibility hook detected! Using high-performance Blackhole mode. 🌌")
+            callbacks["check_visibility_can_see_event"] = (
+                self.check_visibility_can_see_event
+            )
+            logger.info(
+                "PluralGatekeeper: Visibility hook detected! Using high-performance Blackhole mode. 🌌"
+            )
         else:
-            logger.info("PluralGatekeeper: Visibility hook NOT detected. Falling back to fallback clearing mode. 🧹")
+            logger.info(
+                "PluralGatekeeper: Visibility hook NOT detected. Falling back to fallback clearing mode. 🧹"
+            )
 
         self.api.register_third_party_rules_callbacks(**callbacks)
 
@@ -98,7 +111,9 @@ class PluralGatekeeper:
             if self.gatekeeper_secret:
                 headers["Authorization"] = f"Bearer {self.gatekeeper_secret}"
 
-            req = urllib.request.Request(self.service_url, data=payload, headers=headers)
+            req = urllib.request.Request(
+                self.service_url, data=payload, headers=headers
+            )
 
             with urllib.request.urlopen(req, timeout=1.5) as response:
                 result = json.load(response)
@@ -112,7 +127,9 @@ class PluralGatekeeper:
                 return is_proxy
 
         except Exception as e:
-            logger.error(f"[Blackhole] AppService check failed for {event_id} at {self.service_url}: {e}")
+            logger.error(
+                f"[Blackhole] AppService check failed for {event_id} at {self.service_url}: {e}"
+            )
             return False
 
     async def check_event_allowed(
@@ -154,7 +171,9 @@ class PluralGatekeeper:
 
         return True
 
-    async def on_new_event(self, event: Any, state_events: Mapping[Tuple[str, str], Any]) -> None:
+    async def on_new_event(
+        self, event: Any, state_events: Mapping[Tuple[str, str], Any]
+    ) -> None:
         """
         Immediate module-side redaction for fastest possible cleanup.
         """
@@ -176,7 +195,9 @@ class PluralGatekeeper:
                     relates_to = content.get("m.relates_to", {})
 
                     target_redaction_id = event_id
-                    if relates_to.get("rel_type") == "m.replace" and relates_to.get("event_id"):
+                    if relates_to.get("rel_type") == "m.replace" and relates_to.get(
+                        "event_id"
+                    ):
                         target_redaction_id = relates_to.get("event_id")
 
                     await self.api.create_and_send_event_into_room(

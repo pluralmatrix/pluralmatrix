@@ -6,7 +6,15 @@ from plural_gatekeeper import PluralGatekeeper
 
 
 class MockEvent:
-    def __init__(self, event_id, room_id, sender, event_type, content=None, origin_server_ts=12345):
+    def __init__(
+        self,
+        event_id,
+        room_id,
+        sender,
+        event_type,
+        content=None,
+        origin_server_ts=12345,
+    ):
         self.event_id = event_id
         self.room_id = room_id
         self.sender = sender
@@ -35,7 +43,11 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         with patch("inspect.signature") as mock_sig:
             mock_sig.return_value.parameters = ["check_visibility_can_see_event"]
             self.module = PluralGatekeeper(
-                {"service_url": "http://mock:9001/check", "gatekeeper_secret": "test_secret"}, self.mock_api
+                {
+                    "service_url": "http://mock:9001/check",
+                    "gatekeeper_secret": "test_secret",
+                },
+                self.mock_api,
             )
 
     @patch("urllib.request.urlopen")
@@ -46,7 +58,13 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
-        event = MockEvent("$1", "!room", "@alice:test", "m.room.message", {"msgtype": "m.text", "body": "pk;test"})
+        event = MockEvent(
+            "$1",
+            "!room",
+            "@alice:test",
+            "m.room.message",
+            {"msgtype": "m.text", "body": "pk;test"},
+        )
 
         is_proxy = await self.module._is_proxy_message(event)
         self.assertTrue(is_proxy)
@@ -72,7 +90,9 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
-        event = MockEvent("$2", "!room", "@bob:test", "m.room.encrypted", {"ciphertext": "secret"})
+        event = MockEvent(
+            "$2", "!room", "@bob:test", "m.room.encrypted", {"ciphertext": "secret"}
+        )
 
         is_proxy = await self.module._is_proxy_message(event)
         self.assertFalse(is_proxy)
@@ -84,7 +104,9 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         self.assertIn("encrypted_payload", payload)
 
     async def test_is_proxy_message_ignores_ghosts(self):
-        event = MockEvent("$3", "!room", "@_plural_ghost:test", "m.room.message", {"body": "hello"})
+        event = MockEvent(
+            "$3", "!room", "@_plural_ghost:test", "m.room.message", {"body": "hello"}
+        )
         is_proxy = await self.module._is_proxy_message(event)
         self.assertFalse(is_proxy)
 
@@ -95,7 +117,11 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
             "!room",
             "@alice:test",
             "m.room.message",
-            {"msgtype": "m.text", "body": "secret trigger", "formatted_body": "<b>secret</b>"},
+            {
+                "msgtype": "m.text",
+                "body": "secret trigger",
+                "formatted_body": "<b>secret</b>",
+            },
         )
 
         allowed, modified_event = await self.module.check_event_allowed(event, {})
@@ -108,15 +134,25 @@ class TestPluralGatekeeper(unittest.IsolatedAsyncioTestCase):
         event = MockEvent("$5", "!room", "@alice:test", "m.room.message")
 
         # Sender can see
-        self.assertTrue(await self.module.check_visibility_can_see_event("@alice:test", event))
+        self.assertTrue(
+            await self.module.check_visibility_can_see_event("@alice:test", event)
+        )
         # Bot can see
-        self.assertTrue(await self.module.check_visibility_can_see_event("@plural_bot:testserver", event))
+        self.assertTrue(
+            await self.module.check_visibility_can_see_event(
+                "@plural_bot:testserver", event
+            )
+        )
         # Others CANNOT see (Blackhole)
-        self.assertFalse(await self.module.check_visibility_can_see_event("@bob:test", event))
+        self.assertFalse(
+            await self.module.check_visibility_can_see_event("@bob:test", event)
+        )
 
     async def test_on_new_event_triggers_redaction(self):
         self.module._is_proxy_message = AsyncMock(return_value=True)
-        event = MockEvent("$6", "!room", "@alice:test", "m.room.message", {"body": "test"})
+        event = MockEvent(
+            "$6", "!room", "@alice:test", "m.room.message", {"body": "test"}
+        )
 
         await self.module.on_new_event(event, {})
 

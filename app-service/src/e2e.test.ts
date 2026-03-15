@@ -65,7 +65,7 @@ describe('PluralMatrix E2E Roundtrip', () => {
 
         // 4. Wait for bot to join
         console.log(`[E2E] Waiting for bot to join ${roomId}...`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await waitForBotToJoin(client, roomId);
         
         console.log(`[E2E] Setup complete.`);
     }, 90000);
@@ -130,6 +130,29 @@ describe('PluralMatrix E2E Roundtrip', () => {
             };
             targetClient.on("room.message", listener as (...args: unknown[]) => void);
         });
+    }
+
+    /**
+     * Helper: Wait for the main bot to join the room.
+     */
+    async function waitForBotToJoin(targetClient: MatrixClient, targetRoomId: string, botUserId: string = '@plural_bot:localhost', timeoutMs: number = 30000) {
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            try {
+                const state = await targetClient.getRoomStateEventContent(targetRoomId, "m.room.member", botUserId);
+                if (state && state.membership === "join") {
+                    return;
+                }
+            } catch (e: unknown) {
+                // Log non-404 errors
+                const err = e as { statusCode?: number; errcode?: string; message?: string };
+                if (err.statusCode !== 404 && err.errcode !== 'M_NOT_FOUND') {
+                    console.error(`[E2E] waitForBotToJoin Error:`, err.message || e);
+                }
+            }
+            await new Promise(r => setTimeout(r, 1000));
+        }
+        throw new Error(`Bot ${botUserId} did not join ${targetRoomId} within ${timeoutMs}ms`);
     }
 
     /**
@@ -815,6 +838,10 @@ describe('PluralMatrix E2E Roundtrip', () => {
         const e2eeRoomId = await setupTestRoom(client);
         await client.inviteUser(`@${observerName}:localhost`, e2eeRoomId);
         await observer.joinRoom(e2eeRoomId);
+        
+        console.log(`[E2E-E2EE] Waiting for bot to join ${e2eeRoomId}...`);
+        await waitForBotToJoin(client, e2eeRoomId);
+        
         await client.sendStateEvent(e2eeRoomId, "m.room.encryption", "", { algorithm: "m.megolm.v1.aes-sha2" });
         
         console.log(`[E2E-E2EE] Encryption enabled in ${e2eeRoomId}. Waiting for settle...`);
@@ -851,6 +878,10 @@ describe('PluralMatrix E2E Roundtrip', () => {
         const e2eeRoomId = await setupTestRoom(client);
         await client.inviteUser(`@${observerName}:localhost`, e2eeRoomId);
         await observer.joinRoom(e2eeRoomId);
+        
+        console.log(`[E2E-E2EE-Edit] Waiting for bot to join ${e2eeRoomId}...`);
+        await waitForBotToJoin(client, e2eeRoomId);
+        
         await client.sendStateEvent(e2eeRoomId, "m.room.encryption", "", { algorithm: "m.megolm.v1.aes-sha2" });
         
         console.log(`[E2E-E2EE-Edit] Encryption enabled in ${e2eeRoomId}. Waiting for settle...`);

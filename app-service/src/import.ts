@@ -957,7 +957,7 @@ export const importSystemZip = async (mxid: string, zipBuffer: Buffer): Promise<
     const jsonEntry = entries.find(e => e.entryName === 'pluralmatrix_backup.json' || e.entryName === 'pluralkit_system.json' || e.entryName.endsWith('.json'));
     if (!jsonEntry) throw new Error("No JSON system file found in ZIP");
 
-    const jsonData = JSON.parse(jsonEntry.getData().toString('utf8'));
+    const jsonData = JSON.parse(jsonEntry.getData().toString('utf8')) as PKExport;
     
     const result = await importFromPluralKit(mxid, jsonData);
 

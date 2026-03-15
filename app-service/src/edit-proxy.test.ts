@@ -119,7 +119,7 @@ describe('Proxy on Edit', () => {
         expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, originalId, "PluralProxy");
 
         // 5. Verify the message was enqueued for the ghost
-        const calls = (messageQueue.enqueue as jest.Mock).mock.calls;
+        const calls = (messageQueue.enqueue as jest.Mock).mock.calls as unknown[][];
         expect(calls[0][0]).toBe(roomId);
         expect(calls[0][1]).toBe(sender);
         expect(calls[0][2]).toEqual(expect.objectContaining({ userId: "@_plural_test_lily:localhost" }));

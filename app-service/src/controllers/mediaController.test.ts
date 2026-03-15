@@ -67,8 +67,8 @@ describe('Media Controller', () => {
                     headers: expect.objectContaining({
                         'Authorization': 'Bearer test_token',
                         'Content-Type': 'image/png'
-                    })
-                })
+                    }) as unknown
+                }) as unknown
             );
         });
 

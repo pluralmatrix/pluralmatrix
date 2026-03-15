@@ -52,8 +52,8 @@ describe('importController', () => {
             await importController.importPluralKit(mockReq, mockRes);
 
             expect(jest.spyOn(importService, 'importFromPluralKit')).toHaveBeenCalledWith('@test:localhost', validData);
-            expect(proxyCache.invalidate).toHaveBeenCalledWith('@test:localhost');
-            expect(emitSystemUpdate).toHaveBeenCalledWith('@test:localhost');
+            expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@test:localhost');
+            expect(jest.mocked(emitSystemUpdate)).toHaveBeenCalledWith('@test:localhost');
             expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({
                 success: true,
                 count: 0,
@@ -146,8 +146,8 @@ describe('importController', () => {
             await importController.importZip(mockReq, mockRes);
 
             expect(jest.spyOn(importService, 'importSystemZip')).toHaveBeenCalledWith('@test:localhost', mockReq.body);
-            expect(proxyCache.invalidate).toHaveBeenCalledWith('@test:localhost');
-            expect(emitSystemUpdate).toHaveBeenCalledWith('@test:localhost');
+            expect(jest.spyOn(proxyCache, 'invalidate')).toHaveBeenCalledWith('@test:localhost');
+            expect(jest.mocked(emitSystemUpdate)).toHaveBeenCalledWith('@test:localhost');
             expect(jest.spyOn(mockRes, 'json')).toHaveBeenCalledWith({
                 success: true,
                 count: 5,

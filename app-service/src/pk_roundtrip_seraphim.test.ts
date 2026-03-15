@@ -93,45 +93,45 @@ describe('Seraphim PK Roundtrip', () => {
         const originalJson = JSON.parse(fs.readFileSync(dumpPath, 'utf8')) as PKExport;
 
         // State for our mock DB
-        let storedSystem: Record<string, unknown> = {
+        let storedSystem: Partial<import('@prisma/client').System> = {
             id: 'mock-sys-uuid',
             slug: 'mock-slug',
             createdAt: new Date(),
             updatedAt: new Date()
         };
-        const storedMembers: Map<string, Record<string, unknown>> = new Map();
+        const storedMembers: Map<string, Partial<import('@prisma/client').Member>> = new Map();
 
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 
-        (prisma.system.create as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
+        (prisma.system.create as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
             storedSystem = { 
                 ...storedSystem,
                 ...args.data,
-            };
+            } as Partial<import('@prisma/client').System>;
             return Promise.resolve(storedSystem);
         });
 
-        (prisma.system.upsert as jest.Mock).mockImplementation((args: { create: Record<string, unknown>, where: { slug: string } }) => {
+        (prisma.system.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.SystemCreateInput, where: { slug: string } }) => {
             storedSystem = { 
                 ...storedSystem,
                 ...(args.create || {}),
-                slug: (args.create?.slug as string) || args.where?.slug || storedSystem.slug,
-            };
+                slug: args.create?.slug || args.where?.slug || storedSystem.slug,
+            } as Partial<import('@prisma/client').System>;
             return Promise.resolve(storedSystem);
         });
 
-        (prisma.system.update as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
-            storedSystem = { ...storedSystem, ...args.data };
+        (prisma.system.update as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemUpdateInput }) => {
+            storedSystem = { ...storedSystem, ...args.data } as Partial<import('@prisma/client').System>;
             return Promise.resolve(storedSystem);
         });
 
-        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: Record<string, unknown> }) => {
+        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
             const member = { 
                 id: `mock-mem-uuid-${(args.create?.pkId as string) || Math.random()}`,
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 ...args.create,
-            } as Record<string, unknown>;
+            } as Partial<import('@prisma/client').Member>;
             storedMembers.set(member.slug as string, member);
             return Promise.resolve(member);
         });

@@ -101,20 +101,20 @@ describe('PluralMatrix Backup Roundtrip', () => {
                 }
             }); // 2. importAvatarsZip call
 
-        let savedSystem: Record<string, unknown>;
-        let savedMember: Record<string, unknown>;
+        let savedSystem: Partial<import('@prisma/client').System>;
+        let savedMember: Partial<import('@prisma/client').Member>;
 
-        (prisma.system.create as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
-            savedSystem = { ...args.data, id: 'new-sys-id' };
+        (prisma.system.create as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.SystemCreateInput }) => {
+            savedSystem = { ...args.data, id: 'new-sys-id' } as Partial<import('@prisma/client').System>;
             return Promise.resolve(savedSystem);
         });
 
-        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: Record<string, unknown> }) => {
-            savedMember = { ...args.create, id: 'new-mem-id' };
+        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: import('@prisma/client').Prisma.MemberCreateInput }) => {
+            savedMember = { ...args.create, id: 'new-mem-id' } as Partial<import('@prisma/client').Member>;
             return Promise.resolve(savedMember);
         });
 
-        (prisma.member.update as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
+        (prisma.member.update as jest.Mock).mockImplementation((args: { data: import('@prisma/client').Prisma.MemberUpdateInput }) => {
             return Promise.resolve({ ...mockSystem.members[0], ...args.data, id: 'new-mem-id' });
         });
 

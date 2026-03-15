@@ -27,7 +27,7 @@ export const importPluralKit = async (req: AuthRequest, res: Response) => {
         const mxid = req.user!.mxid;
         const jsonData = PluralKitImportSchema.parse(req.body) as unknown as import('../types').PKExport;
         const result = await importFromPluralKit(mxid, jsonData);
-        const { count, systemSlug, failedAvatars } = result as Record<string, unknown>;
+        const { count, systemSlug, failedAvatars } = result;
         proxyCache.invalidate(mxid);
         emitSystemUpdate(mxid);
         res.json({ success: true, count, systemSlug, failedAvatars });

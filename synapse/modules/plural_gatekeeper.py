@@ -29,7 +29,8 @@ class PluralGatekeeper:
         )
         self.bot_id = config.get("bot_id", f"@plural_bot:{self.api.server_name}")
         self.gatekeeper_secret = config.get("gatekeeper_secret")
-        self._cache: Dict[Tuple[str, str], bool] = {}  # (room_id, event_id) -> is_proxy: bool
+        # (room_id, event_id) -> is_proxy: bool
+        self._cache: Dict[Tuple[str, str], bool] = {}
 
         # Robust Feature Detection
         try:

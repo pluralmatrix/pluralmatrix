@@ -69,6 +69,22 @@ describe('proxyParser', () => {
     expect(result?.cleanBody).toBe('Just a regular message without tags');
   });
 
+  it('should handle autoproxy front mode correctly', () => {
+    const frontSystem = { 
+      ...system, 
+      autoproxyMode: 'front', 
+      switches: [
+        { members: [{ memberId: 'm2' }] }
+      ] 
+    };
+    const content = { body: 'Fronting text' };
+
+    const result = parseProxyMatch(content, frontSystem as unknown as SystemWithRelations);
+    expect(result).toBeDefined();
+    expect(result?.targetMember.slug).toBe('bob');
+    expect(result?.cleanBody).toBe('Fronting text');
+  });
+
   it('should correctly strip fallbacks even for autoproxied replies', () => {
     const autoSystem = { ...system, autoproxyId: 'm1' };
     const content = {

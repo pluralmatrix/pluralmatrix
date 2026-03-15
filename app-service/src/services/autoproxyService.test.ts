@@ -39,7 +39,7 @@ describe('autoproxyService', () => {
       where: { id: 'sys1' },
       data: { autoproxyId: 'm2' },
     });
-    const proxyCacheMock = proxyCache as { invalidate: jest.Mock };
+    const proxyCacheMock = proxyCache as unknown as { invalidate: jest.Mock };
     expect(proxyCacheMock.invalidate).toHaveBeenCalledWith('@alice');
   });
 

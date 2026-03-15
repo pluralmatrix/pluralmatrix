@@ -13,9 +13,11 @@ S_UID=${SYNAPSE_UID:-991}
 S_GID=${SYNAPSE_GID:-991}
 sudo chown -R $S_UID:$S_GID ../synapse/config 2>/dev/null || true
 
-echo "⚠️  Restarting Synapse with relaxed rate limits for E2E testing..."
+echo "⚠️  Restarting Synapse and App Service with relaxed rate limits for E2E testing..."
 # Use the E2E override to mount relaxed limits and concat config paths
 sudo docker compose -f ../docker-compose.yml -f ../docker-compose.e2e.yml up -d synapse
+# We MUST also restart the app service so its in-memory device cache doesn't desync from Synapse
+sudo docker compose -f ../docker-compose.yml restart app-service
 # Wait for synapse to be healthy
 echo "⏳ Waiting for Synapse to settle..."
 # Use docker compose healthcheck
@@ -95,6 +97,7 @@ fi
 echo "♻️  Restoring normal rate limits..."
 # Start synapse without the override to restore normal command and volumes
 sudo docker compose -f ../docker-compose.yml up -d synapse
+sudo docker compose -f ../docker-compose.yml restart app-service
 sleep 5
 
 # Final verdict

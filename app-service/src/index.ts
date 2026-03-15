@@ -45,8 +45,27 @@ app.use((req, res) => {
     res.sendFile(path.join(clientPath, 'index.html'));
 });
 
+const startWithRetries = async () => {
+    let attempts = 0;
+    while (attempts < 5) {
+        try {
+            await startMatrixBot();
+            console.log("Matrix Bot started successfully.");
+            return;
+        } catch (err: unknown) {
+            attempts++;
+            console.error(`Failed to start Matrix Bot (Attempt ${attempts}/5):`, err);
+            if (attempts >= 5) {
+                process.exit(1);
+            }
+            // Wait 2 seconds before retrying
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    }
+};
+
 if (require.main === module) {
-    startMatrixBot().then(() => {
+    startWithRetries().then(() => {
         app.listen(PORT, () => {
             console.log(`App Service (Brain) listening on port ${PORT}`);
         });
@@ -64,7 +83,7 @@ if (require.main === module) {
             console.log(`Internal Gatekeeper listening on port 9001 (Docker-only)`);
         });
     }).catch(err => {
-        console.error("Failed to start Matrix Bot:", err);
+        console.error("Critical failure during startup:", err);
         process.exit(1);
     });
 }

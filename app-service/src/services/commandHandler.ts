@@ -179,11 +179,11 @@ export class CommandHandler {
     /**
      * Resolution Logic
      */
-    async getRoomMessages(roomId: string, limit: number = 50) {
+    async getRoomMessages(roomId: string, limit: number = 50): Promise<{ chunk: PluralMatrixEvent[] }> {
         return this.bridge.getBot().getClient().doRequest("GET", `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/messages`, {
             limit,
             dir: 'b'
-        });
+        }) as Promise<{ chunk: PluralMatrixEvent[] }>;
     }
 
     async resolveGhostMessage(roomId: string, systemSlug: string | undefined, explicitTargetId?: string) {
@@ -214,7 +214,7 @@ export class CommandHandler {
             // Target specific message (Reply or Manual ID)
             try {
                 let explicitEvent: PluralMatrixEvent | null = null;
-                explicitEvent = scrollback.chunk.find((e: PluralMatrixEvent) => e.event_id === rootId || e.id === rootId);
+                explicitEvent = scrollback.chunk.find((e: PluralMatrixEvent) => e.event_id === rootId || e.id === rootId) || null;
                 if (!explicitEvent) {
                     explicitEvent = await botClient.getEvent(roomId, rootId) as unknown as PluralMatrixEvent;
                     if (explicitEvent && !explicitEvent.event_id) {
@@ -232,8 +232,7 @@ export class CommandHandler {
                         const senderMachine = await this.cryptoManager.getMachine(eventSender);
                         const decrypted = await senderMachine.decryptRoomEvent(JSON.stringify(explicitEvent), rustRoomId);
                         if (decrypted.event) {
-                            content = JSON.parse(decrypted.event).content;
-                        }
+                            content = (JSON.parse(decrypted.event) as { content: PluralMatrixEventContent }).content;                        }
                     } catch { /* Ignore */ }
                 }
                 
@@ -269,7 +268,7 @@ export class CommandHandler {
                             const senderMachine = await this.cryptoManager.getMachine(e.sender);
                             const decrypted = await senderMachine.decryptRoomEvent(JSON.stringify(e), rustRoomId);
                             if (decrypted.event) {
-                                content = JSON.parse(decrypted.event).content;
+                                content = (JSON.parse(decrypted.event) as { content: PluralMatrixEventContent }).content;
                             }
                         } catch { /* Ignore */ }
                     }
@@ -290,14 +289,13 @@ export class CommandHandler {
             let content = e.content || {};
             const rel = content["m.relates_to"] || {};
             
-            if (rel.rel_type === "m.replace" && (rel.event_id === rootId || rel.id === rootId)) {
+            if (rel.rel_type === "m.replace" && (rel.event_id === rootId || (rel as { id?: string }).id === rootId)) {
                 if (e.type === "m.room.encrypted") {
                     try {
                         const senderMachine = await this.cryptoManager.getMachine(e.sender);
                         const decrypted = await senderMachine.decryptRoomEvent(JSON.stringify(e), rustRoomId);
                         if (decrypted.event) {
-                            content = JSON.parse(decrypted.event).content;
-                        }
+                            content = (JSON.parse(decrypted.event) as { content: PluralMatrixEventContent }).content;                        }
                     } catch { /* Ignore */ }
                 }
                 latestContent = content;
@@ -1106,8 +1104,8 @@ ${webUrl}
             await this.sendRichText(this.bridge.getIntent(), roomId, info);
 
             if (member.avatarUrl && (isOwnMember || mp.avatar_privacy !== 'private')) {
-                await this.sendEncryptedImage(this.bridge.getIntent(), roomId, member.avatarUrl, `${dName}'s Avatar`).catch(err => {
-                    console.error(`[Bot] Failed to send avatar for ${member.slug}:`, err.message);
+                await this.sendEncryptedImage(this.bridge.getIntent(), roomId, member.avatarUrl, `${dName}'s Avatar`).catch((err: unknown) => {
+                    console.error(`[Bot] Failed to send avatar for ${member.slug}:`, (err as Error).message);
                 });
             }
             return true;
@@ -1340,8 +1338,8 @@ ${webUrl}
             const botUserId = this.bridge.getBot().getUserId();
             
             // Proactively fetch power levels once during room setup
-            const state = await (ghostIntent as unknown as IntentWithClient).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "");
-            const users = (state.users as Record<string, number>) || {};
+            const state = await (ghostIntent as unknown as IntentWithClient).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "") as { users?: Record<string, number>, users_default?: number } & Record<string, unknown>;
+            const users = state.users || {};
             const ghostLevel = users[ghostUserId] || state.users_default || 0;
             
             // Only proceed if the ghost has authority to promote others

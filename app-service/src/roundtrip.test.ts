@@ -27,9 +27,9 @@ const mockBridge = {
 };
 
 // Mock bot dependencies
-jest.mock('./bot', () => ({
+jest.mock('./bot', (): Record<string, unknown> => ({
     ...jest.requireActual('./bot'),
-    getBridge: jest.fn(() => mockBridge),
+    getBridge: jest.fn(),
     prisma: {
         system: {
             upsert: jest.fn(),
@@ -47,13 +47,16 @@ jest.mock('./bot', () => ({
             findUnique: jest.fn(),
             create: jest.fn(),
         }
-    },
+    }
 }));
+
+import { getBridge } from './bot';
+(getBridge as jest.Mock).mockReturnValue(mockBridge);
 
 async function streamToBuffer(stream: PassThrough): Promise<Buffer> {
     const chunks: Uint8Array[] = [];
     return new Promise((resolve, reject) => {
-        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('data', (chunk: Uint8Array) => chunks.push(chunk));
         stream.on('error', (err) => reject(err));
         stream.on('end', () => resolve(Buffer.concat(chunks)));
     });
@@ -103,13 +106,13 @@ describe('PluralKit Roundtrip', () => {
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 
-        (prisma.system.create as jest.Mock).mockImplementation((args) => {
+        (prisma.system.create as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
             savedSystem = { ...args.data, id: 'sys-uuid', createdAt: new Date() };
             return Promise.resolve(savedSystem);
         });
 
-        (prisma.member.upsert as jest.Mock).mockImplementation((args) => {
-            const member = { ...args.create, id: 'mock-uuid', createdAt: new Date() };
+        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: Record<string, unknown> }) => {
+            const member = { ...args.create, id: 'mock-uuid', createdAt: new Date() } as Record<string, unknown>;
             savedMembers.push(member);
             return Promise.resolve(member);
         });
@@ -167,13 +170,13 @@ describe('PluralKit Roundtrip', () => {
         (prisma.accountLink.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null);
 
-        (prisma.system.create as jest.Mock).mockImplementation((args) => {
+        (prisma.system.create as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
             savedSystem = { ...args.data, id: 'sys-uuid', createdAt: new Date() };
             return Promise.resolve(savedSystem);
         });
 
-        (prisma.member.upsert as jest.Mock).mockImplementation((args) => {
-            const member = { ...args.create, id: 'mem-uuid', createdAt: new Date() };
+        (prisma.member.upsert as jest.Mock).mockImplementation((args: { create: Record<string, unknown> }) => {
+            const member = { ...args.create, id: 'mem-uuid', createdAt: new Date() } as Record<string, unknown>;
             savedMembers.push(member);
             return Promise.resolve(member);
         });
@@ -219,17 +222,17 @@ describe('PluralKit Roundtrip', () => {
             system: existingSystem
         });
         (prisma.system.findUnique as jest.Mock).mockResolvedValue(null); // No collision
-        (prisma.system.update as jest.Mock).mockImplementation((args) => {
+        (prisma.system.update as jest.Mock).mockImplementation((args: { data: Record<string, unknown> }) => {
             return Promise.resolve({ ...existingSystem, ...args.data });
         });
 
         await importFromPluralKit('@user:localhost', mockPkData);
 
-        expect(prisma.system.update).toHaveBeenCalledWith(expect.objectContaining({
+        expect(jest.spyOn(prisma.system, 'update')).toHaveBeenCalledWith(expect.objectContaining({
             where: { id: 'sys-1' },
             data: expect.objectContaining({
                 slug: 'brand-new-name'
-            })
+            }) as unknown
         }));
     });
 
@@ -243,7 +246,7 @@ describe('PluralKit Roundtrip', () => {
             expect(escaped).toContain("\\u00e9"); // é
             
             // Should be valid JSON when parsed
-            const parsed = JSON.parse(escaped);
+            const parsed = JSON.parse(escaped) as Record<string, unknown>;
             expect(parsed.name).toBe("Lily 🌸");
             expect(parsed.role).toBe("Goddess é");
         });
@@ -272,7 +275,7 @@ describe('PluralKit Roundtrip', () => {
             const zipPk = new AdmZip(bufferPk);
             expect(zipPk.getEntries().some(e => e.entryName === 'README_AVATARS.txt')).toBe(true);
             
-            const jsonPk = JSON.parse(zipPk.getEntry('pluralkit_system.json')!.getData().toString());
+            const jsonPk = JSON.parse(zipPk.getEntry('pluralkit_system.json')!.getData().toString()) as { members: { avatar_url: string }[] };
             expect(jsonPk.members[0].avatar_url).toContain('https://myimageserver/avatars/alice_media1');
 
             // 2. Backup Export should have the JSON and avatars
@@ -326,7 +329,7 @@ describe('PluralKit Roundtrip', () => {
                 'avatars/alice_media1.png'
             );
 
-            expect(prisma.member.update).toHaveBeenCalledWith(expect.objectContaining({
+            expect(jest.spyOn(prisma.member, 'update')).toHaveBeenCalledWith(expect.objectContaining({
                 where: { id: 'm1' },
                 data: { avatarUrl: 'mxc://new/uploaded' }
             }));

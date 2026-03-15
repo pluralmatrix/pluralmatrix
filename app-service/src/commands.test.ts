@@ -362,7 +362,7 @@ describe('CommandHandler Tests', () => {
 
             jest.spyOn(commandHandler, 'getRoomMessages').mockResolvedValue({
                 chunk: [
-                    { event_id: rootId, sender: ghostUserId, type: "m.room.message", content: { body: "del me" } }
+                    { event_id: rootId, room_id: roomId, sender: ghostUserId, type: "m.room.message", content: { body: "del me" } }
                 ]
             });
 

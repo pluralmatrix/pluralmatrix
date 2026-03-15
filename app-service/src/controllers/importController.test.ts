@@ -1,3 +1,4 @@
+import { Request, Response } from 'express';
 import * as importController from './importController';
 import { prisma } from '../bot';
 import { proxyCache } from '../services/cache';
@@ -16,22 +17,22 @@ jest.mock('../services/events');
 jest.mock('../import');
 
 describe('importController', () => {
-    let mockReq: import('express').Request;
-    let mockRes: import('express').Response;
+    let mockReq: Request;
+    let mockRes: Response;
 
     beforeEach(() => {
         jest.clearAllMocks();
         mockReq = {
             user: { mxid: '@test:localhost' },
             body: {}
-        } as Partial<import('express').Request> as import('express').Request;
+        } as Partial<Request> as Request;
         mockRes = {
             json: jest.fn(),
             status: jest.fn().mockReturnThis(),
             setHeader: jest.fn(),
             send: jest.fn(),
             headersSent: false
-        } as unknown as import('express').Response;
+        } as Partial<Response> as Response;
     });
 
     describe('importPluralKit', () => {

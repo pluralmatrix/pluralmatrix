@@ -53,6 +53,19 @@ describe('commandParser', () => {
     });
   });
 
+  it('should parse commands with quoted arguments', () => {
+    expect(parseCommand('pk;member "Craig Smith" rename "Craig Johnson"')).toEqual({
+      cmd: 'member',
+      args: ['Craig Smith', 'rename', 'Craig Johnson'],
+      parts: ['pk;member', 'Craig Smith', 'rename', 'Craig Johnson'],
+    });
+    expect(parseCommand("pk;member 'John Doe' rename 'Johnny Doe'")).toEqual({
+      cmd: 'member',
+      args: ['John Doe', 'rename', 'Johnny Doe'],
+      parts: ['pk;member', 'John Doe', 'rename', 'Johnny Doe'],
+    });
+  });
+
   it('should return null for non-commands', () => {
     expect(parseCommand('hello')).toBeNull();
     expect(parseCommand('pk:list')).toBeNull(); // Wrong punctuation

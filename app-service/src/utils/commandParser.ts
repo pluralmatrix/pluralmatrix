@@ -28,7 +28,13 @@ export function parseCommand(
   const commandBody = cleanBody.substring(match[0].length).trim();
   if (!commandBody) return null;
 
-  const args = commandBody.split(/\s+/);
+  const argsMatch = commandBody.match(/[^\s"']+|"([^"]*)"|'([^']*)'/g) || [];
+  const args = argsMatch.map((arg) => {
+    if ((arg.startsWith('"') && arg.endsWith('"')) || (arg.startsWith("'") && arg.endsWith("'"))) {
+      return arg.slice(1, -1);
+    }
+    return arg;
+  });
   const cmd = args[0].toLowerCase();
 
   // Construct legacy "parts" array for backward compatibility with command handlers

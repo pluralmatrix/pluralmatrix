@@ -12,6 +12,13 @@ jest.mock('./services/cache', () => ({
   },
 }));
 
+jest.mock('./import', () => ({
+  syncGhostProfile: jest.fn().mockResolvedValue(undefined),
+  decommissionGhost: jest.fn().mockResolvedValue(undefined),
+  migrateAvatar: jest.fn().mockResolvedValue({ mxcUrl: 'mxc://mocked/avatar' }),
+  generateSlug: jest.fn((name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '-')),
+}));
+
 describe('CommandHandler Tests', () => {
   let commandHandler: CommandHandler;
   let mockBridge: { getBot: jest.Mock; getIntent: jest.Mock };
@@ -87,6 +94,7 @@ describe('CommandHandler Tests', () => {
         findMany: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+        create: jest.fn(),
       },
       group: {
         create: jest.fn(),
@@ -523,7 +531,7 @@ describe('CommandHandler Tests', () => {
         expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
           expect.anything(),
           '!room:localhost',
-          expect.stringContaining('No member found with ID: nonexistent'),
+          expect.stringContaining('No member found with ID or name: nonexistent'),
         );
       });
 
@@ -602,7 +610,7 @@ describe('CommandHandler Tests', () => {
         expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
           expect.anything(),
           '!room:localhost',
-          expect.stringContaining('No member found with ID: abcde'),
+          expect.stringContaining('No member found with ID or name: abcde'),
         );
       });
 
@@ -640,6 +648,106 @@ describe('CommandHandler Tests', () => {
           expect.anything(),
           '!room:localhost',
           expect.stringContaining('Secret Name'),
+        );
+      });
+
+      it('should create a new member with pk;member new', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'new', 'New Member'];
+
+        mockPrisma.member.create.mockResolvedValueOnce(
+          createMockMember({ id: 'new1', slug: 'new-member', name: 'New Member' }),
+        );
+
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        expect(mockPrisma.member.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ name: 'New Member' }) as unknown }),
+        );
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('✅ Created member **New Member**'),
+        );
+        const { syncGhostProfile } = await import('./import');
+        expect(syncGhostProfile).toHaveBeenCalled();
+      });
+
+      it('should rename a member', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'lily', 'rename', 'Lilypad'];
+
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        expect(mockPrisma.member.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: 'mem1' },
+            data: { name: 'Lilypad' },
+          }),
+        );
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('✅ Member renamed to **Lilypad**.'),
+        );
+      });
+
+      it('should add proxy tags', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'lily', 'proxy', 'add', '[text]'];
+
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        expect(mockPrisma.member.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: 'mem1' },
+            data: {
+              proxyTags: [
+                { prefix: 'lily:', suffix: '' },
+                { prefix: '[', suffix: ']' },
+              ],
+            },
+          }),
+        );
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('✅ Proxy tags updated'),
+        );
+      });
+
+      it('should ask for confirmation when deleting a member without flag', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'lily', 'delete'];
+
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        expect(mockPrisma.member.delete).not.toHaveBeenCalled();
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('⚠️ Are you sure you want to delete **Lily**?'),
+        );
+      });
+
+      it('should delete a member with -confirm flag', async () => {
+        const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+        const parts = ['pk;member', 'lily', 'delete', '-confirm'];
+
+        const handled = await commandHandler.handleCommand(event, 'member', parts, mockSystem);
+
+        expect(handled).toBe(true);
+        const { decommissionGhost } = await import('./import');
+        expect(decommissionGhost).toHaveBeenCalled();
+        expect(mockPrisma.member.delete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mem1' } }));
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('✅ Member **Lily** deleted.'),
         );
       });
     });

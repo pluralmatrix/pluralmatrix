@@ -8,6 +8,7 @@ import {
   getSystemPrivacy,
   getMemberPrivacy,
   getProxyTags,
+  ProxyTag,
 } from '../types';
 import { marked } from 'marked';
 import { OlmMachineManager } from '../crypto/OlmMachineManager';
@@ -18,7 +19,7 @@ import { emitSystemUpdate } from './events';
 import { ensureUniqueSlug, ensureUniqueGroupSlug } from '../utils/slug';
 import { buildWebUrl } from '../utils/url';
 import { parseCommand } from '../utils/commandParser';
-import { generateSlug } from '../import';
+import { generateSlug, syncGhostProfile, decommissionGhost, migrateAvatar } from '../import';
 
 export class CommandHandler {
   private permissionWarnedRooms = new Set<string>();
@@ -1223,70 +1224,383 @@ ${webUrl}
     }
 
     if (cmd === 'member' || cmd === 'm') {
-      const slug = parts[1]?.toLowerCase();
-      if (!slug) {
+      const subCmdOrSlug = parts[1];
+      if (!subCmdOrSlug) {
         await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Usage: \`pk;member <id>\``);
         return true;
       }
 
-      let member = system?.members.find((m) => m.slug === slug || m.pkId === slug);
+      const subCmdLower = subCmdOrSlug.toLowerCase();
+
+      if (subCmdLower === 'new') {
+        if (!system) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, "You don't have a system registered yet.");
+          return true;
+        }
+        const name = parts.slice(2).join(' ');
+        if (!name) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, 'Usage: `pk;member new <name>`');
+          return true;
+        }
+
+        const baseSlug = generateSlug(name, 'member');
+        const newSlug = await ensureUniqueSlug(this.prisma, system.id, baseSlug);
+
+        const newMember = await this.prisma.member.create({
+          data: {
+            name: name,
+            slug: newSlug,
+            systemId: system.id,
+            proxyTags: [],
+          },
+        });
+
+        try {
+          await syncGhostProfile(newMember, system);
+        } catch (err: unknown) {
+          console.error(`[Bot] Failed to sync initial profile for new member: ${newMember.slug}`, err);
+        }
+
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Created member **${name}** (id: \`${newSlug}\`).`);
+        return true;
+      }
+
+      let member = system?.members.find((m) => m.slug === subCmdLower || m.pkId === subCmdLower);
       let isOwnMember = !!member;
 
+      if (!member && system) {
+        member = system.members.find(
+          (m) => m.name.toLowerCase() === subCmdLower || m.displayName?.toLowerCase() === subCmdLower,
+        );
+        isOwnMember = !!member;
+      }
+
       if (!member) {
-        // Try global search by pkId
-        if (slug.length === 5) {
+        if (subCmdLower.length === 5) {
           const members = await this.prisma.member.findMany({
-            where: { pkId: slug },
+            where: { pkId: subCmdLower },
             include: { system: true },
           });
           if (members.length === 1) {
-            member = members[0];
+            member = members[0] as unknown as typeof member;
             isOwnMember = false;
           }
         }
       }
 
       if (!member) {
-        await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${slug}`);
-        return true;
-      }
-
-      // Enforce privacy
-
-      const mp = getMemberPrivacy(member.privacy);
-      if (!isOwnMember && mp.visibility === 'private') {
-        await this.sendEncryptedText(this.bridge.getIntent(), roomId, `No member found with ID: ${slug}`);
-        return true;
-      }
-
-      let dName = member.name;
-      if (!isOwnMember && mp.name_privacy === 'private') {
-        dName = member.displayName || member.name;
-      }
-
-      let info = `## Member Details: ${dName}\n\n`;
-      if (member.pronouns && (isOwnMember || mp.pronoun_privacy !== 'private'))
-        info += `* **Pronouns:** ${member.pronouns}\n`;
-      if (member.color) info += `* **Color:** \`#${member.color}\`\n`;
-      if (member.description && (isOwnMember || mp.description_privacy !== 'private'))
-        info += `\n### Description\n${member.description}\n\n`;
-
-      if (isOwnMember || mp.proxy_privacy !== 'private') {
-        const tags = getProxyTags(member.proxyTags)
-          .map((t) => `\`${t.prefix || ''}text${t.suffix || ''}\``)
-          .join(', ');
-        info += `--- \n* **Proxy Tags:** ${tags || 'None'}`;
-      }
-
-      await this.sendRichText(this.bridge.getIntent(), roomId, info);
-
-      if (member.avatarUrl && (isOwnMember || mp.avatar_privacy !== 'private')) {
-        await this.sendEncryptedImage(this.bridge.getIntent(), roomId, member.avatarUrl, `${dName}'s Avatar`).catch(
-          (err: unknown) => {
-            console.error(`[Bot] Failed to send avatar for ${member.slug}:`, (err as Error).message);
-          },
+        await this.sendEncryptedText(
+          this.bridge.getIntent(),
+          roomId,
+          `No member found with ID or name: ${subCmdOrSlug}`,
         );
+        return true;
       }
+
+      const verb = parts[2]?.toLowerCase();
+
+      if (!verb) {
+        const mp = getMemberPrivacy(member.privacy);
+        if (!isOwnMember && mp.visibility === 'private') {
+          await this.sendEncryptedText(
+            this.bridge.getIntent(),
+            roomId,
+            `No member found with ID or name: ${subCmdOrSlug}`,
+          );
+          return true;
+        }
+
+        let dName = member.name;
+        if (!isOwnMember && mp.name_privacy === 'private') {
+          dName = member.displayName || member.name;
+        }
+
+        let info = `## Member Details: ${dName}\n\n`;
+        info += `* **ID:** \`${member.slug}\`${member.pkId ? ` (PK: \`${member.pkId}\`)` : ''}\n`;
+        if (member.pronouns && (isOwnMember || mp.pronoun_privacy !== 'private'))
+          info += `* **Pronouns:** ${member.pronouns}\n`;
+        if (member.color) info += `* **Color:** \`#${member.color}\`\n`;
+        if (member.description && (isOwnMember || mp.description_privacy !== 'private'))
+          info += `\n### Description\n${member.description}\n\n`;
+
+        if (isOwnMember || mp.proxy_privacy !== 'private') {
+          const tags = getProxyTags(member.proxyTags)
+            .map((t) => `\`${t.prefix || ''}text${t.suffix || ''}\``)
+            .join(', ');
+          info += `--- \n* **Proxy Tags:** ${tags || 'None'}`;
+        }
+
+        await this.sendRichText(this.bridge.getIntent(), roomId, info);
+
+        if (member.avatarUrl && (isOwnMember || mp.avatar_privacy !== 'private')) {
+          await this.sendEncryptedImage(this.bridge.getIntent(), roomId, member.avatarUrl, `${dName}'s Avatar`).catch(
+            (err: unknown) => {
+              console.error(`[Bot] Failed to send avatar for ${member.slug}:`, (err as Error).message);
+            },
+          );
+        }
+        return true;
+      }
+
+      if (!isOwnMember) {
+        await this.sendEncryptedText(this.bridge.getIntent(), roomId, `You can only edit members in your own system.`);
+        return true;
+      }
+
+      const argsStr = parts.slice(3).join(' ');
+      const clear = argsStr.toLowerCase() === '-clear';
+
+      if (verb === 'rename') {
+        if (!argsStr || clear) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Usage: \`pk;member <id> rename <new name>\``);
+          return true;
+        }
+        const updated = await this.prisma.member.update({ where: { id: member.id }, data: { name: argsStr } });
+        try {
+          await syncGhostProfile(updated, system!);
+        } catch (e) {
+          console.error(e);
+        }
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Member renamed to **${argsStr}**.`);
+        return true;
+      }
+
+      if (verb === 'displayname') {
+        const newVal = clear || !argsStr ? null : argsStr;
+        const updated = await this.prisma.member.update({ where: { id: member.id }, data: { displayName: newVal } });
+        try {
+          await syncGhostProfile(updated, system!);
+        } catch (e) {
+          console.error(e);
+        }
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(
+          this.bridge.getIntent(),
+          roomId,
+          newVal ? `✅ Display name set to **${newVal}**.` : `✅ Display name cleared.`,
+        );
+        return true;
+      }
+
+      if (verb === 'description') {
+        const newVal = clear || !argsStr ? null : argsStr;
+        await this.prisma.member.update({ where: { id: member.id }, data: { description: newVal } });
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(
+          this.bridge.getIntent(),
+          roomId,
+          newVal ? `✅ Description updated.` : `✅ Description cleared.`,
+        );
+        return true;
+      }
+
+      if (verb === 'pronouns') {
+        const newVal = clear || !argsStr ? null : argsStr;
+        await this.prisma.member.update({ where: { id: member.id }, data: { pronouns: newVal } });
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(
+          this.bridge.getIntent(),
+          roomId,
+          newVal ? `✅ Pronouns set to **${newVal}**.` : `✅ Pronouns cleared.`,
+        );
+        return true;
+      }
+
+      if (verb === 'color') {
+        if (clear || !argsStr) {
+          await this.prisma.member.update({ where: { id: member.id }, data: { color: null } });
+          proxyCache.invalidate(sender);
+          emitSystemUpdate(sender);
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Color cleared.`);
+          return true;
+        }
+        const colorMatch = argsStr.match(/^#?([0-9A-Fa-f]{6})$/i);
+        if (!colorMatch) {
+          await this.sendEncryptedText(
+            this.bridge.getIntent(),
+            roomId,
+            `Invalid color code. Use a 6-character hex code (e.g. #ff0000).`,
+          );
+          return true;
+        }
+        await this.prisma.member.update({ where: { id: member.id }, data: { color: colorMatch[1].toLowerCase() } });
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(
+          this.bridge.getIntent(),
+          roomId,
+          `✅ Color set to \`#${colorMatch[1].toLowerCase()}\`.`,
+        );
+        return true;
+      }
+
+      if (verb === 'avatar') {
+        if (clear || !argsStr) {
+          const updated = await this.prisma.member.update({ where: { id: member.id }, data: { avatarUrl: null } });
+          try {
+            await syncGhostProfile(updated, system!);
+          } catch (e) {
+            console.error(e);
+          }
+          proxyCache.invalidate(sender);
+          emitSystemUpdate(sender);
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Avatar cleared.`);
+          return true;
+        }
+        if (!argsStr.startsWith('http://') && !argsStr.startsWith('https://') && !argsStr.startsWith('mxc://')) {
+          await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Avatar must be a valid URL or MXC URI.`);
+          return true;
+        }
+
+        let finalMxc = argsStr;
+        if (argsStr.startsWith('http')) {
+          try {
+            const { mxcUrl } = (await migrateAvatar(argsStr)) || {};
+            if (mxcUrl) finalMxc = mxcUrl;
+            else throw new Error('Migration failed');
+          } catch (e) {
+            console.error(e);
+            await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Failed to fetch or upload avatar from URL.`);
+            return true;
+          }
+        }
+
+        const updated = await this.prisma.member.update({ where: { id: member.id }, data: { avatarUrl: finalMxc } });
+        try {
+          await syncGhostProfile(updated, system!);
+        } catch (e) {
+          console.error(e);
+        }
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Avatar updated.`);
+        return true;
+      }
+
+      if (verb === 'proxy') {
+        const subVerb = parts[3]?.toLowerCase();
+        let tagsStr: string;
+        let isAdd = false;
+        let isRemove = false;
+
+        if (subVerb === 'add') {
+          isAdd = true;
+          tagsStr = parts.slice(4).join(' ');
+        } else if (subVerb === 'remove') {
+          isRemove = true;
+          tagsStr = parts.slice(4).join(' ');
+        } else {
+          tagsStr = parts.slice(3).join(' ');
+        }
+
+        if (!tagsStr && !clear) {
+          await this.sendEncryptedText(
+            this.bridge.getIntent(),
+            roomId,
+            `Usage: \`pk;member <id> proxy [add|remove] <tags>\``,
+          );
+          return true;
+        }
+
+        const existingTags = getProxyTags(member.proxyTags);
+
+        if (clear) {
+          await this.prisma.member.update({ where: { id: member.id }, data: { proxyTags: [] } });
+          proxyCache.invalidate(sender);
+          emitSystemUpdate(sender);
+          await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Proxy tags cleared.`);
+          return true;
+        }
+
+        const parseTag = (t: string) => {
+          const lower = t.toLowerCase();
+          const idx = lower.indexOf('text');
+          if (idx === -1) return null;
+          return { prefix: t.slice(0, idx) || undefined, suffix: t.slice(idx + 4) || undefined } as ProxyTag;
+        };
+
+        const newTag = parseTag(tagsStr);
+        if (!newTag && !isRemove) {
+          await this.sendEncryptedText(
+            this.bridge.getIntent(),
+            roomId,
+            `Invalid proxy tag format. Use 'text' as a placeholder, e.g., \`[text]\` or \`p!text\`.`,
+          );
+          return true;
+        }
+
+        let finalTags: ProxyTag[];
+
+        if (isAdd && newTag) {
+          finalTags = [...existingTags, newTag];
+        } else if (isRemove) {
+          const removeTag = parseTag(tagsStr);
+          if (!removeTag) {
+            await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Invalid proxy tag format for removal.`);
+            return true;
+          }
+          const filtered = existingTags.filter(
+            (t: ProxyTag) => t.prefix !== removeTag.prefix || t.suffix !== removeTag.suffix,
+          );
+          finalTags = filtered;
+        } else if (newTag) {
+          finalTags = [newTag];
+        } else {
+          finalTags = existingTags;
+        }
+
+        await this.prisma.member.update({
+          where: { id: member.id },
+          data: { proxyTags: finalTags as unknown as import('@prisma/client').Prisma.InputJsonArray },
+        });
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+
+        const formattedTags = finalTags.map((t) => `\`${t.prefix || ''}text${t.suffix || ''}\``).join(', ');
+        await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Proxy tags updated: ${formattedTags || 'None'}`);
+        return true;
+      }
+
+      if (verb === 'delete') {
+        if (argsStr.toLowerCase() !== '-confirm') {
+          await this.sendRichText(
+            this.bridge.getIntent(),
+            roomId,
+            `⚠️ Are you sure you want to delete **${member.name}**? This action cannot be undone.\n\nTo confirm, run: \`pk;member "${member.slug}" delete -confirm\``,
+          );
+          return true;
+        }
+
+        try {
+          await decommissionGhost(member, system!);
+        } catch (e) {
+          console.error(`[Bot] Failed to decommission ghost for ${member.slug}`, e);
+        }
+
+        await this.prisma.member.delete({ where: { id: member.id } });
+        proxyCache.invalidate(sender);
+        emitSystemUpdate(sender);
+        await this.sendRichText(this.bridge.getIntent(), roomId, `✅ Member **${member.name}** deleted.`);
+        return true;
+      }
+
+      if (verb === 'id') {
+        await this.sendRichText(
+          this.bridge.getIntent(),
+          roomId,
+          `**Name:** ${member.name}\n**System ID (Slug):** \`${member.slug}\`\n**PluralKit ID:** \`${member.pkId || 'None'}\``,
+        );
+        return true;
+      }
+
+      await this.sendEncryptedText(this.bridge.getIntent(), roomId, `Unknown member command: ${verb}`);
       return true;
     }
     if (cmd === 'autoproxy' || cmd === 'auto' || cmd === 'ap') {

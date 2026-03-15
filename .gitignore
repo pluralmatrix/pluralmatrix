@@ -54,3 +54,9 @@ eslint-report.json
 # Jekyll Build Output
 _site/
 
+
+# Playwright Temporary Test Files
+app-service/src/test/ui/fixtures/malformed.json
+app-service/src/test/ui/fixtures/invalid.txt
+app-service/src/test/ui/fixtures/bad-file.txt
+app-service/src/test/ui/fixtures/too-large.png

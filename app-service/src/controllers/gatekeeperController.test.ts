@@ -257,7 +257,8 @@ describe('GatekeeperController', () => {
         };
 
         (getBridge as jest.Mock).mockReturnValue({
-            getBot: () => ({ getUserId: () => '@bot:localhost', getClient: () => mockClient })
+            getBot: () => ({ getUserId: () => '@bot:localhost', getClient: () => mockClient }),
+            getIntent: () => ({ matrixClient: mockClient })
         });
 
         await checkMessage(req, mockRes as unknown as Response);

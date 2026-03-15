@@ -2,10 +2,9 @@ import { Bridge, Intent } from "matrix-appservice-bridge";
 import { PrismaClient } from '@prisma/client';
 import { SystemWithRelations, PluralMatrixEvent, IntentWithClient, PluralMatrixEventContent, getSystemPrivacy, getMemberPrivacy, getProxyTags } from '../types';
 import { marked } from "marked";
-import { RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { OlmMachineManager } from "../crypto/OlmMachineManager";
 import { sendEncryptedEvent } from "../crypto/encryption";
-import { registerDevice } from "../crypto/crypto-utils";
+import { registerDevice, decryptHistoricalEvent } from "../crypto/crypto-utils";
 import { proxyCache, lastMessageCache } from "./cache";
 import { emitSystemUpdate } from "./events";
 import { ensureUniqueSlug, ensureUniqueGroupSlug } from "../utils/slug";
@@ -187,8 +186,7 @@ export class CommandHandler {
     }
 
     async resolveGhostMessage(roomId: string, systemSlug: string | undefined, explicitTargetId?: string) {
-        const botClient = this.bridge.getBot().getClient();
-        const rustRoomId = new RoomId(roomId);
+        const botClient = (this.bridge.getIntent() as IntentWithClient).matrixClient;
         const ghostPrefix = systemSlug ? `@_plural_${systemSlug}_` : `@_plural_`;
 
         // 1. Fast Path: Cache Lookup
@@ -216,7 +214,8 @@ export class CommandHandler {
                 let explicitEvent: PluralMatrixEvent | null = null;
                 explicitEvent = scrollback.chunk.find((e: PluralMatrixEvent) => e.event_id === rootId || e.id === rootId) || null;
                 if (!explicitEvent) {
-                    explicitEvent = await botClient.getEvent(roomId, rootId) as unknown as PluralMatrixEvent;
+                    const rawExplicitEvent = await botClient.getEvent(roomId, rootId);
+                    explicitEvent = JSON.parse(JSON.stringify(rawExplicitEvent)) as PluralMatrixEvent;
                     if (explicitEvent && !explicitEvent.event_id) {
                         explicitEvent.event_id = rootId;
                     }
@@ -224,18 +223,10 @@ export class CommandHandler {
 
                 if (!explicitEvent) return null;
                 const eventSender = explicitEvent.sender || explicitEvent.sender;
+                
+                explicitEvent = await decryptHistoricalEvent(explicitEvent, roomId, this.cryptoManager, eventSender);
                 const eventType = explicitEvent.type || explicitEvent.type;
-                let content = explicitEvent.content || explicitEvent.content || {};
-                
-                if (eventType === "m.room.encrypted") {
-                    try {
-                        const senderMachine = await this.cryptoManager.getMachine(eventSender);
-                        const decrypted = await senderMachine.decryptRoomEvent(JSON.stringify(explicitEvent), rustRoomId);
-                        if (decrypted.event) {
-                            content = (JSON.parse(decrypted.event) as { content: PluralMatrixEventContent }).content;                        }
-                    } catch { /* Ignore */ }
-                }
-                
+                const content = explicitEvent.content || {};                
                 const rel = content["m.relates_to"];
                 if (rel?.rel_type === "m.replace") {
                     rootId = rel.event_id || (rel as { id?: string }).id;
@@ -264,16 +255,11 @@ export class CommandHandler {
                 if (!isReplacement) {
                     targetRoot = e;
                     if (isEncrypted) {
-                        try {
-                            const senderMachine = await this.cryptoManager.getMachine(e.sender);
-                            const decrypted = await senderMachine.decryptRoomEvent(JSON.stringify(e), rustRoomId);
-                            if (decrypted.event) {
-                                content = (JSON.parse(decrypted.event) as { content: PluralMatrixEventContent }).content;
-                            }
-                        } catch { /* Ignore */ }
+                        targetRoot = await decryptHistoricalEvent(targetRoot, roomId, this.cryptoManager, targetRoot.sender);
+                        content = targetRoot.content || {};
                     }
                     latestContent = content;
-                    rootId = e.event_id || e.id;
+                    rootId = targetRoot.event_id || targetRoot.id;
                     break;
                 }
             }
@@ -291,12 +277,8 @@ export class CommandHandler {
             
             if (rel.rel_type === "m.replace" && (rel.event_id === rootId || (rel as { id?: string }).id === rootId)) {
                 if (e.type === "m.room.encrypted") {
-                    try {
-                        const senderMachine = await this.cryptoManager.getMachine(e.sender);
-                        const decrypted = await senderMachine.decryptRoomEvent(JSON.stringify(e), rustRoomId);
-                        if (decrypted.event) {
-                            content = (JSON.parse(decrypted.event) as { content: PluralMatrixEventContent }).content;                        }
-                    } catch { /* Ignore */ }
+                    const decryptedEvent = await decryptHistoricalEvent(e, roomId, this.cryptoManager, e.sender);
+                    content = decryptedEvent.content || {};
                 }
                 latestContent = content;
                 break;
@@ -521,7 +503,7 @@ export class CommandHandler {
 
     async getOrAutoCreateDMRoom(userId: string): Promise<string | null> {
         try {
-            const botClient = this.bridge.getBot().getClient();
+            const botClient = (this.bridge.getIntent() as IntentWithClient).matrixClient;
             const joinedRooms = await botClient.getJoinedRooms();
             for (const roomId of joinedRooms) {
                 const members = await botClient.getJoinedRoomMembers(roomId);
@@ -545,7 +527,7 @@ export class CommandHandler {
 
     async handleMessageInfoRequest(roomId: string, requestingUserId: string, targetEventId: string, replyInRoom: boolean = false) {
         try {
-            const botClient = this.bridge.getBot().getClient();
+            const botClient = (this.bridge.getIntent() as IntentWithClient).matrixClient;
             const targetEvent = await botClient.getEvent(roomId, targetEventId);
             if (!targetEvent || !targetEvent.sender.startsWith("@_plural_")) {
                 if (replyInRoom) {
@@ -612,7 +594,7 @@ export class CommandHandler {
 
     async handleMessagePingRequest(roomId: string, requestingUserId: string, targetEventId: string) {
         try {
-            const botClient = this.bridge.getBot().getClient();
+            const botClient = (this.bridge.getIntent() as IntentWithClient).matrixClient;
             const targetEvent = await botClient.getEvent(roomId, targetEventId);
             if (!targetEvent || !targetEvent.sender.startsWith("@_plural_")) return;
 

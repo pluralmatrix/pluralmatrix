@@ -5,9 +5,10 @@ import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
 import { parseCommand } from '../utils/commandParser';
 import { parseProxyMatch } from '../utils/proxyParser';
-import { PluralMatrixEventContent, PluralMatrixEvent } from '../types';
+import { PluralMatrixEventContent, PluralMatrixEvent, IntentWithClient } from '../types';
 import { applyAutoproxyLatch } from '../services/autoproxyService';
-import { RoomId } from '@matrix-org/matrix-sdk-crypto-nodejs';
+import { RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
+import { fetchAndDecryptHistoricalEvent } from "../crypto/crypto-utils";
 
 export const checkMessage = async (req: Request, res: Response) => {
     try {
@@ -124,9 +125,12 @@ export const checkMessage = async (req: Request, res: Response) => {
                         let originalEvent: PluralMatrixEvent | null = null;
                         if (isEdit && originalEventId) {
                             try {
-                                const botClient = (getBridge()?.getBot().getClient() as unknown) as { getEvent: (roomId: string, eventId: string) => Promise<PluralMatrixEvent> };
-                                originalEvent = await botClient.getEvent(room_id, originalEventId);
-                                console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
+                                const botBridge = getBridge();
+                                const botClient = botBridge ? (botBridge.getIntent() as IntentWithClient).matrixClient : undefined;
+                                if (botClient) {
+                                    originalEvent = await fetchAndDecryptHistoricalEvent(botClient, room_id, originalEventId, cryptoManager, bot_id || botBridge?.getBot().getUserId() || sender);
+                                    console.log(`[Gatekeeper] Successfully fetched original event ${originalEventId} for edit.`);
+                                }
                             } catch {
                                 console.warn(`[Gatekeeper] Could not fetch original event ${originalEventId} for edit proxying.`);
                             }

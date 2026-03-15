@@ -842,4 +842,71 @@ describe('PluralMatrix E2E Roundtrip', () => {
             verifyRedaction(observer, e2eeRoomId, triggerEventId, "Observer")
         ]);
     }, 180000);
+
+    it('should correctly proxy an edited encrypted message', async () => {
+        // We reuse the encrypted room from the previous test
+        const originalMessage = `Initial plain text ${Math.random().toString(36).substring(7)}`;
+        console.log(`[E2E-E2EE-Edit] Sending original plain text message...`);
+        // We have to use the global client and e2eeRoomId isn't global, we need to create a new room or use an existing one. Let's create a new one.
+        const e2eeRoomId = await setupTestRoom(client);
+        await client.inviteUser(`@${observerName}:localhost`, e2eeRoomId);
+        await observer.joinRoom(e2eeRoomId);
+        await client.sendStateEvent(e2eeRoomId, "m.room.encryption", "", { algorithm: "m.megolm.v1.aes-sha2" });
+        
+        console.log(`[E2E-E2EE-Edit] Encryption enabled in ${e2eeRoomId}. Waiting for settle...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
+        const originalEventId = await client.sendText(e2eeRoomId, originalMessage);
+
+        console.log(`[E2E-E2EE-Edit] Waiting for original message to process...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        const editedText = `Edited secure text ${Math.random().toString(36).substring(7)}`;
+        const proxyPrefix = `e2e-sec-edit-${Math.random().toString(36).substring(7)}:`;
+        
+        // Create system member
+        const slug = `e2e-secure-edit-${Date.now()}`;
+        await fetch(`http://localhost:9000/api/members`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: "E2E-Secure-Edit", slug: slug, proxyTags: [{ prefix: proxyPrefix, suffix: "" }] })
+        });
+
+        const ghostFromSenderPromise = waitForGhostMessage(client, e2eeRoomId, 60000);
+        const ghostFromObserverPromise = waitForGhostMessage(observer, e2eeRoomId, 60000);
+
+        console.log(`[E2E-E2EE-Edit] Editing original message to add proxy prefix...`);
+        
+        await client.sendMessage(e2eeRoomId, {
+            msgtype: "m.text",
+            body: `* ${proxyPrefix} ${editedText}`,
+            "m.new_content": {
+                msgtype: "m.text",
+                body: `${proxyPrefix} ${editedText}`
+            },
+            "m.relates_to": {
+                rel_type: "m.replace",
+                event_id: originalEventId
+            }
+        });
+
+        console.log(`[E2E-E2EE-Edit] Waiting for ghost response (both views)...`);
+        const [senderGhost, observerGhost] = await Promise.all([ghostFromSenderPromise, ghostFromObserverPromise]);
+        
+        expect(senderGhost.content.body).toBe(editedText);
+        expect(observerGhost.content.body).toBe(editedText);
+        
+        // Verify it isn't an unsupported message with no msgtype (the exact bug!)
+        expect(senderGhost.content.msgtype).toBe("m.text");
+        expect(observerGhost.content.msgtype).toBe("m.text");
+        expect(senderGhost.content.ciphertext).toBeUndefined();
+
+        console.log(`[E2E-E2EE-Edit] SUCCESS: Edited encrypted message correctly decrypted and proxied.`);
+
+        // Verify redaction for both
+        await Promise.all([
+            verifyRedaction(client, e2eeRoomId, originalEventId, "Sender (Original)"),
+            verifyRedaction(observer, e2eeRoomId, originalEventId, "Observer (Original)")
+        ]);
+    }, 180000);
 });

@@ -1,7 +1,70 @@
-import { OlmMachine, RequestType } from "@matrix-org/matrix-sdk-crypto-nodejs";
+import { OlmMachine, RequestType, RoomId } from "@matrix-org/matrix-sdk-crypto-nodejs";
 import { Intent } from "matrix-appservice-bridge";
 import { PrismaClient } from "@prisma/client";
 import { sleep } from "../utils/timer";
+import { IntentWithClient, PluralMatrixEvent, PluralMatrixEventContent } from "../types";
+import { OlmMachineManager } from "./OlmMachineManager";
+
+/**
+ * Ensures an event object has the necessary fields and attempts to decrypt it.
+ * Mutates the passed event object if decryption is successful.
+ */
+export async function decryptHistoricalEvent(
+    event: PluralMatrixEvent,
+    roomId: string,
+    cryptoManager: OlmMachineManager,
+    decryptingUserId: string
+): Promise<PluralMatrixEvent> {
+    if (!event.room_id) event.room_id = roomId;
+    if (!event.event_id && event.id) event.event_id = event.id;
+    if (!event.sender) event.sender = decryptingUserId; // Fallback to avoid Rust panic
+
+    if (event.type === "m.room.encrypted") {
+        try {
+            const rustRoomId = new RoomId(roomId);
+            const machine = await cryptoManager.getMachine(decryptingUserId);
+            const decrypted = await machine.decryptRoomEvent(JSON.stringify(event), rustRoomId);
+            if (decrypted.event) {
+                const parsed = JSON.parse(decrypted.event) as { content: PluralMatrixEventContent };
+                if (parsed.content) {
+                    event.content = parsed.content;
+                }
+            }
+        } catch (e: unknown) {
+            console.warn(`[Crypto] Could not decrypt historical event ${event.event_id}:`, (e as Error).message);
+        }
+    }
+    
+    return event;
+}
+
+/**
+ * Fetches an event from the homeserver and decrypts it if necessary.
+ * Handles read-only object cloning automatically.
+ */
+export async function fetchAndDecryptHistoricalEvent(
+    botClient: IntentWithClient["matrixClient"],
+    roomId: string,
+    eventId: string,
+    cryptoManager: OlmMachineManager,
+    decryptingUserId: string
+): Promise<PluralMatrixEvent | null> {
+    try {
+        const rawEvent = await botClient.getEvent(roomId, eventId);
+        if (!rawEvent) return null;
+        
+        // MatrixClient returns instances of RoomEvent which encapsulate the real JSON in .raw
+        // Clone to bypass read-only restrictions from the matrix-bot-sdk
+        const rawJson = typeof (rawEvent as { raw?: unknown }).raw === 'object' ? (rawEvent as { raw: unknown }).raw : rawEvent;
+        const event = JSON.parse(JSON.stringify(rawJson)) as PluralMatrixEvent;
+        event.event_id = eventId;
+        
+        return await decryptHistoricalEvent(event, roomId, cryptoManager, decryptingUserId);
+    } catch {
+        // Network or 404 error
+        return null;
+    }
+}
 
 // In-memory cache to prevent redundant registrations/logins within a single session
 let registeredDevices = new Set<string>();

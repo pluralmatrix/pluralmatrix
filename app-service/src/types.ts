@@ -141,6 +141,6 @@ export type IntentWithClient = Intent & {
         getUserProfile(userId: string): Promise<{ displayname?: string, avatar_url?: string }>;
         getRoomStateEvent(roomId: string, eventType: string, stateKey: string): Promise<Record<string, unknown>>;
         sendStateEvent(roomId: string, eventType: string, stateKey: string, content: Record<string, unknown>): Promise<void>;
-        [key: string]: unknown;
+        getEvent(roomId: string, eventId: string): Promise<unknown>;
     }
-}
+};

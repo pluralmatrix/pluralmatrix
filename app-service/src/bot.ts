@@ -9,7 +9,7 @@ import { maskMxid } from "./utils/privacy";
 import { OlmMachineManager } from "./crypto/OlmMachineManager";
 import { TransactionRouter } from "./crypto/TransactionRouter";
 import { DeviceLists } from "@matrix-org/matrix-sdk-crypto-nodejs";
-import { processCryptoRequests, registerDevice } from "./crypto/crypto-utils";
+import { processCryptoRequests, registerDevice, fetchAndDecryptHistoricalEvent } from "./crypto/crypto-utils";
 import { messageQueue } from "./services/queue/MessageQueue";
 import { CommandHandler } from "./services/commandHandler";
 import { parseCommand } from "./utils/commandParser";
@@ -254,10 +254,13 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
     // Edit Loop Prevention
     if (isEdit) {
         try {
-            originalEvent = (await bridgeInstance.getBot().getClient().getEvent(roomId, originalEventId)) as unknown as PluralMatrixEvent;
+            const botClient = (bridgeInstance.getIntent() as IntentWithClient).matrixClient;
+            originalEvent = await fetchAndDecryptHistoricalEvent(botClient, roomId, originalEventId, cryptoManager, botUserId);
+
             const redactedBy = originalEvent?.unsigned?.redacted_by as string | undefined;
             if (redactedBy === botUserId || redactedBy?.startsWith("@_plural_")) return;
-        } catch {
+        } catch (e: unknown) {
+            console.error(`[EditDebug] Error fetching/decrypting original event:`, e);
             // Ignore errors
         }
     }

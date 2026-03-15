@@ -5,87 +5,181 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch: # Allows manual triggering from the GitHub UI
+  workflow_dispatch:
 
 permissions:
   contents: read
   actions: write
 
 jobs:
-  build-and-test:
+  static-analysis:
+    name: Lint, Audit & Build
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Use Node.js 22
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22.x'
-        cache: 'npm'
-        cache-dependency-path: './app-service/package-lock.json'
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: './app-service/package-lock.json'
 
-    - name: Install Dependencies
-      run: |
-        cd app-service
-        npm ci
-        cd client
-        npm ci
+      - name: Install Dependencies
+        run: |
+          cd app-service
+          npm ci
+          cd client
+          npm ci
 
-    - name: Run Setup Wizard (Non-Interactive)
-      run: ./setup.sh --ci
+      - name: Verify Frontend Build (TypeScript & Vite)
+        run: |
+          cd app-service/client
+          npm run build
 
-    - name: Expose GitHub Runtime for sccache
-      uses: crazy-max/ghaction-github-runtime@v4
+      - name: Run Backend Lint
+        if: always()
+        run: |
+          cd app-service
+          npm run lint
 
-    - name: Boot the PluralMatrix Stack
-      env:
-        ACTIONS_RESULTS_URL: ${{ env.ACTIONS_RESULTS_URL }}
-        ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
-        ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
-        SCCACHE_GHA_ENABLED: "on"
-      run: ./restart-stack.sh
+      - name: Run Frontend Lint
+        if: always()
+        run: |
+          cd app-service/client
+          npm run lint
 
-    - name: Run Synapse Module Unit Tests
-      run: |
-        cd synapse/modules
-        ./test.sh
+      - name: Audit Backend Dependencies
+        if: always()
+        run: |
+          cd app-service
+          npx audit-ci --config audit-ci.json
 
-    - name: Verify Frontend Build (TypeScript & Vite)
-      run: |
-        cd app-service/client
-        npm run build
+      - name: Audit Frontend Dependencies
+        if: always()
+        run: |
+          cd app-service/client
+          npm audit --audit-level=high
 
-    - name: Run Full Test Battery (Jest + Playwright)
-      run: |
-        cd app-service
-        ./test.sh
+  backend-tests:
+    name: Synapse & Jest Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Run Backend Lint
-      if: always()
-      run: |
-        cd app-service
-        npm run lint
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: './app-service/package-lock.json'
 
-    - name: Run Frontend Lint
-      if: always()
-      run: |
-        cd app-service/client
-        npm run lint
+      - name: Install Dependencies
+        run: |
+          cd app-service
+          npm ci
 
-    - name: Audit Backend Dependencies
-      if: always()
-      # Uses audit-ci to allowlist known-unfixable advisories in matrix-appservice-bridge's
-      # transitive deps (nedb prototype pollution, underscore code exec, request SSRF).
-      # Any NEW high/critical vulnerability not in the allowlist will fail this step.
-      # Allowlist defined in app-service/audit-ci.json.
-      run: |
-        cd app-service
-        npx audit-ci --config audit-ci.json
+      - name: Run Setup Wizard (Non-Interactive)
+        run: ./setup.sh --ci
 
-    - name: Audit Frontend Dependencies
-      if: always()
-      run: |
-        cd app-service/client
-        npm audit --audit-level=high
+      - name: Expose GitHub Runtime for sccache
+        uses: crazy-max/ghaction-github-runtime@v4
+
+      - name: Boot the PluralMatrix Stack
+        env:
+          ACTIONS_RESULTS_URL: ${{ env.ACTIONS_RESULTS_URL }}
+          ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
+          ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
+          SCCACHE_GHA_ENABLED: "on"
+        run: |
+          sudo chown -R 991:991 synapse/config 2>/dev/null || true
+          # Boot with relaxed rate limits for testing
+          sudo docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d synapse
+          until [ "$(sudo docker inspect -f '{{.State.Health.Status}}' pluralmatrix-synapse)" == "healthy" ]; do echo -n "."; sleep 2; done
+          ./restart-stack.sh
+
+      - name: Run Synapse Module Unit Tests
+        run: |
+          cd synapse/modules
+          ./test.sh
+
+      - name: Regenerate Prisma Client
+        run: |
+          cd app-service
+          npx prisma generate --schema=prisma/schema.prisma
+
+      - name: Run Backend Tests (Jest)
+        run: |
+          cd app-service
+          npx jest --forceExit
+
+  e2e-tests:
+    name: Playwright UI Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: './app-service/package-lock.json'
+
+      - name: Install Dependencies
+        run: |
+          cd app-service
+          npm ci
+          cd client
+          npm ci
+
+      - name: Run Setup Wizard (Non-Interactive)
+        run: ./setup.sh --ci
+
+      - name: Expose GitHub Runtime for sccache
+        uses: crazy-max/ghaction-github-runtime@v4
+
+      - name: Boot the PluralMatrix Stack
+        env:
+          ACTIONS_RESULTS_URL: ${{ env.ACTIONS_RESULTS_URL }}
+          ACTIONS_RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
+          ACTIONS_CACHE_SERVICE_V2: ${{ env.ACTIONS_CACHE_SERVICE_V2 }}
+          SCCACHE_GHA_ENABLED: "on"
+        run: |
+          sudo chown -R 991:991 synapse/config 2>/dev/null || true
+          # Boot with relaxed rate limits for E2E
+          sudo docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d synapse
+          until [ "$(sudo docker inspect -f '{{.State.Health.Status}}' pluralmatrix-synapse)" == "healthy" ]; do echo -n "."; sleep 2; done
+          ./restart-stack.sh
+
+      - name: Install Playwright Browsers
+        run: |
+          cd app-service
+          npx playwright install --with-deps
+
+      - name: Regenerate Prisma Client
+        run: |
+          cd app-service
+          npx prisma generate --schema=prisma/schema.prisma
+
+      - name: Build Frontend
+        run: |
+          cd app-service/client
+          npm run build
+
+      - name: Run UI Tests (Playwright)
+        run: |
+          cd app-service
+          npx playwright test
+        
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: app-service/playwright-report/
+          retention-days: 7
+

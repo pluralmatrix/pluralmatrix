@@ -56,7 +56,7 @@ describe('Proxy on Edit', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         setAsToken("test_token");
-        initCommandHandler(mockBridge as unknown as Parameters<typeof initCommandHandler>[0], prisma, cryptoManager, "test_token", "localhost");
+        initCommandHandler(mockBridge as unknown as import('matrix-appservice-bridge').Bridge, prisma, cryptoManager, "test_token", "localhost");
     });
 
     const mockSystem = {
@@ -100,7 +100,7 @@ describe('Proxy on Edit', () => {
             }
         };
 
-        const req = { getData: () => editEvent } as unknown as Parameters<typeof handleEvent>[0];
+        const req = { getData: () => editEvent } as unknown as import('matrix-appservice-bridge').Request<import('matrix-appservice-bridge').WeakEvent>;
 
         // Mock original event
         mockBotClient.getEvent.mockResolvedValueOnce({
@@ -113,7 +113,7 @@ describe('Proxy on Edit', () => {
         });
 
         // 3. Handle the event
-        await handleEvent(req, mockBridge as unknown as Parameters<typeof handleEvent>[1], prisma);
+        await handleEvent(req, mockBridge as unknown as import('matrix-appservice-bridge').Bridge, prisma);
 
         // 4. Verify original event was redacted (Matrix server cascades to edit)
         expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, originalId, "PluralProxy");

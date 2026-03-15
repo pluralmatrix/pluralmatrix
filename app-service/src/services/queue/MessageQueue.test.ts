@@ -62,11 +62,11 @@ describe('MessageQueueService', () => {
 
         mockGhostIntent = {
             userId: "@_plural_ghost:localhost"
-        } as unknown as Intent;
+        } as Partial<Intent> as Intent;
         
         mockBotIntent = {
             userId: "@plural_bot:localhost"
-        } as unknown as Intent;
+        } as Partial<Intent> as Intent;
         
         const bridge = getBridge();
         (bridge.getIntent as jest.Mock).mockReturnValue(mockBotIntent);

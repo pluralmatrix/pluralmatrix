@@ -153,12 +153,12 @@ export class CommandHandler {
     async safeRedact(roomId: string, eventId: string, reason: string, preferredIntent?: Intent) {
         const intent = preferredIntent || this.bridge.getIntent();
         try {
-            await (intent as unknown as IntentWithClient).matrixClient.redactEvent(roomId, eventId, reason);
+            await (intent as IntentWithClient).matrixClient.redactEvent(roomId, eventId, reason);
         } catch (e: unknown) {
             const err = e as { errcode?: string, httpStatus?: number };
             if (err.errcode === 'M_FORBIDDEN' || err.httpStatus === 403) {
                 try {
-                    await (this.bridge.getIntent() as unknown as IntentWithClient).matrixClient.redactEvent(roomId, eventId, reason);
+                    await (this.bridge.getIntent() as IntentWithClient).matrixClient.redactEvent(roomId, eventId, reason);
                 } catch (fallbackErr: unknown) {
                     const fbErr = fallbackErr as { errcode?: string, httpStatus?: number };
                     if ((fbErr.errcode === 'M_FORBIDDEN' || fbErr.httpStatus === 403) && !this.permissionWarnedRooms.has(roomId)) {
@@ -921,7 +921,7 @@ ${webUrl}
 
             // Issue #5: Verify user existence before linking
             try {
-                await (this.bridge.getIntent() as unknown as IntentWithClient).matrixClient.getUserProfile(targetMxid);
+                await (this.bridge.getIntent() as IntentWithClient).matrixClient.getUserProfile(targetMxid);
             } catch {
                 await this.sendRichText(this.bridge.getIntent(), roomId, `❌ Could not verify Matrix ID **${targetMxid}**. Please ensure the ID is correct and the user exists.`);
                 return true;
@@ -1338,7 +1338,7 @@ ${webUrl}
             const botUserId = this.bridge.getBot().getUserId();
             
             // Proactively fetch power levels once during room setup
-            const state = await (ghostIntent as unknown as IntentWithClient).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "") as { users?: Record<string, number>, users_default?: number };
+            const state = await (ghostIntent as IntentWithClient).matrixClient.getRoomStateEvent(roomId, "m.room.power_levels", "") as { users?: Record<string, number>, users_default?: number };
             const users = state.users || {};
             const ghostLevel = users[ghostUserId] || state.users_default || 0;
             
@@ -1372,7 +1372,7 @@ ${webUrl}
             if (changed) {
                 state.users = users;
                 console.log(`[Ghost] ${ghostUserId} pre-emptively promoting bot/owner to PL ${ghostLevel} in ${roomId}`);
-                await (this.bridge.getIntent(ghostUserId) as unknown as IntentWithClient).matrixClient.sendStateEvent(roomId, "m.room.power_levels", "", state);
+                await (this.bridge.getIntent(ghostUserId) as IntentWithClient).matrixClient.sendStateEvent(roomId, "m.room.power_levels", "", state);
             }
         } catch (e: unknown) {
             console.warn(`[Ghost] Failed to pre-emptively promote system in ${roomId}:`, (e as Error).message);

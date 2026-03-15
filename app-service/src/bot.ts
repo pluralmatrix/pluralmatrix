@@ -102,7 +102,7 @@ export const handleEvent = async (request: Request<WeakEvent>, bridgeInstance: B
                         if (primaryLink) {
                             // 1. Set Room Name: "[Sender Name], [Ghost Name]"
                             try {
-                                const intentClient = ghostIntent as unknown as IntentWithClient;
+                                const intentClient = ghostIntent as IntentWithClient;
                                 const senderProfile = await intentClient.matrixClient.getUserProfile(sender) as { displayname?: string };
                                 const ghostProfile = await intentClient.matrixClient.getUserProfile(targetUserId) as { displayname?: string };
                                 const senderName = senderProfile.displayname || sender;
@@ -450,7 +450,7 @@ export const startMatrixBot = async () => {
         next();
     });
 
-    const _app = app as unknown as { _router?: { stack: unknown[] } };
+    const _app = app as { _router?: { stack: unknown[] } };
     if (_app._router?.stack) {
         const stack = _app._router.stack;
         const myLayer = stack.pop();

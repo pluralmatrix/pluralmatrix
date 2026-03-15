@@ -49,6 +49,20 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           mypy --config-file synapse/modules/mypy.ini synapse/modules/
 
+      - name: Install Rust Toolchain
+        if: always()
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+
+      - name: Run Rust Linter (clippy)
+        if: always()
+        run: |
+          cd rust-crypto-helper
+          cargo clippy --all-targets --all-features -- -D warnings
+
       - name: Run Backend Lint
         if: always()
         run: |

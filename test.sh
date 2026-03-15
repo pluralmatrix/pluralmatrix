@@ -11,6 +11,10 @@ echo "=== Running Synapse Module Tests ==="
 (cd synapse/modules && ./test.sh)
 
 echo ""
+echo "=== Running Rust Crypto Helper Tests ==="
+(cd rust-crypto-helper && ./test.sh)
+
+echo ""
 echo "=== Running App Service Tests ==="
 (cd app-service && ./test.sh "$@")
 

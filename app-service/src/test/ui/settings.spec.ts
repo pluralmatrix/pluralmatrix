@@ -284,4 +284,36 @@ test.describe('System Settings and Member Management', () => {
     await deactivateUser(testFullMxid, testToken);
     cleanupCryptoStorage(testUser);
   });
+
+  test('User cannot unlink their last remaining account', async ({ page }) => {
+    const testUser = `ui_set_user3_${Math.random().toString(36).substring(7)}`;
+    const testFullMxid = await registerUser(testUser, password);
+    const client = await getMatrixClient(testUser, password);
+    const testToken = client.accessToken;
+    client.stop();
+
+    // 1. Log in & create system
+    await page.goto('/login');
+    await page.getByTestId('login-mxid-input').fill(testFullMxid);
+    await page.getByTestId('login-password-input').fill(password);
+    await page.getByTestId('login-submit-button').click();
+    await page.waitForURL(/\/setup/);
+
+    await page.getByTestId('create-system-button').click();
+    await page.getByTestId('acknowledge-warning-button').click();
+    await page.waitForURL(/\/s\/[a-z0-9-]+/);
+
+    // 2. Open settings
+    await page.getByTestId('system-settings-button').click();
+    await expect(page.getByTestId('system-settings-title')).toBeVisible();
+
+    // 3. Verify the delete button is hidden for the primary/self account
+    const linkRow = page.locator('.space-y-3 > div', { hasText: testFullMxid });
+    await expect(linkRow).toBeVisible();
+    await expect(linkRow.locator('button[title="Unlink Account"]')).toBeHidden();
+
+    // Cleanup
+    await deactivateUser(testFullMxid, testToken);
+    cleanupCryptoStorage(testUser);
+  });
 });

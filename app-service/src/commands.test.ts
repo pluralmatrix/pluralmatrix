@@ -27,6 +27,8 @@ describe('CommandHandler Tests', () => {
     member: Record<string, jest.Mock>;
     group: Record<string, jest.Mock>;
     accountLink: Record<string, jest.Mock>;
+    switch: Record<string, jest.Mock>;
+    switchMember: Record<string, jest.Mock>;
     $transaction: jest.Mock;
   };
   let mockCryptoManager: { getMachine: jest.Mock };
@@ -113,7 +115,24 @@ describe('CommandHandler Tests', () => {
         updateMany: jest.fn(),
         count: jest.fn(),
       },
-      $transaction: jest.fn((p) => Promise.all(p)),
+      switch: {
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+      },
+      switchMember: {
+        createMany: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+      $transaction: jest.fn(async (cb: unknown) => {
+        if (typeof cb === 'function') {
+          return (cb as (prisma: unknown) => unknown)(mockPrisma as unknown);
+        }
+        return Promise.all(cb as Promise<unknown>[]);
+      }),
     };
 
     mockCryptoManager = {
@@ -1307,6 +1326,289 @@ describe('CommandHandler Tests', () => {
         expect.stringContaining('href="https://matrix.to/#/@owner:localhost"'),
         expect.anything(),
       );
+    });
+  });
+
+  describe('pk;switch and pk;config commands', () => {
+    let sendRichTextSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      sendRichTextSpy = jest.spyOn(commandHandler, 'sendRichText').mockResolvedValue({ event_id: '$event' });
+    });
+
+    it('pk;switch <member> should log a new switch', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;switch', 'lily'];
+
+      mockPrisma.switch.create.mockResolvedValueOnce({ id: 'new_switch_id' });
+
+      const handled = await commandHandler.handleCommand(event, 'switch', parts, mockSystem);
+
+      expect(handled).toBe(true);
+      expect(mockPrisma.switch.create).toHaveBeenCalled();
+      expect(mockPrisma.switchMember.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [{ switchId: 'new_switch_id', memberId: 'mem1', order: 0 }],
+        }),
+      );
+      expect(sendRichTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!room:localhost',
+        expect.stringContaining('✅ Switch logged: **Lily**'),
+      );
+    });
+
+    it('pk;switch out should log a switch with no members', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;switch', 'out'];
+
+      mockPrisma.switch.create.mockResolvedValueOnce({ id: 'new_switch_id' });
+
+      const handled = await commandHandler.handleCommand(event, 'switch', parts, mockSystem);
+
+      expect(handled).toBe(true);
+      expect(mockPrisma.switch.create).toHaveBeenCalled();
+      expect(mockPrisma.switchMember.createMany).not.toHaveBeenCalled();
+      expect(sendRichTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!room:localhost',
+        expect.stringContaining('✅ Logged switch-out'),
+      );
+    });
+
+    it('pk;switch edit <member> should update the latest switch', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;switch', 'edit', 'lily'];
+
+      mockPrisma.switch.findFirst.mockResolvedValueOnce({ id: 'latest_switch_id', timestamp: new Date() });
+
+      const handled = await commandHandler.handleCommand(event, 'switch', parts, mockSystem);
+
+      expect(handled).toBe(true);
+      expect(mockPrisma.switchMember.deleteMany).toHaveBeenCalledWith({ where: { switchId: 'latest_switch_id' } });
+      expect(mockPrisma.switchMember.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [{ switchId: 'latest_switch_id', memberId: 'mem1', order: 0 }],
+        }),
+      );
+      expect(sendRichTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!room:localhost',
+        expect.stringContaining('✅ Switch edited: **Lily**'),
+      );
+    });
+
+    it('pk;switch move <time> should update the timestamp of the latest switch', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;switch', 'move', '5m'];
+
+      const now = new Date();
+      mockPrisma.switch.findFirst.mockResolvedValueOnce({ id: 'latest_switch_id', timestamp: now }); // Latest switch
+      mockPrisma.switch.findFirst.mockResolvedValueOnce(null); // Previous switch (none exists)
+
+      const handled = await commandHandler.handleCommand(event, 'switch', parts, mockSystem);
+
+      expect(handled).toBe(true);
+      expect(mockPrisma.switch.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'latest_switch_id' },
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({ timestamp: expect.any(Date) as unknown }),
+        }),
+      );
+      expect(sendRichTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!room:localhost',
+        expect.stringContaining('✅ Moved latest switch'),
+      );
+    });
+
+    it('pk;switch delete should delete the latest switch', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;switch', 'delete', '-confirm'];
+
+      mockPrisma.switch.findFirst.mockResolvedValueOnce({ id: 'latest_switch_id' });
+
+      const handled = await commandHandler.handleCommand(event, 'switch', parts, mockSystem);
+
+      expect(handled).toBe(true);
+      expect(mockPrisma.switch.delete).toHaveBeenCalledWith({ where: { id: 'latest_switch_id' } });
+      expect(sendRichTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!room:localhost',
+        expect.stringContaining('✅ Deleted the most recent switch'),
+      );
+    });
+
+    it('pk;config proxy switch <mode> should update proxy autoswitch config', async () => {
+      const event = { room_id: '!room:localhost', sender: '@alice:localhost' };
+      const parts = ['pk;config', 'proxy', 'switch', 'add'];
+
+      const handled = await commandHandler.handleCommand(event, 'config', parts, mockSystem);
+
+      expect(handled).toBe(true);
+      expect(mockPrisma.system.update).toHaveBeenCalledWith({
+        where: { id: 'sys123' },
+        data: { proxyAutoswitch: 'add' },
+      });
+      expect(sendRichTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        '!room:localhost',
+        expect.stringContaining('✅ Proxy autoswitch configured to **add**'),
+      );
+    });
+  });
+
+  describe('safeRedact', () => {
+    const roomId = '!room:localhost';
+    const eventId = '$event_to_redact';
+
+    it('should successfully redact an event using the default intent', async () => {
+      mockBotClient.redactEvent.mockResolvedValueOnce({});
+      await commandHandler.safeRedact(roomId, eventId, 'UserRequest');
+      expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, eventId, 'UserRequest');
+    });
+
+    it('should fallback to bot intent if preferred intent fails with M_FORBIDDEN', async () => {
+      const preferredClient = {
+        redactEvent: jest.fn().mockRejectedValue({ errcode: 'M_FORBIDDEN' }),
+      };
+      const preferredIntent = {
+        userId: '@preferred:localhost',
+        matrixClient: preferredClient,
+      } as unknown as import('matrix-appservice-bridge').Intent;
+
+      mockBotClient.redactEvent.mockResolvedValueOnce({});
+      await commandHandler.safeRedact(roomId, eventId, 'UserRequest', preferredIntent);
+
+      expect(preferredClient.redactEvent).toHaveBeenCalledWith(roomId, eventId, 'UserRequest');
+      expect(mockBotClient.redactEvent).toHaveBeenCalledWith(roomId, eventId, 'UserRequest');
+    });
+
+    it('should send a warning message if bot also lacks permission', async () => {
+      const sendEncryptedTextSpy = jest
+        .spyOn(commandHandler, 'sendEncryptedText')
+        .mockResolvedValue({ event_id: '$warning' });
+
+      mockBotClient.redactEvent.mockRejectedValue({ errcode: 'M_FORBIDDEN' });
+
+      await commandHandler.safeRedact(roomId, eventId, 'UserRequest');
+
+      expect(sendEncryptedTextSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        roomId,
+        expect.stringContaining("I don't have permission to redact"),
+      );
+    });
+
+    it('should only warn once per room about redaction permissions', async () => {
+      const sendEncryptedTextSpy = jest
+        .spyOn(commandHandler, 'sendEncryptedText')
+        .mockResolvedValue({ event_id: '$warning' });
+
+      mockBotClient.redactEvent.mockRejectedValue({ errcode: 'M_FORBIDDEN' });
+
+      // First call warns
+      await commandHandler.safeRedact(roomId, eventId, 'UserRequest');
+      expect(sendEncryptedTextSpy).toHaveBeenCalledTimes(1);
+
+      // Second call does not warn again for the same room
+      await commandHandler.safeRedact(roomId, eventId, 'UserRequest');
+      expect(sendEncryptedTextSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should ignore other errors without warning', async () => {
+      const sendEncryptedTextSpy = jest.spyOn(commandHandler, 'sendEncryptedText');
+      mockBotClient.redactEvent.mockRejectedValue(new Error('Network error'));
+      await commandHandler.safeRedact(roomId, eventId, 'UserRequest');
+      expect(sendEncryptedTextSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveIdentity', () => {
+    it('should resolve a ghost member user ID', async () => {
+      mockPrisma.member.findFirst.mockResolvedValueOnce({ id: 'mem_id' });
+      const res = await commandHandler.resolveIdentity('@_plural_sys1_mem1:localhost');
+      expect(mockPrisma.member.findFirst).toHaveBeenCalledWith({
+        where: { slug: 'mem1', system: { slug: 'sys1' } },
+        select: { id: true },
+      });
+      expect(res).toEqual({ memberId: 'mem_id', systemId: undefined });
+    });
+
+    it('should resolve the bot user ID to the primary system', async () => {
+      mockPrisma.system.findFirst.mockResolvedValueOnce({ id: 'sys_id' });
+      const res = await commandHandler.resolveIdentity('@plural_bot:localhost');
+      expect(mockPrisma.system.findFirst).toHaveBeenCalledWith({
+        where: { accountLinks: { some: { isPrimary: true } } },
+        select: { id: true },
+      });
+      expect(res).toEqual({ memberId: undefined, systemId: 'sys_id' });
+    });
+
+    it('should return undefined for unknown users', async () => {
+      const res = await commandHandler.resolveIdentity('@someone_else:localhost');
+      expect(res).toEqual({ memberId: undefined, systemId: undefined });
+    });
+  });
+
+  describe('resolveGhostMessage', () => {
+    const roomId = '!room:localhost';
+
+    it('should hit cache if available and no explicit target is given', async () => {
+      const cached = {
+        sender: '@_plural_sys_mem:localhost',
+        latestEventId: '$ev1',
+        rootContent: { body: 'root' },
+        latestContent: { body: 'latest' },
+        rootEventId: '$ev1',
+      };
+      const spy = jest.spyOn(lastMessageCache, 'get').mockReturnValueOnce(cached);
+
+      const res = await commandHandler.resolveGhostMessage(roomId, 'sys');
+      expect(spy).toHaveBeenCalledWith(roomId, 'sys');
+      expect(res).toEqual({
+        event: { sender: cached.sender, event_id: cached.latestEventId, content: cached.rootContent },
+        latestContent: cached.latestContent,
+        originalId: cached.rootEventId,
+      });
+    });
+
+    it('should query room messages if no cache and no explicit target', async () => {
+      jest.spyOn(lastMessageCache, 'get').mockReturnValueOnce(undefined);
+      const mockEvent = {
+        sender: '@_plural_sys_mem:localhost',
+        event_id: '$ev1',
+        type: 'm.room.message',
+        content: { body: 'test' },
+      };
+      mockBotClient.doRequest.mockResolvedValueOnce({ chunk: [mockEvent] });
+
+      const res = await commandHandler.resolveGhostMessage(roomId, 'sys');
+      expect(res).toEqual({
+        event: mockEvent,
+        latestContent: mockEvent.content,
+        originalId: mockEvent.event_id,
+      });
+    });
+
+    it('should handle explicit target ID successfully', async () => {
+      const explicitId = '$explicit';
+      const mockEvent = {
+        sender: '@_plural_sys_mem:localhost',
+        event_id: explicitId,
+        type: 'm.room.message',
+        content: { body: 'explicit test' },
+      };
+
+      // Simulate that the event is not in the chunk, so it fetches via getEvent
+      mockBotClient.doRequest.mockResolvedValueOnce({ chunk: [] });
+      mockBotClient.getEvent.mockResolvedValueOnce(mockEvent);
+
+      const res = await commandHandler.resolveGhostMessage(roomId, 'sys', explicitId);
+      expect(mockBotClient.getEvent).toHaveBeenCalledWith(roomId, explicitId);
+      expect(res?.event).toMatchObject(mockEvent);
+      expect(res?.originalId).toBe(explicitId);
     });
   });
 });

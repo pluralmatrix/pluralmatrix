@@ -6,6 +6,8 @@
 
 ## Git Mandate
 
+- **ALWAYS** run `./format.sh` from the project root and ensure backend/frontend linters are clean before committing.
+- **ALWAYS** run `git status` and `git log -n 5 --oneline` before committing to ensure no outstanding, forgotten, or untracked changes are left behind or mixed up.
 - **NEVER** do a `git checkout` or `git reset --hard` to discard changes or start over without explicit permission from the user. It is irreversible and the user must be in the loop. Do not unilaterally throw away or discard work!
 - **NEVER** commit and push to GitHub without stopping and asking for explicit permission first.
 - **Security Guard:** A local `pre-push` hook has been installed in `.git/hooks/pre-push`. It uses the `GEMINI_CLI=1` environment variable to detect my process and hard-block any `git push` attempts I make. This ensures that only the user can push code to the remote repository from a standard terminal.
@@ -21,7 +23,7 @@
 
 ## Stack Management
 
-Since `docker-compose` can be unreliable in this environment (due to `ContainerConfig` errors), use the helper script to rebuild and restart the services.
+Use the helper script (`./restart-stack.sh`) to reliably rebuild the frontend, configure the test environment, and cleanly restart the services.
 
 ## Modified Synapse (Blackhole Feature)
 

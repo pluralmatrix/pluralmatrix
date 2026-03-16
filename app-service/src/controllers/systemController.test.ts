@@ -1,6 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import bodyParser from 'body-parser';
+import { System } from '@prisma/client';
 import * as systemController from './systemController';
 
 // Mock dependencies
@@ -20,6 +21,10 @@ jest.mock('../bot', () => ({
       delete: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+    },
+    switch: {
+      findMany: jest.fn(),
+      create: jest.fn(),
     },
     $transaction: jest.fn().mockImplementation((promises) => Promise.all(promises)),
   },
@@ -72,6 +77,8 @@ app.get('/dlq', mockAuth('@alice:localhost'), systemController.getDeadLetters);
 app.delete('/dlq/:id', mockAuth('@alice:localhost'), systemController.deleteDeadLetter);
 app.patch('/system', mockAuth('@alice:localhost'), systemController.updateSystem);
 app.get('/public/:slug', systemController.getPublicSystem);
+app.get('/api/system/switches', mockAuth('@alice:localhost'), systemController.getSwitches);
+app.post('/api/system/switches', mockAuth('@alice:localhost'), systemController.logSwitch);
 
 import { decommissionGhost, syncGhostProfile } from '../import';
 import { ensureUniqueSlug } from '../utils/slug';
@@ -517,7 +524,7 @@ describe('System Controller', () => {
       const res = await request(app).get('/public/sys1');
 
       expect(res.status).toBe(200);
-      const body = res.body as Partial<import('@prisma/client').System>;
+      const body = res.body as Partial<System>;
       expect(body.slug).toBe('sys1');
       expect(body.name).toBe('Public System');
       // Ensure internal fields are missing
@@ -536,6 +543,96 @@ describe('System Controller', () => {
       (prisma.system.findUnique as jest.Mock).mockRejectedValue(new Error('Crash'));
       const res = await request(app).get('/public/sys1');
       expect(res.status).toBe(500);
+    });
+  });
+
+  describe('Switching API', () => {
+    describe('GET /switches', () => {
+      it('should return a list of recent switches', async () => {
+        const mockFindUnique = jest.spyOn(prisma.accountLink, 'findUnique') as jest.Mock;
+        mockFindUnique.mockResolvedValue({ systemId: 'sys1' });
+
+        const mockFindMany = jest.spyOn(prisma.switch, 'findMany') as jest.Mock;
+        mockFindMany.mockResolvedValue([
+          { id: 'sw1', timestamp: new Date(), members: [{ member: { id: 'm1', name: 'Alice' } }] },
+        ]);
+
+        const res = await request(app).get('/api/system/switches').set('Authorization', 'Bearer fake-token');
+
+        expect(res.status).toBe(200);
+
+        const body = res.body as { members: { member: { name: string } }[] }[];
+        expect(body).toHaveLength(1);
+        expect(body[0]?.members[0]?.member.name).toBe('Alice');
+      });
+
+      it('should return 404 if system not found', async () => {
+        const mockFindUnique = jest.spyOn(prisma.accountLink, 'findUnique') as jest.Mock;
+        mockFindUnique.mockResolvedValue(null);
+
+        const res = await request(app).get('/api/system/switches').set('Authorization', 'Bearer fake-token');
+
+        expect(res.status).toBe(404);
+
+        const body = res.body as { error: string };
+        expect(body.error).toBe('System not found');
+      });
+
+      it('should gracefully handle db failure', async () => {
+        const mockFindUnique = jest.spyOn(prisma.accountLink, 'findUnique') as jest.Mock;
+        mockFindUnique.mockRejectedValue(new Error('DB Down'));
+
+        const res = await request(app).get('/api/system/switches').set('Authorization', 'Bearer fake-token');
+
+        expect(res.status).toBe(500);
+      });
+    });
+
+    describe('POST /switches', () => {
+      it('should create a new switch', async () => {
+        const mockFindUnique = jest.spyOn(prisma.accountLink, 'findUnique') as jest.Mock;
+        mockFindUnique.mockResolvedValue({ systemId: 'sys1' });
+
+        const mockCreate = jest.spyOn(prisma.switch, 'create') as jest.Mock;
+        mockCreate.mockResolvedValue({
+          id: 'sw2',
+          members: [{ memberId: 'm1' }, { memberId: 'm2' }],
+        });
+
+        const res = await request(app)
+          .post('/api/system/switches')
+          .set('Authorization', 'Bearer fake-token')
+          .send({ members: ['m1', 'm2'] });
+
+        expect(res.status).toBe(200);
+        expect(mockCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: {
+              systemId: 'sys1',
+              members: {
+                create: [
+                  { memberId: 'm1', order: 0 },
+                  { memberId: 'm2', order: 1 },
+                ],
+              },
+            },
+          }),
+        );
+        const invalidateSpy = jest.spyOn(proxyCache, 'invalidate');
+        expect(invalidateSpy).toHaveBeenCalledWith('@alice:localhost');
+      });
+
+      it('should return 400 if members array is missing or invalid', async () => {
+        const res = await request(app)
+          .post('/api/system/switches')
+          .set('Authorization', 'Bearer fake-token')
+          .send({ members: 'not-an-array' });
+
+        expect(res.status).toBe(400);
+
+        const body = res.body as { error: string };
+        expect(body.error).toContain('members array is required');
+      });
     });
   });
 });

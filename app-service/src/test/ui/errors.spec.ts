@@ -54,9 +54,16 @@ test.describe('Frontend Error Resilience', () => {
     await page.getByTestId('login-password-input').fill(password);
     await page.getByTestId('login-submit-button').click();
 
-    await page.waitForURL(/\/setup/);
-    await page.getByTestId('create-system-button').click();
-    await page.getByTestId('acknowledge-warning-button').click();
+    // In beforeAll we just registered the user, so the FIRST test runs setup.
+    // The SECOND test will skip setup and go straight to the dashboard.
+    // We handle both by waiting for the URL to settle.
+    try {
+      await page.waitForURL(/\/setup/, { timeout: 3000 });
+      await page.getByTestId('create-system-button').click();
+      await page.getByTestId('acknowledge-warning-button').click();
+    } catch {
+      // Already setup, ignore
+    }
     await page.waitForURL(/\/s\/[a-z0-9-]+/);
 
     await page.getByTestId('add-member-button').click();
@@ -81,5 +88,55 @@ test.describe('Frontend Error Resilience', () => {
     await expect.poll(() => alertMessage).toContain('must be under 8 MB');
 
     console.log('[UI-Error-Test] Success!');
+  });
+
+  test('User sees error toast when API fails to save member', async ({ page }) => {
+    // 1. Login & Navigate to Member Editor
+    await page.goto('/login');
+    await page.getByTestId('login-mxid-input').fill(fullMxid);
+    await page.getByTestId('login-password-input').fill(password);
+    await page.getByTestId('login-submit-button').click();
+
+    // In beforeAll we just registered the user, so the FIRST test runs setup.
+    // The SECOND test will skip setup and go straight to the dashboard.
+    // We handle both by waiting for the URL to settle.
+    try {
+      await page.waitForURL(/\/setup/, { timeout: 3000 });
+      await page.getByTestId('create-system-button').click();
+      await page.getByTestId('acknowledge-warning-button').click();
+    } catch {
+      // Already setup, ignore
+    }
+    await page.waitForURL(/\/s\/[a-z0-9-]+/);
+
+    // Intercept POST to members API to force a failure
+    await page.route('/api/members', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Forced API Error from Test' }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.getByTestId('add-member-button').click();
+    await page.fill('input[data-testid="member-name-input"]', 'Error Bob');
+    await page.fill('input[name="slug"]', 'error-bob');
+    await page.fill('input[name="prefix"]', 'err:');
+
+    // Wait for the alert to pop up upon saving
+    let alertMessage = '';
+    page.on('dialog', async (dialog) => {
+      alertMessage = dialog.message();
+      await dialog.accept();
+    });
+
+    await page.click('button[data-testid="save-member-button"]');
+
+    // Assert the dialog appeared
+    await expect.poll(() => alertMessage).toContain('Forced API Error from Test');
   });
 });

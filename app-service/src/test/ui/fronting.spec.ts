@@ -89,4 +89,51 @@ test.describe('Fronting View UI', () => {
 
     await expect(page.locator('text=No one is currently fronting.')).toBeVisible();
   });
+
+  test('should handle cancelling a switch edit and API errors', async ({ page }) => {
+    await page.goto('/login');
+    await page.fill('input[type="text"]', fullMxid);
+    await page.fill('input[type="password"]', password);
+    await page.click('button:has-text("Sign In")');
+
+    await expect(page).toHaveURL('/setup');
+
+    // Create the system
+    await page.click('button:has-text("Create a System")');
+    await page.click('button:has-text("I Understand, Proceed")');
+    await expect(page).toHaveURL('/');
+
+    await expect(page.locator('text=Members').first()).toBeVisible();
+
+    // Navigate to fronting tab
+    await page.click('button[data-testid="tab-fronting"]');
+
+    // Open the modal
+    await page.click('button[data-testid="log-switch-button"]');
+    await expect(page.locator('button:has-text("Cancel")')).toBeVisible();
+
+    // Click Cancel
+    await page.click('button:has-text("Cancel")');
+
+    // Ensure the modal closed and Log Switch button is back
+    await expect(page.locator('button[data-testid="log-switch-button"]')).toBeVisible();
+
+    // Now test API error by routing a request to abort
+    await page.route('/api/system/switches', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.abort('failed');
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.click('button[data-testid="log-switch-button"]');
+    await page.click('button[data-testid="save-switch-button"]');
+
+    // We expect the browser alert to fire since we aborted the POST request
+    page.on('dialog', async (dialog) => {
+      expect(dialog.message()).toContain('Failed to log switch');
+      await dialog.accept();
+    });
+  });
 });

@@ -19,6 +19,15 @@ jest.mock('./import', () => ({
   generateSlug: jest.fn((name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '-')),
 }));
 
+jest.mock('./crypto/encryption', () => ({
+  sendEncryptedEvent: jest.fn().mockResolvedValue({ event_id: '$mock_encrypted_event' }),
+}));
+
+jest.mock('./crypto/crypto-utils', () => ({
+  registerDevice: jest.fn().mockResolvedValue(undefined),
+  decryptHistoricalEvent: jest.fn((e: unknown) => e),
+}));
+
 describe('CommandHandler Tests', () => {
   let commandHandler: CommandHandler;
   let mockBridge: { getBot: jest.Mock; getIntent: jest.Mock };
@@ -1609,6 +1618,90 @@ describe('CommandHandler Tests', () => {
       expect(mockBotClient.getEvent).toHaveBeenCalledWith(roomId, explicitId);
       expect(res?.event).toMatchObject(mockEvent);
       expect(res?.originalId).toBe(explicitId);
+    });
+  });
+
+  describe('Messaging Helpers', () => {
+    const roomId = '!room:localhost';
+    const mockIntent = { userId: '@plural_bot:localhost' } as unknown as import('matrix-appservice-bridge').Intent;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockPrisma.system.findFirst.mockResolvedValue({ id: 'sys1' });
+    });
+
+    it('sendEncryptedText should format payload correctly', async () => {
+      const { sendEncryptedEvent } = await import('./crypto/encryption');
+
+      await commandHandler.sendEncryptedText(mockIntent, roomId, 'Hello world');
+
+      expect(sendEncryptedEvent).toHaveBeenCalledWith(
+        mockIntent,
+        roomId,
+        'm.room.message',
+        { msgtype: 'm.text', body: 'Hello world' },
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('sendRichText should format payload correctly with markdown', async () => {
+      const { sendEncryptedEvent } = await import('./crypto/encryption');
+
+      await commandHandler.sendRichText(mockIntent, roomId, '**Bold**');
+
+      expect(sendEncryptedEvent).toHaveBeenCalledWith(
+        mockIntent,
+        roomId,
+        'm.room.message',
+        {
+          msgtype: 'm.text',
+          body: '**Bold**',
+          format: 'org.matrix.custom.html',
+          formatted_body: '<p><strong>Bold</strong></p>',
+        },
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('sendEncryptedNotice should format payload correctly', async () => {
+      const { sendEncryptedEvent } = await import('./crypto/encryption');
+
+      await commandHandler.sendEncryptedNotice(mockIntent, roomId, 'A notice');
+
+      expect(sendEncryptedEvent).toHaveBeenCalledWith(
+        mockIntent,
+        roomId,
+        'm.room.message',
+        { msgtype: 'm.notice', body: 'A notice' },
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('sendEncryptedImage should format payload correctly', async () => {
+      const { sendEncryptedEvent } = await import('./crypto/encryption');
+
+      await commandHandler.sendEncryptedImage(mockIntent, roomId, 'mxc://url', 'Avatar Name');
+
+      expect(sendEncryptedEvent).toHaveBeenCalledWith(
+        mockIntent,
+        roomId,
+        'm.room.message',
+        {
+          msgtype: 'm.text',
+          body: '[Avatar: Avatar Name] (mxc://url)',
+          format: 'org.matrix.custom.html',
+          formatted_body: '<img src="mxc://url" alt="Avatar Name" />',
+        },
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
     });
   });
 });

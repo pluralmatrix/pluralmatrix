@@ -1320,9 +1320,9 @@ describe('CommandHandler Tests', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       (commandHandler as any).dmRoomCache.set('@test:localhost', '!cached:localhost');
       mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@test:localhost', '@plural_bot:localhost']);
-      
+
       const roomId = await commandHandler.getOrAutoCreateDMRoom('@test:localhost');
-      
+
       expect(roomId).toBe('!cached:localhost');
       expect(mockPrisma.botDMRoom.findUnique).not.toHaveBeenCalled();
     });
@@ -1332,7 +1332,7 @@ describe('CommandHandler Tests', () => {
       mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@test:localhost', '@plural_bot:localhost']);
 
       const roomId = await commandHandler.getOrAutoCreateDMRoom('@test:localhost');
-      
+
       expect(roomId).toBe('!db_cached:localhost');
       expect(mockPrisma.botDMRoom.findUnique).toHaveBeenCalledWith({ where: { userId: '@test:localhost' } });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
@@ -1342,12 +1342,16 @@ describe('CommandHandler Tests', () => {
     it('should JIT invalidate stale DB entry if user is no longer in the room', async () => {
       mockPrisma.botDMRoom.findUnique.mockResolvedValue({ roomId: '!stale_db:localhost' });
       // Someone else joined, so length > 2 (stale DM)
-      mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@test:localhost', '@plural_bot:localhost', '@intruder:localhost']);
+      mockBotClient.getJoinedRoomMembers.mockResolvedValue([
+        '@test:localhost',
+        '@plural_bot:localhost',
+        '@intruder:localhost',
+      ]);
       mockBotClient.createRoom.mockResolvedValue({ room_id: '!new_dm:localhost' });
       const unregisterSpy = jest.spyOn(commandHandler, 'unregisterDMRoom');
 
       const roomId = await commandHandler.getOrAutoCreateDMRoom('@test:localhost');
-      
+
       expect(unregisterSpy).toHaveBeenCalledWith('!stale_db:localhost');
       expect(roomId).toBe('!new_dm:localhost');
       expect(mockBotClient.createRoom).toHaveBeenCalled();
@@ -1365,23 +1369,25 @@ describe('CommandHandler Tests', () => {
       expect(registerSpy).toHaveBeenCalledWith('@test:localhost', '!brand_new:localhost');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       expect((commandHandler as any).dmRoomCache.get('@test:localhost')).toBe('!brand_new:localhost');
-      expect(mockPrisma.botDMRoom.upsert).toHaveBeenCalledWith(expect.objectContaining({
-        where: { userId: '@test:localhost' },
-        update: { roomId: '!brand_new:localhost' }
-      }));
+      expect(mockPrisma.botDMRoom.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: '@test:localhost' },
+          update: { roomId: '!brand_new:localhost' },
+        }),
+      );
     });
 
     it('should properly track room members and deduplicate fetches', async () => {
       mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@alice:localhost']);
-      
+
       // Fire two concurrent requests
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       const p1 = (commandHandler as any).getRoomMembers('!track_room:localhost') as Promise<string[]>;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       const p2 = (commandHandler as any).getRoomMembers('!track_room:localhost') as Promise<string[]>;
-      
+
       await Promise.all([p1, p2]);
-      
+
       // Should only call homeserver once thanks to promise deduplication
       expect(mockBotClient.getJoinedRoomMembers).toHaveBeenCalledTimes(1);
 

@@ -4,8 +4,12 @@
 # Runs both Backend (Jest) and UI (Playwright) tests.
 
 RUN_UI_TESTS=1
+RUN_BACKEND_TESTS=1
 if [ "$1" == "--backend-only" ]; then
     RUN_UI_TESTS=0
+    shift
+elif [ "$1" == "--ui-only" ]; then
+    RUN_BACKEND_TESTS=0
     shift
 fi
 
@@ -86,14 +90,19 @@ npm install --save-dev jest
 echo "🔄 Regenerating Prisma client..."
 npx prisma generate --schema=prisma/schema.prisma 2>&1 | tail -1
 
-echo "🏗️  Starting PluralMatrix Backend Tests (Jest)..."
-npx jest --forceExit "$@"
-JEST_EXIT_CODE=$?
+if [ $RUN_BACKEND_TESTS -eq 1 ]; then
+    echo "🏗️  Starting PluralMatrix Backend Tests (Jest)..."
+    npx jest --forceExit "$@"
+    JEST_EXIT_CODE=$?
 
-if [ $JEST_EXIT_CODE -eq 0 ]; then
-    echo "✅ Backend tests passed!"
+    if [ $JEST_EXIT_CODE -eq 0 ]; then
+        echo "✅ Backend tests passed!"
+    else
+        echo "❌ Backend tests failed."
+    fi
 else
-    echo "❌ Backend tests failed."
+    echo "⏩ Skipping Backend Tests (--ui-only flag provided)."
+    JEST_EXIT_CODE=0
 fi
 
 echo ""

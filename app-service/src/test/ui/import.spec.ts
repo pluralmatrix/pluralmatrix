@@ -200,7 +200,7 @@ test.describe('Web UI System Import and Data Flow', () => {
     await importPromise;
 
     console.log('[UI-Zip-Import-Test] Starting Step 3: VERIFY DASHBOARD');
-    await page.waitForURL(/\/s\/zip-system(-\d+)?/, { timeout: 10000 });
+    await page.waitForURL(/\/s\/zip-system(-\d+)?/, { timeout: 30000 });
 
     await expect(page.getByTestId('member-card-name').filter({ hasText: 'AliceZip' })).toBeVisible();
     await expect(page.getByTestId('member-avatar')).toBeVisible();

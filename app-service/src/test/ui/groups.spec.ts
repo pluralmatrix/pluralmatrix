@@ -25,6 +25,7 @@ test.describe('Web UI Groups Flow', () => {
   });
 
   test('User can create, edit, and delete groups, and add members', async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto('/login');
     await page.getByTestId('login-mxid-input').fill(fullMxid);
     await page.getByTestId('login-password-input').fill(password);

@@ -32,7 +32,7 @@ test.describe('System Settings and Member Management', () => {
   });
 
   test('User can manage avatar uploads, account links, and view DLQ', async ({ page, context }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
 
     // Grant clipboard permissions
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);

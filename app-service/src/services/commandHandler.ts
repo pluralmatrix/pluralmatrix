@@ -24,26 +24,110 @@ import { generateSlug, syncGhostProfile, decommissionGhost, migrateAvatar } from
 
 export class CommandHandler {
   private permissionWarnedRooms = new Set<string>();
-  private roomMemberCountCache = new Map<string, number>();
+  private roomMembersCache = new Map<string, string[]>();
+  private roomMembersFetchPromises = new Map<string, Promise<string[]>>();
+  private dmRoomCache = new Map<string, string>(); // Map<UserId, RoomId>
+
+  async unregisterDMRoom(roomId: string) {
+    try {
+      // Find the user associated with this room to clear the L1 cache
+      const dbEntry = await this.prisma.botDMRoom.findFirst({ where: { roomId } });
+      if (dbEntry) {
+        this.dmRoomCache.delete(dbEntry.userId);
+      }
+      // Delete from DB regardless of whether it was in cache
+      await this.prisma.botDMRoom.deleteMany({ where: { roomId } });
+    } catch (e) {
+      console.error(`[CommandHandler] Failed to unregister DM room ${roomId}:`, e);
+    }
+  }
+
+  async registerDMRoom(userId: string, roomId: string) {
+    try {
+      this.dmRoomCache.set(userId, roomId);
+      await this.prisma.botDMRoom.upsert({
+        where: { userId },
+        update: { roomId },
+        create: { userId, roomId },
+      });
+    } catch (e) {
+      console.error(`[CommandHandler] Failed to register DM room ${roomId} for user ${userId}:`, e);
+    }
+  }
+
+  async isDMRoom(roomId: string): Promise<boolean> {
+    const entry = await this.prisma.botDMRoom.findFirst({ where: { roomId } });
+    return !!entry;
+  }
+
+  updateRoomMembers(roomId: string, userId: string, membership: 'join' | 'leave' | 'ban') {
+    if (this.roomMembersCache.has(roomId)) {
+      const members = this.roomMembersCache.get(roomId)!;
+      if (membership === 'join') {
+        if (!members.includes(userId)) members.push(userId);
+      } else {
+        const index = members.indexOf(userId);
+        if (index > -1) members.splice(index, 1);
+      }
+      this.roomMembersCache.set(roomId, members);
+    }
+  }
+
+  async checkAndHandleDMRoom(roomId: string, botUserId: string) {
+    try {
+      // 1. Is it already a DM?
+      const isDM = await this.isDMRoom(roomId);
+      if (isDM) {
+        const members = await this.getRoomMembers(roomId);
+        if (members.length > 2) {
+          await this.unregisterDMRoom(roomId);
+        }
+      } else {
+        // 2. Not a DM yet. Did it just become one? (Bot + 1 User)
+        const members = await this.getRoomMembers(roomId);
+        if (members.length === 2 && members.includes(botUserId)) {
+          const otherUserId = members.find((m) => m !== botUserId);
+          if (otherUserId && !otherUserId.startsWith('@_plural_')) {
+            await this.registerDMRoom(otherUserId, roomId);
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`[CommandHandler] Error in checkAndHandleDMRoom for ${roomId}:`, e);
+    }
+  }
 
   invalidateRoomMemberCountCache(roomId: string) {
-    this.roomMemberCountCache.delete(roomId);
+    this.roomMembersCache.delete(roomId);
+  }
+
+  private async getRoomMembers(roomId: string, forceRefresh: boolean = false): Promise<string[]> {
+    if (!forceRefresh && this.roomMembersCache.has(roomId)) {
+      return this.roomMembersCache.get(roomId)!;
+    }
+    if (this.roomMembersFetchPromises.has(roomId)) {
+      return this.roomMembersFetchPromises.get(roomId)!;
+    }
+    const fetchPromise = (async () => {
+      try {
+        const botClient = this.bridge.getBot().getClient();
+        const members = await botClient.getJoinedRoomMembers(roomId);
+        this.roomMembersCache.set(roomId, members);
+        return members;
+      } catch (e) {
+        console.error(`[CommandHandler] Failed to get room members for ${roomId}:`, e);
+        return ['dummy1', 'dummy2', 'dummy3']; // Assume public room on failure to be safe
+      } finally {
+        this.roomMembersFetchPromises.delete(roomId);
+      }
+    })();
+    this.roomMembersFetchPromises.set(roomId, fetchPromise);
+    return fetchPromise;
   }
 
   private async getRoomMemberCount(roomId: string): Promise<number> {
-    if (this.roomMemberCountCache.has(roomId)) {
-      return this.roomMemberCountCache.get(roomId)!;
-    }
-    try {
-      const botClient = this.bridge.getBot().getClient();
-      const members = await botClient.getJoinedRoomMembers(roomId);
-      const count = members.length;
-      this.roomMemberCountCache.set(roomId, count);
-      return count;
-    } catch (e) {
-      console.error(`[CommandHandler] Failed to get room member count for ${roomId}:`, e);
-      return 3; // Assume public room on failure to be safe
-    }
+    const members = await this.getRoomMembers(roomId);
+    return members.length;
   }
 
   constructor(
@@ -621,21 +705,52 @@ export class CommandHandler {
   async getOrAutoCreateDMRoom(userId: string): Promise<string | null> {
     try {
       const botClient = (this.bridge.getIntent() as IntentWithClient).matrixClient;
-      const joinedRooms = await botClient.getJoinedRooms();
-      for (const roomId of joinedRooms) {
-        const members = await botClient.getJoinedRoomMembers(roomId);
-        if (members.length === 2 && members.includes(userId)) {
-          return roomId;
+
+      // 1. Check L1 Cache
+      let roomId = this.dmRoomCache.get(userId);
+
+      // 2. Check L2 DB
+      if (!roomId) {
+        const dbEntry = await this.prisma.botDMRoom.findUnique({ where: { userId } });
+        if (dbEntry) {
+          roomId = dbEntry.roomId;
+          this.dmRoomCache.set(userId, roomId); // Populate L1
         }
       }
 
+      // JIT Verification
+      if (roomId) {
+        try {
+          const members = await this.getRoomMembers(roomId, true);
+          if (members.length === 2 && members.includes(userId)) {
+            return roomId;
+          }
+          // If invalid, clear it
+          await this.unregisterDMRoom(roomId);
+        } catch (e) {
+          console.warn(
+            `[CommandHandler] Failed to get members for DM room ${roomId} during verification. It may be stale or bot may be missing. Unregistering...`,
+            e,
+          );
+          // If we fail to get members (e.g., bot left/kicked), it's invalid
+          await this.unregisterDMRoom(roomId);
+        }
+      }
+
+      // 3. Create if missing or invalid
       const res = await botClient.createRoom({
         is_direct: true,
         invite: [userId],
         preset: 'trusted_private_chat',
         visibility: 'private',
       });
-      return (res as { room_id?: string }).room_id || (typeof res === 'string' ? res : null);
+
+      const newRoomId = (res as { room_id?: string }).room_id || (typeof res === 'string' ? res : null);
+      if (newRoomId) {
+        await this.registerDMRoom(userId, newRoomId);
+        return newRoomId;
+      }
+      return null;
     } catch (e) {
       console.error('Failed to find or create DM room for', userId, e);
       return null;

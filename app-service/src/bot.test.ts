@@ -10,6 +10,11 @@ const mockPrisma = {
   accountLink: {
     findUnique: jest.fn(),
   },
+  botDMRoom: {
+    findFirst: jest.fn().mockResolvedValue(null),
+    deleteMany: jest.fn().mockResolvedValue({}),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
 };
 
 // MOCK PRISMA BEFORE ANYTHING ELSE

@@ -38,6 +38,7 @@ describe('CommandHandler Tests', () => {
     accountLink: Record<string, jest.Mock>;
     switch: Record<string, jest.Mock>;
     switchMember: Record<string, jest.Mock>;
+    botDMRoom: Record<string, jest.Mock>;
     $transaction: jest.Mock;
   };
   let mockCryptoManager: { getMachine: jest.Mock };
@@ -49,6 +50,7 @@ describe('CommandHandler Tests', () => {
     getUserProfile: jest.Mock;
     getRoomStateEvent: jest.Mock;
     getJoinedRoomMembers: jest.Mock;
+    createRoom: jest.Mock;
     homeserverUrl: string;
     doRequest: jest.Mock;
     sendStateEvent?: jest.Mock;
@@ -67,6 +69,7 @@ describe('CommandHandler Tests', () => {
       getUserProfile: jest.fn(),
       getRoomStateEvent: jest.fn().mockResolvedValue({ algorithm: 'm.megolm.v1.aes-sha2' }),
       getJoinedRoomMembers: jest.fn().mockResolvedValue(['@alice:localhost', '@_plural_seraphim_lily:localhost']),
+      createRoom: jest.fn().mockResolvedValue({ room_id: '!newroom:localhost' }),
       homeserverUrl: 'http://localhost:8008',
       doRequest: jest.fn(),
     };
@@ -135,6 +138,12 @@ describe('CommandHandler Tests', () => {
       switchMember: {
         createMany: jest.fn(),
         deleteMany: jest.fn(),
+      },
+      botDMRoom: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue(null),
+        deleteMany: jest.fn().mockResolvedValue({}),
+        upsert: jest.fn().mockResolvedValue({}),
       },
       $transaction: jest.fn(async (cb: unknown) => {
         if (typeof cb === 'function') {
@@ -1296,6 +1305,93 @@ describe('CommandHandler Tests', () => {
     });
   });
 
+  describe('DM Room Caching and Tracking', () => {
+    beforeEach(() => {
+      // Clear the internal caches between tests
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      (commandHandler as any).dmRoomCache.clear();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      (commandHandler as any).roomMembersCache.clear();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      (commandHandler as any).roomMembersFetchPromises.clear();
+    });
+
+    it('should return L1 cached room instantly without hitting DB or homeserver', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      (commandHandler as any).dmRoomCache.set('@test:localhost', '!cached:localhost');
+      mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@test:localhost', '@plural_bot:localhost']);
+      
+      const roomId = await commandHandler.getOrAutoCreateDMRoom('@test:localhost');
+      
+      expect(roomId).toBe('!cached:localhost');
+      expect(mockPrisma.botDMRoom.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should hit L2 Postgres Cache on L1 miss and populate L1', async () => {
+      mockPrisma.botDMRoom.findUnique.mockResolvedValue({ roomId: '!db_cached:localhost' });
+      mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@test:localhost', '@plural_bot:localhost']);
+
+      const roomId = await commandHandler.getOrAutoCreateDMRoom('@test:localhost');
+      
+      expect(roomId).toBe('!db_cached:localhost');
+      expect(mockPrisma.botDMRoom.findUnique).toHaveBeenCalledWith({ where: { userId: '@test:localhost' } });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      expect((commandHandler as any).dmRoomCache.get('@test:localhost')).toBe('!db_cached:localhost');
+    });
+
+    it('should JIT invalidate stale DB entry if user is no longer in the room', async () => {
+      mockPrisma.botDMRoom.findUnique.mockResolvedValue({ roomId: '!stale_db:localhost' });
+      // Someone else joined, so length > 2 (stale DM)
+      mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@test:localhost', '@plural_bot:localhost', '@intruder:localhost']);
+      mockBotClient.createRoom.mockResolvedValue({ room_id: '!new_dm:localhost' });
+      const unregisterSpy = jest.spyOn(commandHandler, 'unregisterDMRoom');
+
+      const roomId = await commandHandler.getOrAutoCreateDMRoom('@test:localhost');
+      
+      expect(unregisterSpy).toHaveBeenCalledWith('!stale_db:localhost');
+      expect(roomId).toBe('!new_dm:localhost');
+      expect(mockBotClient.createRoom).toHaveBeenCalled();
+    });
+
+    it('should create new DM and persist it if no cache exists', async () => {
+      mockPrisma.botDMRoom.findUnique.mockResolvedValue(null);
+      mockBotClient.createRoom.mockResolvedValue({ room_id: '!brand_new:localhost' });
+      const registerSpy = jest.spyOn(commandHandler, 'registerDMRoom');
+
+      const roomId = await commandHandler.getOrAutoCreateDMRoom('@test:localhost');
+
+      expect(roomId).toBe('!brand_new:localhost');
+      expect(mockBotClient.createRoom).toHaveBeenCalled();
+      expect(registerSpy).toHaveBeenCalledWith('@test:localhost', '!brand_new:localhost');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      expect((commandHandler as any).dmRoomCache.get('@test:localhost')).toBe('!brand_new:localhost');
+      expect(mockPrisma.botDMRoom.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { userId: '@test:localhost' },
+        update: { roomId: '!brand_new:localhost' }
+      }));
+    });
+
+    it('should properly track room members and deduplicate fetches', async () => {
+      mockBotClient.getJoinedRoomMembers.mockResolvedValue(['@alice:localhost']);
+      
+      // Fire two concurrent requests
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      const p1 = (commandHandler as any).getRoomMembers('!track_room:localhost') as Promise<string[]>;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      const p2 = (commandHandler as any).getRoomMembers('!track_room:localhost') as Promise<string[]>;
+      
+      await Promise.all([p1, p2]);
+      
+      // Should only call homeserver once thanks to promise deduplication
+      expect(mockBotClient.getJoinedRoomMembers).toHaveBeenCalledTimes(1);
+
+      commandHandler.updateRoomMembers('!track_room:localhost', '@bob:localhost', 'join');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      const cached = (commandHandler as any).roomMembersCache.get('!track_room:localhost') as string[];
+      expect(cached).toContain('@bob:localhost');
+    });
+  });
+
   describe('Message Queries', () => {
     const roomId = '!room:localhost';
     const senderId = '@alice:localhost';
@@ -1461,8 +1557,7 @@ describe('CommandHandler Tests', () => {
       expect(mockPrisma.switch.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'latest_switch_id' },
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          data: expect.objectContaining({ timestamp: expect.any(Date) as unknown }),
+          data: { timestamp: expect.any(Date) as unknown as Date },
         }),
       );
       expect(sendRichTextSpy).toHaveBeenCalledWith(

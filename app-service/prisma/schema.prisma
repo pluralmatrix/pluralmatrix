@@ -106,3 +106,10 @@ model SwitchMember {
 
   @@unique([switchId, memberId])
 }
+
+model BotDMRoom {
+  userId    String   @id // The Matrix ID of the user the bot is DMing
+  roomId    String   // The Matrix Room ID of the DM
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

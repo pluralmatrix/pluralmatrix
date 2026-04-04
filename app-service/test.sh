@@ -3,6 +3,12 @@
 # PluralMatrix Full Test Runner 🚀
 # Runs both Backend (Jest) and UI (Playwright) tests.
 
+RUN_UI_TESTS=1
+if [ "$1" == "--backend-only" ]; then
+    RUN_UI_TESTS=0
+    shift
+fi
+
 if [ -f ../.env ]; then
     export $(grep -v '^#' ../.env | xargs 2>/dev/null)
 fi
@@ -91,14 +97,19 @@ else
 fi
 
 echo ""
-echo "🎭 Starting PluralMatrix UI Tests (Playwright) via Docker..."
-sudo docker run --rm --network host --ipc=host -v "$(pwd)/..:/app" -w /app/app-service mcr.microsoft.com/playwright:v1.58.2-jammy npx playwright test
-PW_EXIT_CODE=$?
+if [ $RUN_UI_TESTS -eq 1 ]; then
+    echo "🎭 Starting PluralMatrix UI Tests (Playwright) via Docker..."
+    sudo docker run --rm --network host --ipc=host -v "$(pwd)/..:/app" -w /app/app-service mcr.microsoft.com/playwright:v1.58.2-jammy npx playwright test
+    PW_EXIT_CODE=$?
 
-if [ $PW_EXIT_CODE -eq 0 ]; then
-    echo "✅ UI tests passed!"
+    if [ $PW_EXIT_CODE -eq 0 ]; then
+        echo "✅ UI tests passed!"
+    else
+        echo "❌ UI tests failed."
+    fi
 else
-    echo "❌ UI tests failed."
+    echo "⏩ Skipping UI Tests (--backend-only flag provided)."
+    PW_EXIT_CODE=0
 fi
 
 echo "♻️  Restoring normal rate limits..."

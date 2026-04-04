@@ -76,15 +76,41 @@ export const handleEvent = async (
     const membership = event.content.membership;
     const botUserId = bridgeInstance.getBot().getUserId();
 
-    commandHandler.invalidateRoomMemberCountCache(roomId);
+    interface UnsignedContent {
+      prev_content?: {
+        membership?: string;
+      };
+    }
+
+    const unsigned = event.unsigned as UnsignedContent | undefined;
+    const isProfileChange = unsigned?.prev_content?.membership === 'join' && membership === 'join';
+
+    if (!isProfileChange) {
+      if (membership === 'join' || membership === 'leave' || membership === 'ban') {
+        commandHandler.updateRoomMembers(roomId, targetUserId, membership);
+      }
+    }
 
     if (targetUserId === botUserId) {
       if (membership === 'join') {
         joinedRooms.add(roomId);
+        // Important: When bot joins, it's a new room for the bot, so invalidate any old cached count
+        commandHandler.invalidateRoomMemberCountCache(roomId);
       } else if (membership === 'leave' || membership === 'ban') {
         joinedRooms.delete(roomId);
+        commandHandler.invalidateRoomMemberCountCache(roomId);
       }
     }
+
+    // --- DM Proactive Tracking ---
+    if (!isProfileChange) {
+      if (membership === 'leave' || membership === 'ban') {
+        commandHandler.unregisterDMRoom(roomId).catch(console.error);
+      } else if (membership === 'join' && joinedRooms.has(roomId)) {
+        commandHandler.checkAndHandleDMRoom(roomId, botUserId).catch(console.error);
+      }
+    }
+    // --- End DM Tracking ---
 
     // 1. Case: Invite Handling
     if (membership === 'invite') {

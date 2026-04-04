@@ -17,7 +17,7 @@ jest.mock('@prisma/client', () => ({
   PrismaClient: jest.fn().mockImplementation(() => mockPrisma),
 }));
 
-import { handleEvent, prisma, setAsToken, cryptoManager, initCommandHandler } from './bot';
+import { handleEvent, prisma, setAsToken, cryptoManager, initCommandHandler, joinedRooms } from './bot';
 import * as botModule from './bot';
 import { Request, Bridge, WeakEvent } from 'matrix-appservice-bridge';
 
@@ -72,9 +72,18 @@ jest.mock('./crypto/crypto-utils', () => ({
 
 describe('Bot Event Handler', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
     setAsToken('test_token');
     initCommandHandler(mockBridge as unknown as Bridge, prisma, cryptoManager, 'test_token', 'localhost');
+    joinedRooms.add('!room:localhost');
+  });
+
+  afterEach(async () => {
+    jest.runAllTimers();
+    // Allow any pending promises queued by the timer callbacks to resolve
+    await Promise.resolve();
+    jest.useRealTimers();
   });
 
   const createMockRequest = (event: Partial<import('./types').PluralMatrixEvent>): Request<WeakEvent> => {
@@ -101,6 +110,23 @@ describe('Bot Event Handler', () => {
   });
 
   describe('Invite Handling', () => {
+    it('should add room to joinedRooms when bot is invited', async () => {
+      const roomId = '!newdm:localhost';
+      const req = createMockRequest({
+        event_id: '$123',
+        room_id: roomId,
+        sender: '@user:localhost',
+        type: 'm.room.member',
+        state_key: '@plural_bot:localhost',
+        content: { membership: 'invite' },
+      });
+
+      await handleEvent(req, mockBridge as unknown as Bridge, prisma);
+
+      expect(mockBridge.getIntent().join).toHaveBeenCalledWith(roomId);
+      expect(joinedRooms.has(roomId)).toBe(true);
+    });
+
     it('should auto-join and forward invites for ghost users', async () => {
       const roomId = '!room:localhost';
       const ghostUserId = '@_plural_seraphim_lily:localhost';

@@ -24,6 +24,27 @@ import { generateSlug, syncGhostProfile, decommissionGhost, migrateAvatar } from
 
 export class CommandHandler {
   private permissionWarnedRooms = new Set<string>();
+  private roomMemberCountCache = new Map<string, number>();
+
+  invalidateRoomMemberCountCache(roomId: string) {
+    this.roomMemberCountCache.delete(roomId);
+  }
+
+  private async getRoomMemberCount(roomId: string): Promise<number> {
+    if (this.roomMemberCountCache.has(roomId)) {
+      return this.roomMemberCountCache.get(roomId)!;
+    }
+    try {
+      const botClient = this.bridge.getBot().getClient();
+      const members = await botClient.getJoinedRoomMembers(roomId);
+      const count = members.length;
+      this.roomMemberCountCache.set(roomId, count);
+      return count;
+    } catch (e) {
+      console.error(`[CommandHandler] Failed to get room member count for ${roomId}:`, e);
+      return 3; // Assume public room on failure to be safe
+    }
+  }
 
   constructor(
     private bridge: Bridge,
@@ -742,9 +763,17 @@ export class CommandHandler {
     cmd: string,
     parts: string[],
     system: SystemWithRelations | null,
+    botMention?: string,
   ): Promise<boolean> {
     const roomId = event.room_id;
     const sender = event.sender;
+    const myBotId = this.bridge.getBot().getUserId();
+
+    // 1. Explicit Mention Override
+    if (botMention && botMention !== myBotId) {
+      // Silently ignore: command is explicitly meant for another bot
+      return true;
+    }
 
     // Handle explicit system creation first
     if (cmd === 'system' || cmd === 's') {
@@ -775,6 +804,16 @@ export class CommandHandler {
             this.bridge.getIntent(),
             roomId,
             `You already have a system registered (\`${system.slug}\`).`,
+          );
+          return true;
+        }
+
+        const roomMemberCount = await this.getRoomMemberCount(roomId);
+        if (roomMemberCount > 2 && !botMention) {
+          await this.sendRichText(
+            this.bridge.getIntent(),
+            roomId,
+            `❌ To create a new system, please DM me directly, or explicitly mention me in a public room (e.g., \`${myBotId} pk;system new\`).`,
           );
           return true;
         }
@@ -821,6 +860,9 @@ ${webUrl}
       }
 
       if (!targetSystem) {
+        const roomMemberCount = await this.getRoomMemberCount(roomId);
+        if (roomMemberCount > 2 && !botMention) return true;
+
         const webUrl = buildWebUrl();
         await this.sendRichText(
           this.bridge.getIntent(),
@@ -1090,6 +1132,9 @@ ${webUrl}
 
     // For all other commands, if no system exists, prompt them to create one
     if (!system && cmd !== 'link' && cmd !== 'system' && cmd !== 's' && cmd !== 'message' && cmd !== 'msg') {
+      const roomMemberCount = await this.getRoomMemberCount(roomId);
+      if (roomMemberCount > 2 && !botMention) return true;
+
       const webUrl = buildWebUrl();
       await this.sendRichText(
         this.bridge.getIntent(),
@@ -1100,7 +1145,7 @@ ${webUrl}
     }
     if (cmd === 'list') {
       const newParts = ['system', 'list', ...parts.slice(1)];
-      return this.handleCommand(event, 'system', newParts, system);
+      return this.handleCommand(event, 'system', newParts, system, botMention);
     }
 
     if (cmd === 'link') {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma, cryptoManager, getBridge, commandHandler } from '../bot';
+import { prisma, cryptoManager, getBridge, commandHandler, joinedRooms } from '../bot';
 import { proxyCache } from '../services/cache';
 import { GatekeeperCheckSchema } from '../schemas/gatekeeper';
 import { sendGhostMessage } from '../services/ghostService';
@@ -14,6 +14,11 @@ export const checkMessage = async (req: Request, res: Response) => {
   try {
     const validated = GatekeeperCheckSchema.parse(req.body);
     const { event_id, sender, room_id, bot_id, type, encrypted_payload, origin_server_ts } = validated;
+
+    if (!joinedRooms.has(room_id)) {
+      return res.json({ action: 'ALLOW' });
+    }
+
     let content = validated.content as PluralMatrixEventContent;
     const isEncryptedSource = type === 'm.room.encrypted';
 

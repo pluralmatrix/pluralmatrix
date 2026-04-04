@@ -7,6 +7,9 @@ import { emitSystemUpdate } from '../services/events';
 
 jest.mock('../bot', () => ({
   prisma: {},
+  joinedRooms: {
+    has: jest.fn().mockReturnValue(true),
+  },
   asToken: 'test-token',
   cryptoManager: {
     getMachine: jest.fn(),

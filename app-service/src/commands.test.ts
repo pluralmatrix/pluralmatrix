@@ -1109,6 +1109,46 @@ describe('CommandHandler Tests', () => {
           data: { avatarUrl: 'mxc://example.com/123' },
         });
       });
+
+      it('should silently ignore commands explicitly mentioned for another bot', async () => {
+        const parts = ['pk;system'];
+        const handled = await commandHandler.handleCommand(
+          sysEvent,
+          'system',
+          parts,
+          mockSystemExtended,
+          '@other_bot:localhost',
+        );
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).not.toHaveBeenCalled();
+      });
+
+      it('should show DM instruction for pk;system new in public room without mention', async () => {
+        const parts = ['pk;system', 'new'];
+        // Mock getJoinedRoomMembers to simulate public room (length > 2)
+        mockBotClient.getJoinedRoomMembers.mockResolvedValue(['user1', 'user2', 'user3']);
+        const handled = await commandHandler.handleCommand(sysEvent, 'system', parts, null);
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('please DM me directly, or explicitly mention me'),
+        );
+      });
+
+      it('should allow pk;system new in public room WITH mention', async () => {
+        const parts = ['pk;system', 'new'];
+        mockBotClient.getJoinedRoomMembers.mockResolvedValue(['user1', 'user2', 'user3']);
+        // Mock prisma create
+        mockPrisma.system.create.mockResolvedValue({});
+        const handled = await commandHandler.handleCommand(sysEvent, 'system', parts, null, '@plural_bot:localhost');
+        expect(handled).toBe(true);
+        expect(sendRichTextSpy).toHaveBeenCalledWith(
+          expect.anything(),
+          '!room:localhost',
+          expect.stringContaining('System created!'),
+        );
+      });
     });
   });
 

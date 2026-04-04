@@ -1,4 +1,4 @@
-import { handleEvent, prisma, setAsToken, initCommandHandler, cryptoManager } from './bot';
+import { handleEvent, prisma, setAsToken, initCommandHandler, cryptoManager, joinedRooms } from './bot';
 import { proxyCache } from './services/cache';
 import { OlmMachine } from '@matrix-org/matrix-sdk-crypto-nodejs';
 import { Bridge, Request, WeakEvent } from 'matrix-appservice-bridge';
@@ -68,6 +68,7 @@ describe('Proxy on Edit', () => {
     jest.clearAllMocks();
     setAsToken('test_token');
     initCommandHandler(mockBridge as unknown as Bridge, prisma, cryptoManager, 'test_token', 'localhost');
+    joinedRooms.add('!room:localhost');
   });
 
   const mockSystem = {

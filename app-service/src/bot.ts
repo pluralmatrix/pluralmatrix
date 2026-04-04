@@ -29,6 +29,9 @@ export const cryptoManager = new OlmMachineManager();
 // Store AS token for crypto requests
 export let asToken: string;
 
+// Track which rooms the main bot is currently in
+export const joinedRooms = new Set<string>();
+
 /**
  * Sets the global Appservice token (Used for testing and initialization)
  */
@@ -73,6 +76,16 @@ export const handleEvent = async (
     const membership = event.content.membership;
     const botUserId = bridgeInstance.getBot().getUserId();
 
+    commandHandler.invalidateRoomMemberCountCache(roomId);
+
+    if (targetUserId === botUserId) {
+      if (membership === 'join') {
+        joinedRooms.add(roomId);
+      } else if (membership === 'leave' || membership === 'ban') {
+        joinedRooms.delete(roomId);
+      }
+    }
+
     // 1. Case: Invite Handling
     if (membership === 'invite') {
       // Main Bot invited
@@ -81,6 +94,7 @@ export const handleEvent = async (
         try {
           await bridgeInstance.getIntent().join(roomId);
           console.log(`[Bot] Successfully joined ${roomId}`);
+          joinedRooms.add(roomId);
         } catch (e: unknown) {
           console.error(`[Bot] Failed to join ${roomId}:`, (e as Error).message);
         }
@@ -152,6 +166,7 @@ export const handleEvent = async (
                   try {
                     await bridgeInstance.getIntent().join(roomId);
                     console.log(`[Bot] Joined ${roomId} via ghost-triggered join.`);
+                    joinedRooms.add(roomId);
                   } catch (e: unknown) {
                     console.warn(`[Bot] Immediate join failed (might already be in room):`, (e as Error).message);
                   }
@@ -261,6 +276,8 @@ export const handleEvent = async (
   if (event.type === 'm.room.encrypted' && !isDecrypted) return;
   if (event.type !== 'm.room.message' && !isDecrypted) return;
 
+  if (!joinedRooms.has(roomId)) return;
+
   const content = event.content as PluralMatrixEventContent;
   if (!content) return;
 
@@ -310,10 +327,10 @@ export const handleEvent = async (
   // --- Command handling ---
   const parsedCommand = parseCommand(body, content?.formatted_body);
   if (parsedCommand) {
-    const { cmd, parts } = parsedCommand;
+    const { cmd, parts, botMention } = parsedCommand;
     const system = await proxyCache.getSystemRules(sender, prismaClient);
 
-    const handled = await commandHandler.handleCommand(event, cmd, parts, system);
+    const handled = await commandHandler.handleCommand(event, cmd, parts, system, botMention);
     if (handled) return;
   }
 
@@ -524,6 +541,20 @@ export const startMatrixBot = async () => {
 
   await bridge.listen(8008, '0.0.0.0', 10, appServiceInstance);
   await joinPendingInvites(bridge);
+  await syncJoinedRooms(bridge);
+};
+
+const syncJoinedRooms = async (bridgeInstance: Bridge) => {
+  try {
+    const botClient = bridgeInstance.getBot().getClient();
+    const rooms = await botClient.getJoinedRooms();
+    for (const roomId of rooms) {
+      joinedRooms.add(roomId);
+    }
+    console.log(`[Bot] Synced joined rooms: ${joinedRooms.size} rooms.`);
+  } catch (e: unknown) {
+    console.error('[Bot] Failed to sync joined rooms:', e);
+  }
 };
 
 const joinPendingInvites = async (bridgeInstance: Bridge) => {
@@ -536,6 +567,7 @@ const joinPendingInvites = async (bridgeInstance: Bridge) => {
       for (const roomId of Object.keys(syncData.rooms.invite)) {
         try {
           await bridgeInstance.getIntent().join(roomId);
+          joinedRooms.add(roomId);
         } catch {
           // Ignore errors
         }

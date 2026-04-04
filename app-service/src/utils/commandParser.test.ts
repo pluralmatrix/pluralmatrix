@@ -22,6 +22,33 @@ describe('commandParser', () => {
     });
   });
 
+  it('should parse optional bot mentions', () => {
+    expect(parseCommand('@plural_bot:localhost pk;list')).toEqual({
+      cmd: 'list',
+      args: [],
+      parts: ['pk;list'],
+      botMention: '@plural_bot:localhost',
+    });
+    expect(parseCommand('@plural_bot:localhost Pk; list')).toEqual({
+      cmd: 'list',
+      args: [],
+      parts: ['pk;list'],
+      botMention: '@plural_bot:localhost',
+    });
+    expect(
+      parseCommand(
+        '@plural_bot:localhost pk;list',
+        '<a href="https://matrix.to/#/@plural_bot:localhost">plural_bot</a> @plural_bot:localhost pk;list',
+      ),
+    ).toEqual({
+      cmd: 'list',
+      args: [],
+      parts: ['pk;list'],
+      cleanFormattedBody: '',
+      botMention: '@plural_bot:localhost',
+    });
+  });
+
   it('should parse commands with a trailing space after the semicolon', () => {
     expect(parseCommand('pk; list')).toEqual({
       cmd: 'list',
@@ -123,6 +150,13 @@ describe('commandParser', () => {
       args: ['hello'],
       parts: ['pk;e', 'hello'],
       cleanFormattedBody: '<i>unexpected</i> pk;e hello',
+    });
+  });
+
+  it('should parse colons after mentions', () => {
+    expect(parseCommand('@plural_bot:localhost: pk;list')).toMatchObject({
+      cmd: 'list',
+      botMention: '@plural_bot:localhost',
     });
   });
 });

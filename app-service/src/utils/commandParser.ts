@@ -1,9 +1,9 @@
-export const COMMAND_PREFIX_PATTERN = /^pk;\s*/i;
+export const COMMAND_PREFIX_PATTERN = /^(?:@([a-zA-Z0-9._=/-]+:[a-zA-Z0-9.-]+):?\s+)?pk;\s*/i;
 
 export function parseCommand(
   body: string,
   formattedBody?: string,
-): { cmd: string; args: string[]; parts: string[]; cleanFormattedBody?: string } | null {
+): { cmd: string; args: string[]; parts: string[]; cleanFormattedBody?: string; botMention?: string } | null {
   let cleanBody = body;
   let cleanFormattedBody = formattedBody;
 
@@ -25,6 +25,8 @@ export function parseCommand(
   const match = cleanBody.match(COMMAND_PREFIX_PATTERN);
   if (!match) return null;
 
+  const botMention = match[1] ? `@${match[1]}` : undefined;
+
   const commandBody = cleanBody.substring(match[0].length).trim();
   if (!commandBody) return null;
 
@@ -44,22 +46,20 @@ export function parseCommand(
   // 3. Strip command prefix from formatted body if present
   let finalFormattedBody: string | undefined = undefined;
   if (cleanFormattedBody) {
-    // Build a dynamic regex that matches the exact prefix + the command itself to strip it from the HTML
-    const prefixSource = COMMAND_PREFIX_PATTERN.source; // "^pk;\\s*"
-    // We ensure we only strip the prefix and the command name, ignoring any trailing whitespace before the arguments
-    const commandPrefixRegex = new RegExp(`${prefixSource}${cmd}\\s*`, 'i');
+    // We only strip the prefix (which includes the optional mention) and the command name
+    const commandPrefixRegex = new RegExp(
+      `^(?:<a href="[^"]+">[^<]+<\\/a>:?\\s*)?(?:@[\\w.:-]+:?\\s+)?pk;\\s*${cmd}\\s*`,
+      'i',
+    );
 
     const formattedMatch = cleanFormattedBody.match(commandPrefixRegex);
     if (formattedMatch) {
       finalFormattedBody = cleanFormattedBody.slice(formattedMatch[0].length);
     } else {
-      // Fallback: If HTML tags interrupt the command structure (e.g. `<b>pk;</b>list`),
-      // our regex won't match. Rather than attempting a risky partial slice that might
-      // leave fragmented commands behind, we take no action and preserve the body intact.
-      // limitation: The command invocation will be visible in the final formatted message.
+      // Fallback
       finalFormattedBody = cleanFormattedBody;
     }
   }
 
-  return { cmd, args: args.slice(1), parts, cleanFormattedBody: finalFormattedBody };
+  return { cmd, args: args.slice(1), parts, cleanFormattedBody: finalFormattedBody, botMention };
 }

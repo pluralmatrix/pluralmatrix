@@ -1031,4 +1031,73 @@ describe('PluralMatrix E2E Roundtrip', () => {
       verifyRedaction(observer, e2eeRoomId, originalEventId, 'Observer (Original)'),
     ]);
   }, 180000);
+
+  it('should respond to commands in a new DM', async () => {
+    // We want to test creating a DM with the bot directly and sending a command.
+    // The bot should respond, confirming it successfully added the DM to joinedRooms.
+    const dmRoomId = await client.createRoom({
+      is_direct: true,
+      invite: ['@plural_bot:localhost'],
+    });
+    console.log(`[E2E-DM] Created new DM room ${dmRoomId} and invited bot.`);
+
+    await waitForBotToJoin(client, dmRoomId);
+    console.log(`[E2E-DM] Bot joined DM room.`);
+
+    const botResponsePromise = new Promise<TestMatrixEvent>((resolve) => {
+      const listener = (roomIdMatch: string, event: TestMatrixEvent) => {
+        if (roomIdMatch === dmRoomId && event.sender === '@plural_bot:localhost') {
+          client.removeListener('room.message', listener as (...args: unknown[]) => void);
+          resolve(event);
+        }
+      };
+      client.on('room.message', listener as (...args: unknown[]) => void);
+    });
+
+    // Send a command that should trigger a response. Since we might have a system,
+    // sending a command like pk;system should reply with the system info.
+    await client.sendText(dmRoomId, 'pk;system');
+
+    const botResponse = (await Promise.race([
+      botResponsePromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for bot response in DM')), 10000)),
+    ])) as TestMatrixEvent;
+
+    expect(botResponse).toBeDefined();
+    console.log(`[E2E-DM] SUCCESS: Bot responded in new DM.`);
+  }, 30000);
+
+  it('should prompt for DM or mention when sending pk;system new without mention in a public room', async () => {
+    const pubRoomId = await client.createRoom({
+      preset: 'public_chat',
+      invite: ['@plural_bot:localhost', `@${observerName}:localhost`],
+    });
+    console.log(`[E2E-Pub] Created new public room ${pubRoomId}.`);
+
+    await waitForBotToJoin(client, pubRoomId);
+    await observer.joinRoom(pubRoomId);
+    console.log(`[E2E-Pub] Bot and observer joined public room.`);
+
+    const botResponsePromise = new Promise<TestMatrixEvent>((resolve) => {
+      const listener = (roomIdMatch: string, event: TestMatrixEvent) => {
+        if (roomIdMatch === pubRoomId && event.sender === '@plural_bot:localhost') {
+          client.removeListener('room.message', listener as (...args: unknown[]) => void);
+          resolve(event);
+        }
+      };
+      client.on('room.message', listener as (...args: unknown[]) => void);
+    });
+
+    // Send pk;system new without mention using observer (who has no system)
+    await observer.sendText(pubRoomId, 'pk;system new');
+
+    const botResponse = (await Promise.race([
+      botResponsePromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for bot response')), 10000)),
+    ])) as TestMatrixEvent;
+
+    expect(botResponse).toBeDefined();
+    expect(botResponse.content.body).toContain('please DM me directly, or explicitly mention me');
+    console.log(`[E2E-Pub] SUCCESS: Bot prompted correctly in public room.`);
+  }, 30000);
 });
